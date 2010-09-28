@@ -236,7 +236,7 @@ clmm(location, scale, nominal, random, data, weights, start, subset,
 }
 \author{Rune Haubo B Christensen}
 \references{
-  Agresti, A. (2002) \emph{Categorical Data.} Second edition.  Wiley.
+  Agresti, A. (2002) \emph{Categorical Data Analysis.} Second edition.  Wiley.
 
 }
 \examples{
