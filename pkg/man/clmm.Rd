@@ -106,6 +106,7 @@ clmm(location, scale, nominal, random, data, weights, start, subset,
   \code{\link[=profile.clmm]{plot.profile}},
   \code{\link[=confint.profile.clmm]{confint}},
   \code{\link[ordinal]{anova}}, \code{\link{logLik}},
+  \code{\link[=predict.clmm]{predict}}
   and an \code{extractAIC} method.
 
   A Newton scheme is used to obtain the conditional modes of the random
