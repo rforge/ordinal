@@ -619,6 +619,8 @@ clm.control <-
              trace = 0, maxIter = 100,
              gradTol = 1e-6, maxLineIter = 10)
 {
+### FIXME: change Newton to clm.fit?
+  
   if(!all(is.numeric(c(maxIter, gradTol, maxLineIter))))
     stop("maxIter, gradTol, maxLineIter, convTol should all be numeric")
   

@@ -1,4 +1,4 @@
-clmm3 <-
+clmm <-
   function(formula, data, weights, start, subset, 
            na.action, contrasts, Hess = TRUE, model = TRUE,
            link = c("logit", "probit", "cloglog", "loglog", 
@@ -228,29 +228,6 @@ getNLA <- function(rho, par) {
 
 nll.u <- function(rho) { ## negative log-likelihood
 ### Not allowing for scale, and flexible link functions
-  with(rho, {
-    ## browser()
-    tau <- exp(par[nalpha + nbeta + 1:ntau])
-    b <- rep.int(tau, nlev) * u
-    b.exploded <- as.vector(crossprod(Zt, b)) ##rep.int(tau, nlev) * u))
-    ## b.exploded <- as.vector(b %*% Zt) ##rep.int(tau, nlev) * u))
-    eta1Fix <- drop(B1 %*% par[1:(nalpha + nbeta)])
-    eta2Fix <- drop(B2 %*% par[1:(nalpha + nbeta)])
-### FIXME: possibly it should be '- b.exploded' ?
-    eta1 <- as.vector(eta1Fix + b.exploded + o1)
-    eta2 <- as.vector(eta2Fix + b.exploded + o2)
-    fitted <- pfun(eta1) - pfun(eta2)
-    if(any(is.na(fitted)) || any(fitted <= 0))
-      nll <- Inf
-    else
-      nll <- -sum(weights * log(fitted)) -
-        sum(dnorm(x=u, mean=0, sd=1, log=TRUE))
-    nll
-  })
-}
-
-nll.u <- function(rho) { ## negative log-likelihood
-### Not allowing for scale, and flexible link functions
   rho$tau <- with(rho, exp(par[nalpha + nbeta + 1:ntau]))
   rho$varVec <- rep.int(rho$tau, rho$nlev)
   ## rho$b <- rho$varVec * rho$u
@@ -457,4 +434,31 @@ clmm.finalize <-
   ## set class and return fit:
   class(fit) <- "clmm"
   return(fit)
+}
+
+clmm.control <-
+  function(method = c("ucminf", "model.frame"),
+           ..., trace = 0, maxIter = 50, gradTol = 1e-3,
+           maxLineIter = 50,
+           innerCtrl = c("warnOnly", "noWarn", "giveError"))
+{
+  method <- match.arg(method)
+  innerCtrl <- match.arg(innerCtrl)
+  ctrl <- list(trace=ifelse(trace < 0, 1, 0),
+               maxIter=maxIter,
+               gradTol=gradTol,
+               maxLineIter=maxLineIter,
+               innerCtrl=innerCtrl)
+  optCtrl <- list(trace = abs(trace), ...)
+  
+  if(!is.numeric(unlist(ctrl[-5])))
+    stop("maxIter, gradTol, maxLineIter and trace should all be numeric")
+  if(any(ctrl[-c(1, 5)] <= 0))
+    stop("maxIter, gradTol and maxLineIter have to be > 0")
+  if(method == "ucminf" && !"grtol" %in% names(optCtrl))
+    optCtrl$grtol <- 1e-5
+  if(method == "ucminf" && !"grad" %in% names(optCtrl))
+    optCtrl$grad <- "central"
+  
+  list(method = method, ctrl = ctrl, optCtrl = optCtrl)
 }

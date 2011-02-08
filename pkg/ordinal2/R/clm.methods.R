@@ -79,50 +79,42 @@ print.summary.clm <- function(x, digits = x$digits, signif.stars =
 ### FIXME: what about the the signif.stars ???
 ### FIXME: print lmer-like information about data size, logLik, AIC,
 ### BIC, etc.
-    if(!is.null(cl <- x$call)) {
-        cat("Call:\n")
-        dput(cl, control=NULL)
-    }
-    coef <- format(round(x$coefficients, digits=digits))
-    coef[,4] <- format.pval(x$coefficients[, 4])
-    nbeta <- length(x$beta); nalpha <- length(x$alpha)
-    if(nbeta > 0) {
-      cat("\nCoefficients:\n")
-      print(coef[nalpha + 1:nbeta, , drop=FALSE], quote = FALSE, ...)
-    } else {
-      cat("\nNo Coefficients\n")
-    }
-    if(nalpha > 0) { ## always true
-      cat("\nThreshold coefficients:\n")
-      print(coef[seq_len(nalpha), -4, drop=FALSE], quote = FALSE, ...)
-    }
-
-    cat("\nlog-likelihood:", format(x$logLik, nsmall=2), "\n")
-    cat("AIC:", format(-2*x$logLik + 2*x$edf, nsmall=2), "\n")
-    cat("Condition number of Hessian:", format(x$condHess, nsmall=2), "\n")
-    if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
-    if(!is.null(correl <- x$correlation)) {
-        cat("\nCorrelation of Coefficients:\n")
-        ll <- lower.tri(correl)
-        correl[ll] <- format(round(correl[ll], digits))
-        correl[!ll] <- ""
-        print(correl[-1, -ncol(correl)], quote = FALSE, ...)
-    }
-    invisible(x)
+  if(!is.null(cl <- x$call)) {
+    cat("Call:\n")
+    dput(cl, control=NULL)
+  }
+  coef <- format(round(x$coefficients, digits=digits))
+  coef[,4] <- format.pval(x$coefficients[, 4])
+  nbeta <- length(x$beta); nalpha <- length(x$alpha)
+  if(nbeta > 0) {
+    cat("\nCoefficients:\n")
+    print(coef[nalpha + 1:nbeta, , drop=FALSE], quote = FALSE, ...)
+  } else {
+    cat("\nNo Coefficients\n")
+  }
+  if(nalpha > 0) { ## always true
+    cat("\nThreshold coefficients:\n")
+    print(coef[seq_len(nalpha), -4, drop=FALSE], quote = FALSE, ...)
+  }
+  
+  cat("\nlog-likelihood:", format(x$logLik, nsmall=2), "\n")
+  cat("AIC:", format(-2*x$logLik + 2*x$edf, nsmall=2), "\n")
+  cat("Condition number of Hessian:", format(x$condHess, nsmall=2), "\n")
+  if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
+  if(!is.null(correl <- x$correlation)) {
+    cat("\nCorrelation of Coefficients:\n")
+    ll <- lower.tri(correl)
+    correl[ll] <- format(round(correl[ll], digits))
+    correl[!ll] <- ""
+    print(correl[-1, -ncol(correl)], quote = FALSE, ...)
+  }
+  invisible(x)
 }
 
-slice <- function(rho, par, par.ind, from, to, n = 1e2) {
-  rho$par <- par
-  opt <- clm.nll(rho)
-  parSeq <- seq(from, to, len = n)
-  values <- sapply(parSeq, function(val) {
-    rho$par[par.ind] <- val
-    clm.nll(rho)
-  })
-  values <- data.frame(parSeq, values)
-  colnames(values) <- c(names(par[par.ind]), "nll")
-  return(values)
+slice <- function(object, ...) {
+  UseMethod("slice")
 }
+
 
 slice.clm <-
   function(x, which = seq_along(par), lambda = 3, grid = 1e2,
