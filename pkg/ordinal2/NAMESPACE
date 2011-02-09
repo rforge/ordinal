@@ -1,5 +1,21 @@
 useDynLib(ordinal2, .registration = TRUE)
 
+## importFrom(graphics, plot)
+## importFrom(ucminf, ucminf)
+import(Matrix)
+importFrom(numDeriv, hessian)
+importFrom(MASS, ginv)
+importFrom(stats, coef,
+           ## confint,
+           logLik,
+           ## profile,
+           vcov, # update,
+           ## extractAIC, anova,
+           fitted#,
+           ## terms
+           ## update
+           )
+
 # functions
 export(clm)
 export(clmm)
@@ -33,17 +49,4 @@ S3method(print, summary.clmm)
 ## S3method(plot, profile.clmm)
 ## S3method(update, clmm)
 
-## importFrom(graphics, plot)
-## importFrom(ucminf, ucminf)
-importFrom(numDeriv, hessian)
-importFrom(MASS, ginv)
-importFrom(stats, coef,
-           ## confint,
-           logLik,
-           ## profile,
-           vcov, update,
-           ## extractAIC, anova,
-           fitted
-           ## terms
-           )
 

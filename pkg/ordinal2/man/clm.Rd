@@ -68,7 +68,7 @@ clm(formula, data, weights, start, subset, doFit = TRUE, na.action,
   }
   \item{link}{
     link function, i.e. the type of location-scale distribution
-    assumed for the latent distribution. The default \code{logit} link
+    assumed for the latent distribution. The default \code{"logit"} link
     gives the proportional odds model.
   }
   \item{threshold}{

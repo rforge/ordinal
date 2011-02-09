@@ -128,7 +128,13 @@ clmm.model.frame <- function(mc, contrasts) {
              eval(substitute(as.factor(fac)[,drop = TRUE],
                              list(fac = x[[3]])), fullmf))
   ## order random terms with decreasing no. levels:
-  grList <- grList[order(rev(sapply(grList, nlevels)))]
+  grList <- grList[rev(order(sapply(grList, nlevels)))]
+
+  ## test that only random effects on the intercept are specified:
+  grChar <- unlist(lapply(barList, function(x) as.character(x[[2]])))
+  if(any(grChar != "1"))
+    stop(gettextf("random terms has to be on the form '(1|factor)'"),
+         call. = FALSE)
   
   ## test that all variables for the random effects are factors and
   ## have at least 3 levels: 
@@ -173,12 +179,16 @@ rho.clm2clmm <- function(rho, Zt, grList, ctrl)
   rho$nrandom <- sum(rho$nlev) ## no. random effects
   rho$ntau <- length(rho$nlev) ## no. random terms
   rho$tau <- rep(0, rho$ntau) ## with(rho, exp(par[nalpha + nbeta + 1:s]))
-  rho$Lambda <- Diagonal(x = rep.int(rho$tau, rho$nlev))
-  rho$Vt <- crossprod(rho$Lambda, rho$Zt)
+  rho$varVec <- rep.int(rho$tau, rho$nlev)
+  rho$Vt <- crossprod(Diagonal(x = rho$varVec), rho$Zt)
+  ## rho$Lambda <- Diagonal(x = rep.int(rho$tau, rho$nlev))
+  ## rho$Vt <- crossprod(rho$Lambda, rho$Zt)
   rho$L <- Cholesky(tcrossprod(rho$Vt), LDL = TRUE, super = FALSE,
                     Imult = 1)
   rho$Niter <- 0
   rho$u <- rho$uStart <- rep(0, rho$nrandom)
+  rho$.f <- if(package_version(packageDescription("Matrix")$Version) >
+               "0.999375-30") 2 else 1
 }
 
 clmm.start <- function(frames, link, threshold) {
@@ -221,7 +231,7 @@ getNLA <- function(rho, par) {
     if(!missing(par)) rho$par <- par
     if(!update.u(rho)) return(Inf)
     if(any(rho$D < 0)) return(Inf)
-    logDetD <- c(determinant(rho$L, logarithm = TRUE)$modulus) -
+    logDetD <- c(suppressWarnings(determinant(rho$L)$modulus)) -
       rho$nrandom * log(2*pi) / 2
     rho$nll + logDetD 
 }
