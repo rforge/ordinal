@@ -12,11 +12,7 @@ Description: This package implements likelihood based models for
   data based on cumulative probabilities in the framework of
   cumulative 
   link (mixed) models. This includes the important proportional odds
-  model but 
-  also allows for general regression structures for location as well
-  as 
-  scale of the latent distribution, i.e. additive as well as
-  multiplicative structures, structured thresholds (cut-points),
+  model, structured thresholds (cut-points),
   nominal effects, flexible link functions and random
   effects. Further, a range of estimation procedures and a range of
   auxiliary functions are implemented.
