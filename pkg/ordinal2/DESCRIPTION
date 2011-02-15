@@ -12,8 +12,7 @@ Description: This package implements likelihood based models for
   data based on cumulative probabilities in the framework of
   cumulative 
   link (mixed) models. This includes the important proportional odds
-  model, structured thresholds (cut-points),
-  nominal effects, flexible link functions and random
+  model, structured thresholds (cut-points) and random
   effects. Further, a range of estimation procedures and a range of
   auxiliary functions are implemented.
 License: GPL (>= 2)
