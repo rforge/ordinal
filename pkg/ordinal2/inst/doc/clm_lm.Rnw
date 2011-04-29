@@ -1,0 +1,267 @@
+\documentclass[a4paper]{article}
+\usepackage{amsmath}%the AMS math extension of LaTeX.
+\usepackage{amssymb}%the extended AMS math symbols.
+\usepackage{bm}%Use 'bm.sty' to get `bold math' symbols
+\usepackage{natbib}
+\usepackage{Sweave}
+\usepackage{subfigure}
+\usepackage{float}%Use `float.sty'
+\usepackage[left=3.5cm,right=3.5cm]{geometry}
+\usepackage{algorithmic}
+
+%%\VignetteIndexEntry{CLM versus LM}
+%%\VignetteDepends{ordinal2}
+\title{The Connection between Cumulative Link Models and Linear Models} 
+\author{Rune Haubo B Christensen}
+
+%% \numberwithin{equation}{section}
+\setlength{\parskip}{2mm}%.8\baselineskip}
+\setlength{\parindent}{0in}
+
+%%  \DefineVerbatimEnvironment{Sinput}{Verbatim}%{}
+%%  {fontshape=sl, xleftmargin=1em}
+%%  \DefineVerbatimEnvironment{Soutput}{Verbatim}%{}
+%%  {xleftmargin=1em}
+%%  \DefineVerbatimEnvironment{Scode}{Verbatim}%{}
+%%  {fontshape=sl, xleftmargin=1em}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+%% \fvset{listparameters={\setlength{\botsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{-1mm}}{\vspace{-1mm}}
+
+\newcommand{\var}{\textup{var}}
+\newcommand{\I}{\mathcal{I}}
+\newcommand{\bta}{\bm \theta}
+\newcommand{\ta}{\theta}
+\newcommand{\tah}{\hat \theta}
+\newcommand{\di}{~\textup{d}}
+\newcommand{\td}{\textup{d}}
+\newcommand{\Si}{\Sigma}
+\newcommand{\si}{\sigma}
+\newcommand{\bpi}{\bm \pi}
+\newcommand{\bmeta}{\bm \eta}
+\newcommand{\tdots}{\hspace{10mm} \texttt{....}}
+\newcommand{\FL}[1]{\fvset{firstline= #1}}
+\newcommand{\LL}[1]{\fvset{lastline= #1}}
+\newcommand{\s}{\square}
+\newcommand{\bs}{\blacksquare}
+
+% figurer bagerst i artikel
+%% \usepackage[tablesfirst, nolists]{endfloat}
+%% \renewcommand{\efloatseparator}{\vspace{.5cm}}
+
+
+\usepackage{lineno}
+% \linenumbers
+\newcommand*\patchAmsMathEnvironmentForLineno[1]{%
+\expandafter\let\csname old#1\expandafter\endcsname\csname #1\endcsname
+\expandafter\let\csname oldend#1\expandafter\endcsname\csname end#1\endcsname
+\renewenvironment{#1}%
+{\linenomath\csname old#1\endcsname}%
+{\csname oldend#1\endcsname\endlinenomath}}%
+\newcommand*\patchBothAmsMathEnvironmentsForLineno[1]{%
+ \patchAmsMathEnvironmentForLineno{#1}%
+ \patchAmsMathEnvironmentForLineno{#1*}}%
+\AtBeginDocument{%
+\patchBothAmsMathEnvironmentsForLineno{equation}%
+\patchBothAmsMathEnvironmentsForLineno{align}%
+\patchBothAmsMathEnvironmentsForLineno{flalign}%
+\patchBothAmsMathEnvironmentsForLineno{alignat}%
+\patchBothAmsMathEnvironmentsForLineno{gather}%
+\patchBothAmsMathEnvironmentsForLineno{multline}%
+}
+
+\begin{document}
+\bibliographystyle{chicago}
+\maketitle
+
+\begin{abstract}
+
+  Pending\ldots
+
+\end{abstract}
+
+%% \newpage
+%% \tableofcontents
+%% \newpage
+
+\SweaveOpts{echo=TRUE, results=verb, strip.white=TRUE, width=4.5, height=4.5}
+\SweaveOpts{prefix.string=figs}
+\fvset{listparameters={\setlength{\topsep}{0pt}}, gobble=0, fontsize=\small}
+%% \fvset{gobble=0, fontsize=\small}
+\setkeys{Gin}{width=.7\textwidth}
+
+<<Initialize, echo=FALSE, results=hide>>=
+
+## Load common packages, functions and set settings:
+## library(sensR)
+library(ordinal2)
+data(wine)
+## library(xtable)
+## 
+RUN <- FALSE    #redo computations and write .RData files
+## Change options:
+op <- options() ## To be able to reset settings
+options("digits" = 7)
+options(help_type = "html")
+options("width" = 85)
+options("SweaveHooks" = list(fig=function()
+        par(mar=c(4,4,.5,0)+.5)))
+options(continue=" ")
+
+@
+
+\section{Introduction}
+
+A cumulative link model can be motivated by linear model for a latent
+variable. Suppose a latent variable $S_i$ follows the linear model:
+\begin{equation*}
+  S_i = \alpha + \mu_i + \varepsilon_i, \quad \varepsilon \sim N(0, \sigma^2)
+\end{equation*}
+or equivalently: $S_i \sim N(\alpha + \mu_i, \sigma^2)$. The observed
+variable, $Y_i$ is then generated as a coarsened version of $S_i$ in
+$J$ groups where $Y_i = j$ is observed if $\theta_j < S_i \leq
+\theta_{j-1}$ and $\{\theta_j\}$ for $j = 0, \ldots, J$ are
+strictly increasing with $\theta_0 \equiv -\infty$ and $\theta_J \equiv
+\infty$. The cumulative probability of an observation falling in
+category $j$ or below is then:
+\begin{equation}
+  \label{eq:gammas}
+  \gamma_{ij} = P(Y_i \leq j) = P(S_i \leq \theta_j) = 
+  P\left( Z_i \leq \frac{\theta_j - \alpha - \mu_i}{\sigma} \right) = 
+  \Phi\left(\frac{\theta_j - \alpha - \mu_i}{\sigma} \right)
+\end{equation}
+where $Z_i = (S_i - \alpha - \mu_i )/\sigma \sim N(0, 1)$ and
+$\Phi$ is the standard normal CDF. 
+
+Since the absolute location and scale of the latent variable, $\alpha$
+and $\sigma$ respectively, are not identifiable from ordinal
+observations, an identifiable model is
+\begin{equation}
+  \label{eq:clm_basic}
+  \gamma_{ij} = \Phi(\theta_j^* - \mu_i^*)
+\end{equation}
+with identifiable parameter functions: $\theta_j^* = (\theta_j -
+\alpha) / \sigma$ and $\mu_i^* = \mu_i / \sigma$. The latter can
+therefore be thought of as signal-to-noise ratios.
+
+Thus, from a CLM we obtain estimates of $\theta^*_j$ and $\mu_i^*$
+while if $S_i$ were available we would from a linear model obtain
+estimates of $\alpha$,  $\mu_i$ and $\sigma$. If $Y_i$ is just a coarsened
+version of $S_i$, we could attempt to model $S_i$ directly and assume
+that the coarsening does not distort or remove too much
+information. Indeed in many cases ordinal data is modeled using linear
+models, so the connection between the two approaches is interesting. 
+
+If a model for $S_i$ is fitted and the following estimates obtained:
+$\hat\alpha^{lm}$, $\hat\mu_i^{lm}$ and $\hat\sigma^{lm}$, then the
+corresponding relative estimates are $\mu_i^{*lm} /
+\sigma^{lm}$. Estimates of $\theta_j$ can be obtained by the
+following: Let $n_j$ denote the frequencies of observations in the
+response categories and $n$ the total number of observations. Then
+$p_j = n_j / n$ are the observed proportions and $g_j$ are the
+cumulative proportions. An overall estimate of $\theta_j$ is then
+given as $\theta_j = \Phi^{-1}(g_j)$ for $j = 1, \ldots, J$. 
+If $\mu_i$ represents, say two temperature levels, then, for
+identifiability, we may take the reference level $\mu_1 = 0$ such that
+the mean of $S_i$ is $\alpha$ for the first level of temperature and 
+$\alpha + \mu_2$ for the second level of temperature.  We should then
+estimate the cut-points as 
+$\theta_j^{*lm} = (\Phi^{-1}(g_j)\sigma^{\textup{lm}_0} + \mu_2^{lm} / 2) / \sigma^{\textup{lm}}$ where 
+$\mu_2^{* lm} = \mu_2^{lm}  / \sigma^{lm}$. This corresponds to
+estimating $\{\theta_j^{*lm}\}$ by pluging in $g_j$ for $\gamma_j$ and
+$\mu^{* lm}$ in \eqref{eq:clm_basic}, i.e., estimating $\theta_j^{*lm}$
+from:
+\begin{equation*}
+  g_j = \Phi(\theta_j^{*lm} - \mu_i^{*lm})
+\end{equation*}
+
+Naturally we can also find $\mu_i$ from a CLM if $\alpha$ and $\sigma$
+are available.
+
+To see how the plug-in estimator works, consider a simple model for
+the wine data presented by \citet{randall89}. We will consider how
+ratings depend on a temperature variable:
+<<dataTable>>=
+S <- as.numeric(wine$rating)
+temp <- wine$temp
+(freq <- table(temp, S))
+@ 
+A CLM gives the following estimates and predictions:
+<<simple_model, echo=TRUE, results=verb>>=
+clm.temp <- clm(rating ~ temp, data=wine, link="probit")
+coef(clm.temp)
+gamma.cold <- c(0, pnorm(clm.temp$alpha), 1)
+p.cold <- diff(gamma.cold)
+freq.cold <- p.cold * 36
+round(freq.cold, 2)
+##   1|2   2|3   3|4   4|5       
+##  4.82 17.20 11.42  2.17  0.40 
+gamma.warm <- c(0, pnorm(clm.temp$alpha - clm.temp$beta), 1)
+p.warm <- diff(gamma.warm)
+freq.warm <- p.warm * 36
+round(freq.warm, 2)
+##   1|2   2|3   3|4   4|5       
+##  0.24  4.73 14.36 10.20  6.47
+@ 
+With a linear model we get the following estimate of $\alpha$, the
+coefficient for temperature and $\sigma$:
+<<lm1>>=
+lm1 <- lm(as.numeric(rating) ~ temp, data = wine)
+coef(lm1)
+(sd.S <- summary(lm1)$sigma) ## 0.9024
+@ 
+The relative coefficient, $\hat\mu^*$ is therefore 
+<<>>=
+coef(lm1)[2] / sd.S
+@ 
+The plug-in estimates of the cut-points are 
+<<>>=
+g.j <- cumsum(colSums(freq) / sum(freq))
+(theta <- (qnorm(g.j[-5]) * sd(S) +  coef(lm1)[2] / 2) / sd.S)
+@ 
+
+This plug-in estimate can be used to provide starting values for a
+Newton-Raphson estimation of a CLM and will generally save an
+iteration compared to simpler alternatives. 
+
+Questions:
+\begin{itemize}
+\item How does the plug-in estimator depend on the numbers attached to
+  the categories? Can they be shifted or scaled?
+\item 
+\end{itemize}
+
+From \eqref{eq:gammas} we see that if $\sigma$ descrease, the
+regression parameter estimates increase: if noise is reduced and the
+signal unchanged, the signal-to-noise ratio is higher. This highlights
+an important difference between a CLM and the LM for the underlying
+variable. 
+
+Using the wine data for illustation: If we add the variable
+\texttt{contact} to the LM, the estimate for \texttt{temp} remain
+unchanged (balanced, orthogonal design), but $\sigma$ decreases, since
+variation is removed from the noise term:
+<<>>=
+lm2 <- lm(as.numeric(rating) ~ contact + temp, data = wine)
+coef(lm2)
+(sd.S2 <- summary(lm2)$sigma)
+@ 
+According to \eqref{eq:gammas} we should therefore expect the
+coefficient for \texttt{temp} to increase to 
+$\mu^*_{(1)} \sigma_{(1)} / \sigma_{(2)} \approx \mu^*_{(2)}$
+in a corresponding CLM:
+<<>>=
+clm.temp$beta * sd.S / sd.S2
+clm2 <- clm(rating ~ contact + temp, data=wine, link="probit")
+coef(clm2)
+@ 
+
+
+\bibliography{ordinal}
+
+\end{document}
+
+<<misc, eval=FALSE>>=
+
+@ 
+

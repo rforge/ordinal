@@ -10,34 +10,48 @@ importFrom(stats, coef,
            logLik,
            ## profile,
            vcov, # update,
-           ## extractAIC, anova,
+           extractAIC,
+           anova,
            fitted#,
            ## terms
            ## update
            )
 
-# functions
+# Functions:
 export(clm)
+export(clm.fit)
 export(clmm)
 export(clm.control)
 export(clmm.control)
+export(slice)
+export(drop.coef)
 
+export(gnorm, glogis, gcauchy,
+       pgumbel, dgumbel, ggumbel,
+       pgumbel2, dgumbel2, ggumbel2,
+       plgamma, dlgamma, glgamma ## ,
+       ## pAO, dAO, gAO,
+       )
+
+## Methods:
 S3method(print, clm)
 S3method(vcov, clm)
 S3method(summary, clm)
 S3method(print, summary.clm)
-## S3method(anova, clm)
+
+S3method(slice, clm)
+S3method(plot, slice.clm)
+
+S3method(anova, clm)
 ## S3method(predict, clm)
-## S3method(profile, clm)
-## S3method(confint, clm)
-## S3method(confint, profile.clm)
-## S3method(plot, profile.clm)
-## S3method(logLik, clm)
-## S3method(extractAIC, clm)
-## S3method(update, clm)
-## S3method(dropterm, clm)
-## S3method(addterm, clm)
-## S3method(update, clm)
+
+S3method(profile, clm)
+S3method(confint, clm)
+S3method(confint, profile.clm)
+S3method(plot, profile.clm)
+
+S3method(logLik, clm)
+S3method(extractAIC, clm)
 
 S3method(print, clmm)
 S3method(vcov, clmm)

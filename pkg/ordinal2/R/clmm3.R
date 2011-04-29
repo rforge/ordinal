@@ -27,10 +27,10 @@ clmm <-
 
   ## Test rank deficiency and possibly drop some parameters:
   ## X is guarantied to have an intercept at this point.
-  frames$X <- dropCoef(frames$X)
+  frames$X <- drop.coef(frames$X)
 
   ## Compute the transpose of the Jacobian for the threshold function,
-  ## tJac and the names of the threshold parameters, alphaNames:
+  ## tJac and the names of the threshold parameters, alpha.names:
   ths <- makeThresholds(frames$y, threshold)
 
   ## set and update rho environment:
@@ -40,7 +40,7 @@ clmm <-
   rho.clm2clmm(rho = rho, Zt = frames$Zt, grList = frames$grList,
                ctrl = control$ctrl)
   
-### NOTE: alphaNames, betaNames, randomNames, tauNames?
+### NOTE: alpha.names, beta.names, random.names, tau.names?
 ### nalpha, nbeta, nrandom, ntau
   nbeta <- rho$nbeta <- ncol(frames$X) - 1 ## no. fixef parameters
   nalpha <- rho$nalpha <- ths$nalpha ## no. threshold parameters
@@ -63,7 +63,7 @@ clmm <-
   res <- clmm.finalize(fit, frames, mc = match.call(),
                        contrasts = contrasts,
                        tJac = ths$tJac,
-                       alphaNames = ths$alphaNames)
+                       alpha.names = ths$alpha.names)
   
   ## add model.frame to results list?
   if(model) res$model <- frames$mf
@@ -174,7 +174,7 @@ rho.clm2clmm <- function(rho, Zt, grList, ctrl)
   rho$ctrl = ctrl
   rho$nlev <- as.vector(sapply(grList, nlevels))
   rho$Zt <- Zt
-  rho$randomNames <- rownames(Zt)
+  rho$random.names <- rownames(Zt)
   dimnames(rho$Zt) <- list(NULL, NULL)
   rho$nrandom <- sum(rho$nlev) ## no. random effects
   rho$ntau <- length(rho$nlev) ## no. random terms
@@ -381,15 +381,15 @@ clmm.finalize <-
   function(fit, frames, mc = match.call(),
            contrasts = contrasts,
            tJac = ths$tJac,
-           alphaNames = ths$alphaNames)
+           alpha.names = ths$alpha.names)
 {
   ## get coefficient names and lengths:
-  betaNames <- colnames(frames$X)[-1]
-  randomNames <- sapply(frames$grList, levels)
-  tauNames <- names(frames$grList)  
-  nalpha <- length(alphaNames)
-  nbeta <- length(betaNames)
-  ntau <- length(tauNames)
+  beta.names <- colnames(frames$X)[-1]
+  random.names <- sapply(frames$grList, levels)
+  tau.names <- names(frames$grList)  
+  nalpha <- length(alpha.names)
+  nbeta <- length(beta.names)
+  ntau <- length(tau.names)
   nlev <- sapply(frames$grList, nlevels)
 
   ## test appropriate length of coefficients:
@@ -398,14 +398,14 @@ clmm.finalize <-
   fit <- within(fit, {
     ## extract coefficients from 'fit':
     alpha <- coefficients[1:nalpha]
-    names(alpha) <- alphaNames
+    names(alpha) <- alpha.names
     beta <- if(nbeta > 0) coefficients[nalpha + 1:nbeta]
     else numeric(0)
-    names(beta) <- betaNames
+    names(beta) <- beta.names
     tau <- coefficients[nalpha + nbeta + 1:ntau]
     stDev <- exp(tau)
-    names(stDev) <- tauNames
-    names(tau) <- paste("log", tauNames, sep = ".")
+    names(stDev) <- tau.names
+    names(tau) <- paste("log", tau.names, sep = ".")
     coefficients <- c(alpha, beta, tau)
     if(exists("Hessian", inherits = FALSE)) {
       dimnames(Hessian) <- list(names(coefficients),
@@ -428,12 +428,12 @@ clmm.finalize <-
 
     ## compute ranef estimates and conditional variance:
     ranef <- rep.int(stDev, nlev) * random
-    names(ranef) <- as.vector(unlist(randomNames))
+    names(ranef) <- as.vector(unlist(random.names))
     ranef <- split(x = ranef, f = rep.int(names(frames$grList),
                                 sapply(frames$grList, nlevels)))
 
     condVar <- as.vector(diag(solve(L)) * rep.int(stDev^2, nlev))
-    names(condVar) <- as.vector(unlist(randomNames))
+    names(condVar) <- as.vector(unlist(random.names))
     condVar <- split(x = condVar, f = rep.int(names(frames$grList),
                                     sapply(frames$grList, nlevels)))
 ### FIXME: test correctness of ranef and condVar.

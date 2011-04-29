@@ -1,0 +1,1804 @@
+\documentclass[a4paper]{article}
+\usepackage{amsmath}%the AMS math extension of LaTeX.
+\usepackage{amssymb}%the extended AMS math symbols.
+%% \usepackage{amsthm}
+\usepackage{bm}%Use 'bm.sty' to get `bold math' symbols
+\usepackage{natbib}
+\usepackage{Sweave}
+\usepackage{url}
+\usepackage{subfigure}
+\usepackage{float}%Use `float.sty'
+\usepackage[left=3.5cm,right=3.5cm]{geometry}
+\usepackage{algorithmic}
+\usepackage[amsmath,thmmarks,standard,thref]{ntheorem}
+
+%%\VignetteIndexEntry{Primer}
+%%\VignetteDepends{ordinal2}
+\title{A Primer on Cumulative Link Models with the \textsf{ordinal2}
+  Package} 
+\author{Rune Haubo B Christensen}
+
+%% \numberwithin{equation}{section}
+\setlength{\parskip}{2mm}%.8\baselineskip}
+\setlength{\parindent}{0in}
+
+%%  \DefineVerbatimEnvironment{Sinput}{Verbatim}%{}
+%%  {fontshape=sl, xleftmargin=1em}
+%%  \DefineVerbatimEnvironment{Soutput}{Verbatim}%{}
+%%  {xleftmargin=1em}
+%%  \DefineVerbatimEnvironment{Scode}{Verbatim}%{}
+%%  {fontshape=sl, xleftmargin=1em}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+%% \fvset{listparameters={\setlength{\botsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{-1mm}}{\vspace{-1mm}}
+
+%RE-DEFINE marginpar
+\setlength{\marginparwidth}{1in}
+\let\oldmarginpar\marginpar
+\renewcommand\marginpar[1]{\oldmarginpar[\-\raggedleft\tiny #1]%
+{\tiny #1}}
+%uncomment to _HIDE_MARGINPAR_:
+%\renewcommand\marginpar[1]{}
+
+\newcommand{\var}{\textup{var}}
+\newcommand{\I}{\mathcal{I}}
+\newcommand{\bta}{\bm \theta}
+\newcommand{\ta}{\theta}
+\newcommand{\tah}{\hat \theta}
+\newcommand{\di}{~\textup{d}}
+\newcommand{\td}{\textup{d}}
+\newcommand{\Si}{\Sigma}
+\newcommand{\si}{\sigma}
+\newcommand{\bpi}{\bm \pi}
+\newcommand{\bmeta}{\bm \eta}
+\newcommand{\tdots}{\hspace{10mm} \texttt{....}}
+\newcommand{\FL}[1]{\fvset{firstline= #1}}
+\newcommand{\LL}[1]{\fvset{lastline= #1}}
+\newcommand{\s}{\square}
+\newcommand{\bs}{\blacksquare}
+
+% figurer bagerst i artikel
+%% \usepackage[tablesfirst, nolists]{endfloat}
+%% \renewcommand{\efloatseparator}{\vspace{.5cm}}
+
+\theoremstyle{plain} %% {break}
+\theoremseparator{:}
+\theoremsymbol{{\tiny $\square$}}
+%%\theoremstyle{plain}
+\theorembodyfont{\small}
+\theoremindent5mm
+\renewtheorem{example}{Example}
+
+%% \newtheoremstyle{example}{\topsep}{\topsep}%
+%% {}%         Body font
+%% {}%         Indent amount (empty = no indent, \parindent = para indent)
+%% {\bfseries}% Thm head font
+%% {}%        Punctuation after thm head
+%% {\newline}%     Space after thm head (\newline = linebreak)
+%% {\thmname{#1}\thmnumber{ #2}\thmnote{ #3}}%         Thm head spec
+%% 
+%% \theoremstyle{example}
+%% %% \newtheorem{example}{Example}[subsection]
+%% \newtheorem{example}{Example}[section]
+
+\usepackage{lineno}
+% \linenumbers
+\newcommand*\patchAmsMathEnvironmentForLineno[1]{%
+\expandafter\let\csname old#1\expandafter\endcsname\csname #1\endcsname
+\expandafter\let\csname oldend#1\expandafter\endcsname\csname end#1\endcsname
+\renewenvironment{#1}%
+{\linenomath\csname old#1\endcsname}%
+{\csname oldend#1\endcsname\endlinenomath}}%
+\newcommand*\patchBothAmsMathEnvironmentsForLineno[1]{%
+ \patchAmsMathEnvironmentForLineno{#1}%
+ \patchAmsMathEnvironmentForLineno{#1*}}%
+\AtBeginDocument{%
+\patchBothAmsMathEnvironmentsForLineno{equation}%
+\patchBothAmsMathEnvironmentsForLineno{align}%
+\patchBothAmsMathEnvironmentsForLineno{flalign}%
+\patchBothAmsMathEnvironmentsForLineno{alignat}%
+\patchBothAmsMathEnvironmentsForLineno{gather}%
+\patchBothAmsMathEnvironmentsForLineno{multline}%
+}
+
+\begin{document}
+\bibliographystyle{chicago}
+\maketitle
+
+\begin{abstract}
+
+  In this primer cumulative link models are introduced using the
+  \textsf{ordinal2} package. This is work in progress.
+
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\SweaveOpts{echo=TRUE, results=verb, strip.white=TRUE, width=4.5, height=4.5}
+\SweaveOpts{prefix.string=figs}
+\fvset{listparameters={\setlength{\topsep}{0pt}}, gobble=0, fontsize=\small}
+%% \fvset{gobble=0, fontsize=\small}
+\setkeys{Gin}{width=.7\textwidth}
+
+<<Initialize, echo=FALSE, results=hide>>=
+
+## Load common packages, functions and set settings:
+## library(sensR)
+library(ordinal2)
+library(xtable)
+## 
+RUN <- FALSE    #redo computations and write .RData files
+## Change options:
+op <- options() ## To be able to reset settings
+options("digits" = 7)
+options(help_type = "html")
+options("width" = 75)
+options("SweaveHooks" = list(fig=function()
+        par(mar=c(4,4,.5,0)+.5)))
+options(continue=" ")
+
+@
+
+\section{Introduction}
+\label{sec:introduction}
+
+Ordered categorical data, or simply \emph{ordinal} data, are
+commonplace in 
+scientific disciplines where humans are used as measurement
+instruments. Examples include school gradings, ratings of preference
+in consumer studies, degree of tumor involvement in MR images and
+animal fitness in field ecology. Cumulative link models 
+are a powerful model class for such data since observations are
+treated rightfully as categorical, the ordered nature is exploited and
+the flexible regression framework allows in-depth analyses. 
+
+The name
+\emph{cumulative link models} is adopted from \citet{agresti02}, but
+the models are also known as \emph{ordinal regression models} although
+that term is sometimes also used for other regression models for
+ordinal responses such as \emph{continuation ratio models} 
+\citep[see e.g.,][]{agresti02}. Other aliases are \emph{ordered logit
+  models} and \emph{ordered probit models} \citep{greene10} for the
+logit and probit link functions. Further, the cumulative link model
+with a logit link is widely known as the \emph{proportional odds
+  model} due to \citet{mccullagh80}, also with a log-log
+link\footnote{or is it the complementary log-log link?}, the
+model is known as \emph{proportional hazards model} for grouped
+survival times. 
+
+Ordinal response variables can be analyzed with omnibus Pearson
+$\chi^2$ tests, base-line logit models or log-linear models. This
+corresponds to assuming that the response variable is nominal and
+information about the ordering of the categories will be
+ignored. Alternatively numbers can be attached to the response
+categories, e.g., $1, 2, \ldots, J$ and the resulting scores can be
+analyzed by conventional linear regression and ANOVA models. This
+approach is in a sense over-confident since the data are assumed to
+contain more information than they actually do. Observations on an
+ordinal scale are classified in ordered categories, but the distance
+between the categories is generally unknown. By using linear models
+the choice of scoring impose assumptions about the distance between
+the response categories. Further, standard errors and tests from
+linear models rest on the assumption that the response, conditional on
+the explanatory variables, is normally distributed (equivalently the
+residuals are assumed to be normally distributed). This cannot be the
+case since the scores are discrete and responses beyond the end
+categories are not possible. If there are many responses in the end
+categories, there will  most likely be variance heterogeneity to which
+$F$ and $t$ tests can be rather sensitive.
+If there are many response categories and the response does not pile
+up in the end categories, we may expect tests from linear models to be
+accurate enough, but any bias and optimism is hard to quantify. 
+
+Cumulative link models provide the regression framework familiar from
+linear models while treating the response rightfully as
+categorical. While cumulative link models are not the only type of
+ordinal regression model, they are by far the most popular class of
+ordinal regression models. 
+
+Common to the application of methods for nominal responses and linear
+models to ordinal responses is that interpretation of effects on the
+ordinal response scale is ackward. For example, linear models will
+eventually give predictions outside the possible range and statements
+such as ``the response increase 1.2 units with each degree increase in
+temperature'' will only be approximately valid in a restricted
+range of the response variable. 
+
+In this document cumulative link models are described for modeling
+ordinal response variables and the \textsf{ordinal2} package is
+introduced. Our focus will be \ldots
+
+\begin{example}[The wine data]\label{exa:wine-data} 
+  %% \pageref{exa:the-wine-data}
+  As an example of the data set with an ordinal response varible
+  consider the wine data from \citet{randall89} available in the
+  object \texttt{wine} in package \textsf{ordinal2},
+  cf. Table~\ref{tab:wineData}. 
+  The data represent a factorial experiment on factors determining the
+  bitterness of wine with 1 = ``least bitter'' and 5 = ``most bitter''. 
+  Two treatment factors (temperature and contact)
+  each have two levels. Temperature and contact between juice and
+  skins can be controlled when cruching grapes during wine
+  production. Nine judges each assessed wine from two bottles from
+  each of the four treatment conditions, hence there are 72
+  observations in all. In table X we have aggregated data over bottles
+  and judges for simplicity, but these variables will be considered
+  later. 
+  Initially we only assume that, say, category 4 is larger than 3, but
+  not that the distance between 2 and 3 is half the distance between 2
+  and 4, for example.
+  \begin{table}
+    \centering
+    \caption{Wine data from \citet{randall89}.}
+    \label{tab:wineData}
+    \begin{tabular}{llrrrrr}
+      \hline
+      & & \multicolumn{5}{c}{Least---Most bitter} \\
+      \cline{3-7}
+<<echo=FALSE, results=tex>>=
+data(wine)
+tab <- with(wine, table(temp:contact, rating))
+mat <- cbind(rep(c("cold", "warm"), each = 2),
+             rep(c("no", "yes"), 2),
+             tab)
+colnames(mat) <- c("Temperature", "Contact", 
+                   paste("~~", 1:5, sep = ""))
+xtab <- xtable(mat)
+print(xtab, only.contents=TRUE, include.rownames=FALSE,
+      sanitize.text.function = function(x) x)
+@       
+    \end{tabular}
+  \end{table}
+  The main objective is to examine the effect of contact and temperature
+  on the perceived bitterness of wine.
+\end{example}
+
+%% bal bla in \thref{exa:wine-data} bla bla \ref{exa:wine-data}. 
+
+\section{Cumulative link models}
+\label{sec:cumul-link-models}
+
+A cumulative link model is a model for an ordinal response variable,
+$Y_i$ that can fall in $j = 1, \ldots, J$ categories.\footnote{where 
+  $J \geq 2$. If $J = 2$ binomial models also apply, and in fact the
+  cumulative link model is in this situation identical to a
+  generalized linear model for a binomial response.} 
+Then $Y_i$ follows a multinomial distribution with parameter $\bm\pi$
+where $\pi_{ij}$ denote the probability that the $i$th observation
+falls in response category $j$. We define the cumulative probabilities
+as\footnote{we have suppressed the conditioning on the covariate
+  vector, $\bm x_i$, so we have that $\gamma_{ij} = \gamma_j(\bm x_i)$
+  and $P(Y_i \leq j) = P(Y \leq j | \bm x_i)$.}
+\begin{equation}
+  \label{eq:1}
+  \gamma_{ij} = P(Y_i \leq j) = \pi_{i1} + \ldots + \pi_{ij}~.
+\end{equation}
+Initially we will consider the logit link. The logit function is
+defined as $\textup{logit}(\pi) = \log [\pi / (1 - \pi) ]$ 
+and cumulative logits are defined as:
+\begin{equation}
+  \label{eq:2}
+  \textup{logit}(\gamma_{ij}) = \textup{logit}(P(Y_i \leq j)) = 
+  \log \frac{P(Y_i \leq j)}{1 - P(Y_i \leq j)} \quad j = 1, \ldots, J-1
+\end{equation}
+so that the cumulative logits are defined for all but the last
+category.\footnote{since for $j = J$ the denominator would be 
+  $1 - P(Y_i \leq J) = 1 - 1 = 0$ and thus the fraction is not
+  defined.}  
+
+\begin{example}
+  \label{exa:binomial-logits}
+  For fixed $j$ the cumulative logit model \eqref{eq:3} is just
+  a logistic regression model where the binomial response is divided
+  into those observations falling in category $j$ or less, and those
+  falling in a higher category than $j$. This is a valid analysis
+  approach, but it does not use all the information in the data and
+  the (arbitrary) choice of $j$ also needs to be made. To improve on
+  this we could make all the ordinary logistic regressions for $j = 1,
+  \ldots, J-1$, but it is not easy to draw inference from a collection
+  of models and it would be nice if a plausible data generating
+  mechanism could be summarized in a single model. This is also likely
+  to increase the power of hypothesis tests for the parameters. The
+  cumulative logit model is exactly the model that combines all these
+  ordinary logistic regressions into one. If the cumulative model is
+  correct, the regression parameter estimates from the individual
+  logistic regression models will be similar and approximately
+  identical to the regression parameter estimates from the cumulative
+  probit model. Thus the cumulative link model saves the estimation of
+  $J -2$ sets of $\bm\beta$---this is where the power gain comes
+  from. Further, we also expect the intercept parameter estimates from
+  the logistic regression models to be approximately the same as
+  estimates of $\{ \theta_j \}$ from the cumulative link model. 
+\end{example}
+
+A cumulative link model with a logit link, or simply \emph{cumulative
+  logit model} is a regression model for cumulative logits:
+\begin{equation}
+  \label{eq:3}
+  \textup{logit}(\gamma_{ij}) = \theta_j - \bm x_i^T \bm\beta 
+\end{equation}
+where $\bm x_i$ is a vector of explanatory variables for the $i$th
+observation and $\bm\beta$ is the corresponding set of regression
+parameters. The $\{ \theta_j \}$ parameters provide each cumulative
+logit (for each $j$) with its own intercept. A key point is that the
+regression part $ \bm x_i^T \bm\beta$ is independent of $j$, so
+$\bm\beta$ has the same effect for each of the $J-1$ cumulative
+logits. Note that $\bm x_i^T \bm\beta$ does not contain an intercept,
+since the $\{ \theta_j \}$ act as intercepts. 
+The cumulative logit model is illustrated in
+Fig.~\ref{fig:cumLogitModel} for data with four response
+categories. For small values of $\bm x_i^T \bm\beta$ the response is
+likely to fall in the first category and for large values
+of $\bm x_i^T \bm\beta$ the response is likely to fall in the last
+category. The horizontal displacements of the curves are given by the
+values of $\{\theta_j\}$. 
+
+\setkeys{Gin}{width=.5\textwidth}
+\begin{figure}
+  \centering
+<<comLogitModel, fig=TRUE, echo=FALSE, results=hide, height=3, width=4>>=
+x <- seq(-4, 4, len = 100)
+set.seed(12345)
+theta <- (-1:1) * 1.5  + runif(3, min = -.25, max = .25)
+plot(range(x), c(0,1), type = "n", xlab = "", ylab = "",
+     axes = FALSE)
+for(i in theta) lines(x, pnorm(-x, mean = i))
+## lines(x, rep(0, length(x)))
+## lines(x, rep(1, length(x)))
+axis(1, labels = FALSE, lwd.ticks = 0)
+axis(2, at = c(0, 1), las = 1)
+mtext(expression(paste(bold(x)[i]^{T}, bold(beta))), side = 1, line = 1)
+mtext(expression(gamma[ij] == P(Y[i] <= j)), side = 2, line = 2, las = 0)
+## text(-3, .05, expression(j == 0))
+text(-1.3, .2, expression(j == 1))
+text(.3, .5, expression(j == 2))
+text(1.2, .8, expression(j == 3))
+## text(3, .95, expression(j == 4))
+@
+\caption{Illustration of a cumulative link model with four response
+    categories.}
+  \label{fig:cumLogitModel}
+\end{figure}
+Some sources write the cumulative logit model, \eqref{eq:3} with a
+plus on the right-hand-side, but there are two good reasons for the
+minus. First, it means that the larger the value of $\bm x_i^T \bm\beta$,
+the higher the probability of the response falling in a category at
+the upper end of the response scale. Thus $\bm\beta$ has the same
+direction of effect as the regression parameter in an ordinary linear
+regression or ANOVA model. 
+The second reason is related to the latent variable interpretation of
+cumulative link models that we will consider in
+section~\ref{sec:latent-vari-motiv}. 
+
+\subsection{Fitting cumulative link models with \texttt{clm} from
+  package \textsf{ordinal2}} 
+\label{sec:fitt-cumul-link}
+
+Cumulative link models can be fitted with \texttt{clm} from package
+\textsf{ordinal2}. The function takes the following arguments:
+\begin{Verbatim} %% [fontsize=\small]
+  
+clm(formula, data, weights, start, subset, doFit = TRUE, na.action,
+  contrasts, model = TRUE, control, link = c("logit", "probit",
+  "cloglog", "loglog", "cauchit"), threshold = c("flexible",
+  "symmetric", "equidistant"), ...) 
+\end{Verbatim}
+Most arguments are standard and well-known from \texttt{lm} and
+\texttt{glm}, so they will not be introduced. The \texttt{formula}
+argument is of the form \verb+response ~ covariates+ and specifies
+the linear predictor. The \texttt{response} should be an \emph{ordered
+  factor} (see \texttt{help(factor)}) with levels corresponding to the
+response categories. A 
+number of link functions are available and the logit link is the
+default. The \texttt{doFit} and \texttt{threshold} arguments will be
+introduced in later sections. For further information about the
+arguments see the help
+page for \texttt{clm}\footnote{Typing \texttt{?clm} or
+  \texttt{help(clm)} in the command
+  prompt should display the help page for \texttt{clm}.}.
+ 
+
+\begin{example}
+  \label{exa:fitting-cumulative-link-models}
+  In this example we fit a cumulative logit model to the wine data
+  presented in example~\ref{exa:wine-data} with \texttt{clm} from
+  package \textsf{ordinal2}. A cumulative logit model that includes
+  additive effects of temperature and contact is fitted and summarized
+  with 
+<<echo=TRUE, results=verb>>=
+fm1 <- clm(rating ~ contact + temp, data = wine)
+summary(fm1)
+@ 
+  The summary provides basic information about the model fit. There are
+  two coefficient tables: one for the regression variables and one for
+  the thresholds or cutpoints. Often the thresholds are not of primary
+  interest, but they are an integral part of the model. It is not
+  relevant to test whether the thresholds are equal to zero, so no
+  $p$-values are provided for this test. The condition number of the
+  Hessian is a measure of how identifiable the model is; large values,
+  say larger than \texttt{1e4} indicate that the model may be ill
+  defined. From this model it appears that contact and high temperature
+  both lead to higher probabilities of observations in the high
+  categories as we would also expect from examining
+  Table~\ref{tab:wineData}.  
+
+  The Wald tests provided by \texttt{summary} indicate that both
+  contact and temperature effects are strong. More accurate likelihood
+  ratio tests can be obtained using the 
+  \texttt{drop1} and \texttt{add1} methods (equivalently
+  \texttt{dropterm} or \texttt{addterm}). The Wald tests are marginal
+  tests so the test of e.g., \texttt{temp} is measuring the effect of
+  temperature while \emph{controling} for the effect of contact. The
+  equivalent likelihood ratio tests are provided by the
+  \texttt{drop}-methods:  
+<<>>=
+drop1(fm1, test = "Chi")
+@ 
+  In this case the likelihood ratio tests are slightly more
+  significant than the Wald tests. 
+  We could also have tested the effect of the variables while
+  \emph{ignoring} the effect of the other variable. For this test we
+  use the \texttt{add}-methods:
+<<>>=
+fm0 <- clm(rating ~ 1, data = wine)
+add1(fm0, scope = ~ contact + temp, test = "Chi")
+@ 
+  where we used the \texttt{scope} argument to indicate which terms to
+  include in the model formula. 
+  These tests are a little less significant than the tests controlling
+  for the effect of the other variable. 
+  
+  Conventional symmetric so-called Wald confidence intervals for the
+  parameters are available as
+<<>>=
+confint(fm1, type = "Wald")
+@ 
+  More accurate profile likelihood confidence intervals are also
+  available and these are discussed in
+  section~\ref{sec:conf-interv-prof}. 
+\end{example}
+
+
+\subsection{Odds ratios and proportional odds}
+\label{sec:odds-rati-prop}
+
+The odds ratio of the event $Y \leq j$ at $\bm x_1$ relative to the
+same event at $\bm x_2$ is
+\begin{equation*}
+  %% \label{eq:4}
+  \textup{OR} = \frac{\gamma_j(\bm x_1) / [1 - \gamma_j(\bm x_1)]}
+  {\gamma_j(\bm x_2) / [1 - \gamma_j(\bm x_2)]} = 
+  \frac{\exp(\theta_j - \bm x_1 \bm\beta)}
+  {\exp(\theta_j - \bm x_2 \bm\beta)}
+  %% =&~ \exp(\theta_j - \theta_j - \bm x_1 \bm\beta + \bm x_2 \bm\beta) 
+  = \exp[(\bm x_2 - \bm x_1)\bm\beta]
+\end{equation*}
+which is independent of $j$. Thus the cumulative odds ratio is
+proportional to the distance between $\bm x_1$ and $\bm x_2$ which
+made \citet{mccullagh80} call the cumulative logit model a
+\emph{proportional odds model}. If $x$ represent a treatment variable
+with two levels (e.g., placebo and treatment), then $x_2 - x_1 = 1$
+and the odds ratio is $\exp(-\beta_\textup{treatment})$. Similarly the
+odds ratio of the event $Y \geq j$ is
+$\exp(\beta_\textup{treatment})$. 
+
+Confidence intervals for the odds ratios are obtained by
+transforming the limits of confidence intervals for $\bm\beta$,
+which will lead to asymmetric confindence intervals for the odds
+ratios. Symmetric confidence intervals constructed from the standard
+error of the odds ratios will not be appropriate and should be
+avoided. 
+
+\begin{example}
+  The (cumulative) odds ratio of $\mathtt{rating} \geq j$
+  (for all $j = 1, \ldots, J-1$) for contact and temperature are
+<<oddsRatios, echo=TRUE, results=verb>>=
+round(exp(fm1$beta), 1)
+@ 
+  attesting to the strong effects of contact and
+  temperature. Asymmetric confidence intervals for the
+  odds ratios based on the Wald statistic are:
+<<oddsRatioCI>>=
+round(exp(confint(fm1, type = "Wald")), 1)
+@   
+~
+\end{example}
+
+\subsection{Link functions}
+\label{sec:link-functions}
+
+
+Cumulative link models are not formally a member of the class of
+(univariate) generalized linear models\footnote{the distribution of
+  the response, the multinomial, is not a member of the (univariate)
+  exponential family of distributions.} \citep{mccullagh89}, 
+but they share many
+similarities with generalized linear models. Notably a link function
+and a linear predictor ($\eta_{ij} = \theta_j - \bm x_i^T\bm\beta$)
+needs to be specified as in generalized linear models while the
+response distribution is just the multinomial. \citet{fahrmeir01} argues
+that cumulative link models are members of a class of multivariate
+generalized linear models. In addition to the logit link other choices
+are the probit, cauchit, log-log and  clog-log links. These are
+summarized in Table~\ref{tab:linkFunctions}. 
+The cumulative link model may be written as
+\begin{equation}
+  \label{eq:5}
+  F^{-1}(\gamma_{ij}) = \theta_j - \bm x_i^T \bm\beta
+\end{equation}
+where $F^{-1}$ is the link function---the motivation for this
+particular notation will be given in
+section~\ref{sec:latent-vari-motiv}. 
+
+\begin{table}
+  \begin{center}
+  \caption{Summary of various link functions}
+  \label{tab:linkFunctions}
+  \footnotesize
+  \begin{tabular}{llllll}
+    \hline
+    Name & logit & probit & log-log & clog-log$^a$ & cauchit \\
+    \hline
+    Distribution & logistic & Normal & Gumbel (min)$^b$ & Gumbel (max)$^b$ &
+    Cauchy ($t_1$)$^c$ \\
+    Shape & symmetric & symmetric & right skew (?) & left (?) skew &
+    kurtotic \\
+    Link function ($F^{-1}$)  & $\log[\gamma / (1 - \gamma)]$ & $\Phi^{-1}(\gamma)$ & & & \\
+    Inverse link ($F$) & $1 / [1 + \exp(\eta)]$ & $\Phi(\eta)$ & &
+    $\exp(\exp(-\eta))$ & $\arctan(\eta)/\pi + 0.5$ \\
+    Density ($f = F'$) & $\exp(-\eta) / [1 + \exp(-\eta)]^2$ & $\phi(\eta)$ &
+    & $\exp(-\exp(-\eta) - \eta)$ & $1 / \pi(1 + \eta^2)$ \\
+    \hline
+  \end{tabular}
+  \end{center}
+  \footnotesize
+  
+  $^a$: the \emph{complementary log-log} link \\
+  $^b$: the Gumbel distribution is also known as the extreme value
+  (type I) distribution for extreme mimina or maxima. It is also
+  sometimes refered to as the Weibull (or log-Weibull) distribution
+  (\url{http://en.wikipedia.org/wiki/Gumbel_distribution}). \\ 
+  $^c$: the Cauchy distribution is a $t$-distribution with one df \\
+\end{table}
+
+The probit link is often used when the model is interpreted with
+reference to a latent variable,
+cf. section~\ref{sec:latent-vari-motiv}. When the response variable
+represent grouped duration or survival times the complementary
+log-log link is often used. This leads to the propotional hazard model
+for grouped responses:
+\begin{equation*}
+  -\log\{1 - \gamma_{j}(\bm x_i) \} = \exp( \theta_j - \bm x_i^T 
+  \bm\beta )
+\end{equation*}
+or equivalently
+\begin{equation}
+  \label{eq:16}
+  \log[-\log\{1 - \gamma_{j}(\bm x_i) \} ] = \theta_j - \bm x_i^T
+  \bm\beta ~.
+\end{equation}
+Here $1 - \gamma_{j}(\bm x_i)$ is the probability or survival beyond
+category $j$ given $\bm x_i$. Thus, similar to the proportional odds
+model, the ratio of hazard functions beyond category $j$ at $\bm x_1$
+relative to $\bm x_2$ (the hazard ratio, $HR$) is:
+\begin{equation*}
+  HR = \frac{-\log\{1 - \gamma_{j}(\bm x_2) \}}
+  {-\log\{1 - \gamma_{j}(\bm x_1) \}} = 
+  \frac{\exp( \theta_j - \bm x_1^T \bm\beta )}
+  {\exp( \theta_j - \bm x_2^T \bm\beta )} =
+  \exp[(\bm x_2 - \bm x_1)\bm\beta]
+\end{equation*}
+
+In addition to the standard links in Table~\ref{tab:linkFunctions},
+flexible link functions are available for \texttt{clm} in package
+\textsf{ordinal} and these are described in section XX.
+
+\begin{example}
+  \label{exa:assessing-link-functions}
+  \begin{table}
+    \centering
+    \caption{Income distribution (percentages) in the Northeast US adopted
+      from \citet{mccullagh80}.}
+    \label{tab:incomeMcCullagh80}
+    \begin{tabular}{rrrrrrrr}
+      \hline
+      Year & \multicolumn{6}{c}{Income} \\
+      \cline{2-8}
+<<echo=FALSE, results=tex>>=
+freq <- c(6.5, 8.2, 11.3, 23.5, 15.6, 12.7, 22.2,
+          4.3, 6, 7.7, 13.2, 10.5, 16.3, 42.1)
+year <- factor(rep(c("1960", "1970"), each = 7))
+income <- c(0, 3, 5, 7, 10, 12, 15)
+income <- paste(income, c(rep("-", 6), "+"), c(income[-1], ""),
+                sep = "")
+income <- data.frame(year=year, freq=freq,
+                     income=factor(rep(income, 2), ordered=TRUE,
+                       levels=income)) 
+tab <- xtabs(freq ~ year + income, income)
+attr(tab, "class") <- NULL
+attr(tab, "call") <- NULL
+print(xtable(as.data.frame(tab)), only.contents = TRUE)
+@       
+    \end{tabular}
+  \end{table}
+  
+  \citet{mccullagh80} present data on income distribution in the
+  Northeast US reproduced in Table~\ref{tab:incomeMcCullagh80}. 
+  The numbers are percentages
+  summing to 100 in each row\footnote{save rounding error}, so these
+  are not the orginal observations. The uncertainty of parameter
+  estimates depends on the sample size, which is unknown here, so
+  we will not consider hypothesis tests. Rather the most important
+  systematic component is an upward shift in the income distribution
+  from 1960 to 1970 which can be estimated from a cumulative link
+  model. This is possible since the parameter estimates themselves
+  only depend on the relative proportions and not the absolute
+  numbers. 
+  
+  \citeauthor{mccullagh80} considers which of the logit or cloglog
+  links best fit the data in a model with an additive effect of
+  \texttt{year}. He concludes that a the complementary log-log
+  link corresponding to a right-skew distribution is a good choice.  
+  We can compare the relative merit of the links by
+  comparing the value of the log-likelihood of models with different
+  link functions:
+<<>>=
+links <- c("logit", "probit", "cloglog", "loglog", "cauchit")
+sapply(links, function(link) {
+  clm(income ~ year, data=income, weights=freq, link=link)$logLik })
+@ 
+The cauchit link attains the highest log-likelihood closely followed
+by the complementary log-log link. 
+This indicates that a symmetric heavy tailed distribution such as
+the cauchy provides an even slightly better description of these
+data than a right skew distribution.
+
+Adopting the complementary log-log link we can summarize the
+connection between the income in the two years by the following: If
+$p_{1960}(x)$ is proportion of the population with an income larger
+than $\$x$ in 1960 and $p_{1970}(x)$ is the equivalent in 1970, then
+approximately
+\begin{align*}
+  \log p_{1960}(x) =&~ \exp(\hat\beta) \log p_{1970}(x) \\
+  =&~ \exp(0.568) \log p_{1970}(x)
+\end{align*}
+\end{example}
+
+\subsection{Maximum likelihood estimation of cumulative link models}
+\label{sec:maxim-likel-estim}
+
+Cumulative link models are usually estimated by maximum likelihood
+(ML) and this is also the criterion used in package
+\textsf{ordinal2}. 
+The log-likelihood function (ignoring additive constants) can be
+written as
+\begin{equation}
+  \label{eq:6}
+  \ell(\bm\theta, \bm\beta; \bm y) = \sum_{i = 1}^n w_i \log \pi_i
+\end{equation}
+where $i$ index all scalar observations (not multinomial vector
+observations), $w_i$ are potential case weights and
+$\pi_i$ is the probability of the $i$th observation falling
+in the response category that it did, i.e., $\pi_i$ are the
+non-zero elements of $\pi_{ij}\textup{I}(Y_i = j)$. Here
+$\textup{I}(\cdot)$ is the indicator function being 1 if its argument
+is true and zero otherwise.
+The ML estimates of the parameters; $\hat{\bm\theta}$ and
+$\hat{\bm\beta}$ are those values of $\bm\theta$ and
+$\bm\beta$ that maximize the log-likelihood function in \eqref{eq:6}.
+
+Not all data sets can be summarized in a table like
+Table~\ref{tab:wineData}. If a continuous variable takes a unique
+value for each 
+observation, each row of the resulting table would contain a single 1
+and zeroes for the rest. In this case all $\{ w_i \}$ are one unless
+the observations are weighted for some other reason. If the data can
+be summarized as in Table~\ref{tab:wineData}, a multinomial
+observation vector such as 
+$[3, 1, 2]$ can be fitted using $\bm y = [1, 1, 1, 2, 3, 3]$ with
+$\bm w = [1, 1, 1, 1, 1, 1]$ or by using $\bm y = [1, 2, 3]$ 
+with $\bm w = [3, 1, 2]$. The
+latter construction is considerably more computationally efficient (an
+therefore faster) since the log-likelihood function contains three
+rather than six terms and the design matrix, $\bm X$ will have three
+rather than six rows. 
+
+The details of the actual algorithm by which the likelihood function
+is optimized is deferred to a later section.
+
+\marginpar{Have I got the signs right in the following?}
+
+According to standard likelihood theory, the variance-covariance
+matrix of the parameters can be obtained as the inverse of the
+observed Fisher information matrix. This matrix is given by the 
+negative Hessian of the log-likelihood function evaluated at the
+maximum likelihood estimates. Standard errors can be obtained as the
+square root of the diagonal of the variance-covariance matrix. 
+
+Let $\bm\alpha = [\bm\theta, \bm\beta]$ denote the full set of
+parameters. The Hessian matrix is then given as the second order
+derivative of the log-likelihood function evaluated at the ML
+estimates:
+\begin{equation}
+  \label{eq:7}
+  \bm H = \frac{\partial^2 \ell(\bm\alpha; \bm y)}{\partial
+    \bm\alpha \partial \bm \alpha^T} \bigg|_{\bm\alpha =
+    \hat{\bm\alpha}} ~.
+\end{equation}
+The observed Fisher information matrix is then $I(\hat{\bm\alpha}) =
+- \bm H$ and the standard errors are given by
+\begin{equation}
+  \label{eq:8}
+  \textup{se}(\hat{\bm\alpha}) =
+  \sqrt{\textup{diag}[I(\hat{\bm\alpha})^{-1}]} .
+\end{equation}
+
+Another general way to obtain the variance-covariance matrix of the
+parameters is to use the expected Fisher information matrix. The
+choice of whether to use the observed or the expected Fisher
+information matrix is often dictated by the fitting algorithm:
+re-weighted least squares methods often produce the expected Fisher
+information matrix as a by-product of the algorithm, and
+Newton-Raphson algorithms (such as the one used for \texttt{clm} in
+\textsf{ordinal2}) similarly produce the observed Fisher information
+matrix. 
+
+\marginpar{Mention which is better and refer to Efron and Hinkley}
+
+
+\citet{pratt81} and \citet{burridge81} showed (seemingly independent
+of each other) that the log-likelihood function of cumulative link
+models with the link functions considered in
+Table~\ref{tab:linkFunctions}, except for the cauchit link, is
+concave. This means that there is a unique global optimum so there is
+no risk of convergence to a local optimum. It also means that the step
+of a Newton-Raphson algorithm is quarantied to be in the direction of
+a higher likelihood although the step may be too larger to cause an
+increase in the likelihood. Succesively halfing the step whenever this
+happens effectively ensures convergence. 
+
+Notably the log likelihood of cumulative cauchit models is not
+guarantied to be concave, so convergence problems may occur with the
+Newton-Raphson algorithm. Using the estimates from a cumulative probit
+models as starting values seems to be a widely successful approach.
+
+Observe also that the concavity property does not extend to cumulative
+link models with scale effects, but that structured thresholds
+(cf. section~\ref{sec:struct-thresh}) are included. 
+
+\subsection{Deviance and model comparison}
+\label{sec:devi-goodn-fit}
+
+\subsubsection{Model comparison with likelihood ratio tests}
+\label{sec:model-comp-with}
+
+A general way to compare models is by means of the likelihood ratio
+statistic. Consider two models, $m_0$ and $m_1$, where $m_0$ is a
+submodel of model $m_1$, that is, $m_0$ is simpler than $m_1$ and
+$m_0$ is \emph{nested} in $m_1$. The likelihood ratio statistic for
+the comparison of $m_0$ and $m_1$ is
+\begin{equation}
+  \label{eq:13}
+  LR = -2(\ell_0 - \ell_1)
+\end{equation}
+where $\ell_0$ is the log-likelihood of $m_0$ and $\ell_1$ is the
+log-likelihood of $m_1$. The likelihood ratio statistic measures the
+evidence in the data for the extra complexity in $m_1$ relative to
+$m_0$. The likelihood ratio statistic asymptotically follows a
+$\chi^2$ distribution with degrees of freedom equal to the difference
+in the number of parameter of $m_0$ and $m_1$. The likelihood ratio
+test is generally more accurate than Wald tests.
+Cumulative link models can be compared by means of likelihood
+ratio tests with the \texttt{anova} method.
+
+\begin{example}
+  Consider the additive model for the wine data in
+  example~\ref{exa:fitting-cumulative-link-models} with a main effect
+  of temperature and contact. We can use the likelihood ratio test to
+  assess whether the interaction between these factors are supported
+  by the data:
+<<>>=
+fm2 <- clm(rating ~ contact * temp, data = wine)
+anova(fm1, fm2)
+@   
+The likelihood ratio statistic is small in this case and compared to a
+$\chi^2$ distribution with 1 df, the $p$-value turns out
+insignifcant. We conclude that the interaction is not supported by the
+data. 
+\end{example}
+
+\subsubsection{Deviance and ANODE tables}
+\label{sec:devi-anode-tabl}
+
+In linear models ANOVA tables and $F$-tests are based on the
+decomposition of sums of squares. 
+The concept of sums of squares does not make much sense
+for categorical observations, but a more general measure called the
+\emph{deviance} is defined for generalized linear models and
+contingency tables\footnote{i.e., for likelihood based models for
+  contingency tables}. 
+The deviance can be used in much the same way
+to compare nested models and to make a so-called analysis of deviance
+(ANODE) table. 
+The deviance is closely related to sums of squares for linear models
+\citep{mccullagh89}. 
+
+The deviance is defined as minus twice the difference between the
+log-likelihoods of a \emph{full} (or \emph{saturated}) model and a
+reduced model:
+\begin{equation}
+  \label{eq:9}
+  D = -2(\ell_{\textup{reduced}} - \ell_{\textup{full}} )
+\end{equation}
+The full model has a parameter for each observation and describes the
+data perfectly while the reduced model provides a more concise
+description of the data with fewer parameters. 
+
+A special reduced model is the \emph{null model} which describes no other
+structure in the data than what is implied by the design. The
+corresponding deviance is known as the \emph{null deviance} and analogous
+to the total sums of squares for linear models. The null deviance is
+therefore also denoted the \emph{total deviance}. The 
+\emph{residual deviance} is a concept similar to a residual sums of
+squares and simply defined as
+\begin{equation}
+  \label{eq:12}
+  D_{\textup{resid}} = D_{\textup{total}} - D_{\textup{reduced}}
+\end{equation}
+
+A \emph{difference in deviance} between two nested models is identical
+to the likelihood ratio statistic for the comparison of these models. 
+Thus the deviance difference, just like the likelihood ratio
+statistic, asymptotically follows a $\chi^2$-distribution with degrees
+of freedom equal to the difference in the number of parameters in the
+two models. In fact the deviance in \eqref{eq:9} is just the
+likelihood ratio statistic for the comparison of the full and reduced
+models. 
+
+The likelihood of reduced models are available from fits of cumulative
+link models, but since it is not always easy to express the full model
+as a cumulative link model, the log-likelihood of the full model has
+to be obtained in another way. 
+For a two-way table like Table~\ref{tab:wineData} indexed by $h$
+(rows) and $j$ 
+(columns), the log-likelihood of the full model (comparable to the
+likelihood in \eqref{eq:6}) is given by
+\begin{equation}
+  \ell_\textup{full} = \sum_h \sum_j w_{hj} \log \hat\pi_{hj}
+\end{equation}
+where $\hat\pi_{hj} = w_{hj} / w_{h.}$, $w_{hj}$ is the count in
+the $(h,j)$th cell and $w_{h.}$ is the sum in row $h$.
+
+\begin{example}
+  We can get the likelihood of the full model for the wine data in
+  Table~\ref{tab:wineData} with
+<<>>=
+tab <- with(wine, table(temp:contact, rating))
+## Get full log-likelihood:
+pi.hat <- tab / rowSums(tab)
+(ll.full <- sum(tab * ifelse(pi.hat > 0, log(pi.hat), 0))) ## -84.01558
+@ 
+  The total deviance \eqref{eq:9} for the wine data is given by 
+<<>>=
+## fit null-model:
+fm0 <- clm(rating ~ 1, data = wine)
+ll.null <- fm0$logLik
+## The null or total deviance:
+(Deviance <- -2 * (ll.null - ll.full)) ## 39.407
+@   
+~
+\end{example}
+
+\begin{example}
+<<exaDevianceTable, echo=FALSE, results=hide>>=
+nr <- nrow(tab)
+nc <- ncol(tab)
+df.full <- (nr - 1) * (nc - 1) ## 12
+pchisq(Deviance, df=df.full, lower.tail = FALSE)
+## something is going on in the data...
+
+## fit treatment model:
+fm1 <- clm(rating ~ temp * contact, data = wine)
+## residual deviance:
+dev.resid <- -2 * (fm1$logLik - ll.full) ## 4.8012
+pchisq(dev.resid, df=9, lower = FALSE)
+## Test for treatments:
+anova(fm0, fm1) ## 34.606
+## Test of interaction:
+fm2 <- clm(rating ~ temp + contact, data = wine)
+anova(fm1, fm2)
+## tests of main effects:
+drop1(fm2, test = "Chi")
+@   
+  %% Considering the data in Table~\ref{tab:wineData} presented in
+  %% example~\ref{exa:wine-data} the log-likelihood of the full model is
+  %% ... . 
+  %% As a null model we consider the cumulative logit model that
+  %% only contains the intercepts $\{ \theta_j \}$ and not effects due to
+  %% treatment differences, and we define the full model as a model that
+  %% fits perfectly to Table~\ref{tab:wineData}. The (total) deviance according to
+  %% \eqref{eq:9} is $D_{\textup{null}} = $. The deviance of a cumulative
+  %% link model that contains the main effects of temperature and contact
+  %% and their interaction is $...$ on 3 degrees of freedom (since the
+  %% model use 3 additional parameters compared to the null model). 
+  %% We call this the \emph{model deviance}. The corresponding
+  %% \emph{residual deviance}, 
+  %% $D_{\textup{resid}} = D_{\textup{total}} - D_{\textup{model}}$
+  %% is $...$ on 9 degrees of freedom. 
+  An ANODE table for the wine data in Table~\ref{tab:wineData} is
+  presented in Table~\ref{tab:ANODE-simple-Wine-data} where the total
+  deviance is brocken up into model deviance (due to treatments) and
+  residual deviance. Further, the treatment deviance is described by
+  contributions from main effects and interaction.
+  %% This is summarized in
+  %% Table~\ref{tab:ANODE-simple-Wine-data} in 
+  %% addition to the break up of the deviance due to treatment
+  %% differences into interaction and main effects. 
+  Observe that the
+  deviances for the main effects and interaction do not add up to the
+  deviance for Treatment as the corresponding sums of squares would
+  have in a analogous linear model (ANOVA)\footnote{This holds for
+    orthogonal designs including balanced and complete tables like
+    Table~\ref{tab:wineData}.}. The deviances for these terms can instead be
+  interpreted as likelihood ratio tests of nested models: the deviance
+  for the interaction term is the likelihood ratio statistics of the
+  interaction controlling for the main effects, and the deviances for
+  the main effects are the likelihood ratio statistics for these terms
+  while controlling for the other main effect and ignoring the
+  interaction term.
+  \begin{table}
+    \centering
+    \caption{ANODE table for the data in Table~\ref{tab:wineData}.}
+    \label{tab:ANODE-simple-Wine-data}
+    \begin{tabular}{lllr}
+      \hline
+      Source & df & deviance & $p$-value \\
+      \hline
+      Total & 12 & 39.407 & $<0.001$ \\
+      Treatment & 3 & 34.606 & $<0.001$\\
+      ~~~Temperature, $T$ & ~~~1 & ~~~26.928 & $<0.001$\\
+      ~~~Contact, $C$ & ~~~1 & ~~~11.043 & $<0.001$\\
+      ~~~Interaction, $T\times C$ & ~~~1 & ~~~0.1514 & 0.6972\\
+      Residual & 9 & 4.8012 & 0.8513\\
+      \hline     
+    \end{tabular}
+  \end{table}
+  As is clear from Table~\ref{tab:ANODE-simple-Wine-data}, there are
+  significant treatment 
+  differences and these seem to describe the data well since the
+  residual deviance is insignificant---the latter is a goodness of fit
+  test for the cumulative logit model describing treatment
+  differences. Further, the treatment differences are well captured by
+  the main effects and there is no indication of an important
+  interaction.   
+\end{example}
+
+
+%% When the expected frequencies under the reduced model are all larger
+%% than approximately 5, the test of the deviance provides a
+%% goodness-of-fit test of the reduced model. 
+
+%% When the reduced model is
+%% the \emph{null} model, this deviance test is equivalent to the $G^2$
+%% test. The deviance may then be written as
+%% \begin{equation}
+%%   \label{eq:10}
+%%   G^2 = \ldots
+%% \end{equation}
+%% The degrees of freedom is $(J - 1) (m - 1)$.
+
+The terminology can be a bit confusing in this area. 
+%% The quantity in
+%% \eqref{eq:9} is sometimes, and with good reason, denoted the
+%% \emph{residual deviance}. The deviance of the null model is similarly
+%% denoted the \emph{null deviance}. 
+Sometimes any difference in deviance
+between two nested models, i.e., a likelihood ratio statistic is
+denoted a deviance and sometimes any quantity that is proportional to
+minus twice the log-likelihood of a model is denoted the deviance of
+that model. 
+
+\subsubsection{Goodness of fit tests with the deviance}
+\label{sec:goodness-fit-tests}
+
+The deviance can be used to test the goodness of fit of a particular
+reduced model. 
+The deviance asymptotically follows as $\chi^2$ distribution with
+degrees of freedom equal to the difference in the number of parameters
+between the two models. The asymptotics are generally good if the
+expected frequencies under the reduced model are not too small and as
+a general rule they should all be at least five. This provides a
+goodness of fit test of the reduced model. The expectation of a
+random variable that follows a $\chi^2$-distribution is equal to the
+degrees of freedom of the distribution, so as a rule of thumb, if the
+deviance in \eqref{eq:9} is about the same size as the difference in the
+number of parameters, there is not evidence of lack of fit.
+
+One problem with the deviance for a particular (reduced) model is that
+it depends on which model is considered the full model, i.e., how the
+total deviance is calculated, which often derives from the tabulation
+of the data. Observe that differences in deviance for nested models
+are independent of the likelihood of a full model, so deviance
+differences are insensitive to this choice. 
+\citet{collett02} recommends that the data are aggregated as
+much as possible when evaluating deviances and goodness of fit tests
+are performed.
+
+\begin{example}
+  In the presentation of the wine data in example~\ref{exa:wine-data}
+  and Table~\ref{tab:wineData}, the data were aggregated over judges
+  and bottles.  
+  Had we included \texttt{bottle} in the tabulation of the data we
+  would have arrived at Table~\ref{tab:winedataVers2}.
+  A full model for the data in Table~\ref{tab:wineData} has
+  $(5-1)(4-1) = 12$ 
+  degrees of freedom while a full model for
+  Table~\ref{tab:winedataVers2} has $(5-1)(8-1) = 28$ degrees of
+  freedom and a different deviance. 
+  \begin{table}
+    \centering
+    \caption{Table of the wine data similar to
+      Table~\ref{tab:wineData}, but including bottle in the
+      tabulation.} 
+    \label{tab:winedataVers2}
+    \begin{tabular}{lllrrrrr}
+      \hline
+      & & & \multicolumn{5}{c}{Least---Most bitter} \\
+      \cline{4-8}
+<<echo=FALSE, results=tex>>=
+data(wine)
+tab <- with(wine, {
+  tcb <- temp:contact:bottle
+  tcb <- tcb[drop = TRUE]
+  table(tcb, rating)
+})
+mat <- cbind(rep(c("cold", "warm"), each = 4),
+             rep(rep(c("no", "yes"), each=2), 2),
+             1:8, tab)
+colnames(mat) <-
+  c("Temperature", "Contact", "Bottle",
+    paste("~~", 1:5, sep = ""))
+xtab <- xtable(mat)
+print(xtab, only.contents=TRUE, include.rownames=FALSE,
+      sanitize.text.function = function(x) x)
+@       
+    \end{tabular}
+  \end{table}
+  
+  If it is decided that bottle is not an important variable,
+  \citeauthor{collett02}'s recommendation is that we base the residual
+  deviance on a full model defined from Table~\ref{tab:wineData}
+  rather than Table~\ref{tab:winedataVers2}.
+\end{example}
+
+%% Beware of tests with low power: if the reduced model is quite close
+%% to the full model there are not many degrees of freedom left for
+%% assessing the goodness of fit, so the test will not have good power. 
+%% 
+%% The usefulness of goodness-of-fit tests.
+%% 
+%% Possible section on the connection between deviance, $G^2$ tests and
+%% $\chi^2$ tests. There could also be comments about the similarity of
+%% cumulative link models and the decomposition of the $\chi^2$ statistic
+%% for low-dimensional contingency tables.
+%% 
+%% Later:
+%% A simple way of testing the equal slopes assumption is to compare the
+%% fit with a \emph{full} model for the data table. This corresponds to
+%% comparing the cumulative link model with a model where the parameters
+%% are allowed to have different effects for each category:
+%% \begin{equation}
+%%   \label{eq:11}
+%%   \textup{logit}(\gamma_{ij}) = \theta_j - \beta_{1j}\mathtt{temp} -
+%%   \beta_{2j}\mathtt{contact} - \beta_{3j}\mathtt{temp:contact}
+%% \end{equation}
+%% This model is equivalent to the full model (for table XX) since it
+%% also fits perfect. 
+
+
+%% \subsection{introduction}
+%% 
+%% 
+%% The \textsf{ordinal2} package fits cumulative link models with the
+%% function \texttt{clm}. Cumulative link models are models for ordinal
+%% data and an example of such data are the data reported by
+%% \citet{randall89} on the bitterness of wine presented in Table X. 
+%% These data are included in \textsf{ordinal2} in as the \texttt{wine}
+%% data set. Nine judges scored the bitterness of wine and three
+%% variables describe different conditions of the production process:
+%% \texttt{temp}, \texttt{contact}, \texttt{bottle} each on two
+%% levels. The design is a complete and balanced factorial with
+%% \texttt{judge} as a blocking factor such that all judges assessed one
+%% sample of wine from all eight combinations of the production
+%% variables; $9\times 8 = 72$ observations in all. 
+
+<<wineTableData, eval=FALSE, echo=FALSE, results=verb>>=
+data(wine)
+with(wine, {
+  tcb <- temp:contact:bottle
+  tcb <- tcb[drop=TRUE]
+  table(tcb, rating)
+})
+@ 
+
+%% \begin{example}[Normal Distributions]
+%% 
+%%   bla 
+%% \end{example}
+
+%% The response variable, \texttt{rating} is ordinal, since it is ordered
+%% and categorical, further, the numbers assigned to the categories only
+%% indicate the ordering while their actual values are not important, for
+%% example, category '4' is not twice as much as '2'. 
+%% Ordinal data can be analyzed by normal linear regression or ANOVA
+%% models, but that means assuming that data are continuous and, to some
+%% extend, normally distributed. Another option would be to use methods
+%% for contingency tables like Pearson $\chi^2$ tests or log-linear
+%% models, but that would ignore the information in the ordering of
+%% categories. Cumulative link models provides a regression framework
+%% while treating the observations as categorical while using the
+%% information about the ordering. 
+%% 
+%% Cumulative link models share many similarities with generalized linear
+%% models. Generalized linear models generalize the ordinary linear model
+%% to model other distributions than the normal. This includes Poisson
+%% models for counts and binomial models for binary observations or
+%% proportions. Cumulative link models similarly generalize linear models
+%% to model ordered multinomially distributed observations. As in
+%% generalized linear models, a link function and a linear predictor are
+%% also components of a cumulative link model.
+%% 
+%% Cumulative link models can be fitted with \texttt{clm} which take the
+%% following arguments:
+%% \begin{verbatim}
+%% clm(formula, data, weights, start, subset, doFit = TRUE, na.action,
+%%   contrasts, model = TRUE, control, link = c("logit", "probit",
+%%   "cloglog", "loglog", "cauchit"), threshold = c("flexible",
+%%   "symmetric", "equidistant"), ...) 
+%% \end{verbatim}
+%% The linear predictor is specified in the \texttt{formula} as in linear
+%% and generalized linear models. The distribution is fixed
+%% (multinomial), so there is no choice of \texttt{family} as in
+%% \texttt{glm}, but there are a number of link functions to choose
+%% among. The remaining arguments will be explained later. 
+
+\subsection{Latent variable motivation for cumulative link models}
+\label{sec:latent-vari-motiv}
+
+A cumulative link model can be motivated by assuming an underlying
+continuous latent variable, $S$ with cumulative distribution function,
+$F$. The ordinal response variable, $Y_i$ is then observed in category
+$j$ if $S_i$ is between the thresholds $\theta_{j-1}^* < S_i \leq
+\theta_j^*$ where 
+\begin{equation*}
+  -\infty \equiv \theta_0^* < \theta_1^* < \ldots < \theta_{J-1}^* <
+  \theta_{J}^* \equiv \infty
+\end{equation*}
+divide the real line on which $S$ lives into $J+1$ intervals. The
+situation is illustrated in Fig.~\ref{fig:latentCLM} where a probit link
+and $J = 4$ is adopted.
+%
+\marginpar{Better figure here - see Agresti 2002, p. 278}
+%
+The three thresholds, $\theta_1, \theta_2, \theta_3$ divide
+the area under the curve into four parts each of which represent the
+probability of a response falling in the four response categories. The
+thresholds are fixed on the scale, but the location of the latent
+distribution, and therefore also the four areas under the curve, 
+changes with $\bm x_i$.
+A normal linear model for the latent variable is
+\begin{equation}
+  \label{eq:LMforLatentVariable}
+  S_i = \alpha + \bm x_i^T \bm\beta^* + \varepsilon_i~, \quad 
+  \varepsilon_i \sim N(0, \sigma^2)
+\end{equation}
+where $\{\varepsilon_i\}$ are random disturbances 
+and $\alpha$ is the intercept, i.e., the mean value of $S_i$ when
+$\bm x_i$ correspond to a reference level for factors and to zero for
+continuous covariates.
+Equivalently we could write: 
+$S_i \sim N(\alpha + \bm x_i^T \bm\beta^*, \sigma^2)$. 
+
+\setkeys{Gin}{width=.49\textwidth}
+\begin{figure}
+  \centering
+<<latentCLM, fig=TRUE, echo=FALSE, height=3.5>>=
+## x <- seq(-4, 4, len = 100)
+plot(x, dnorm(x), type = "l", xlab = "", ylab = "", axes = FALSE)
+axis(1, labels = FALSE, lwd.ticks = 0)
+segments(theta, 0, theta, .4, lty = 2)
+segments(theta, 0, theta, dnorm(theta))
+mtext(c(expression(theta[1]), expression(theta[2]),
+        expression(theta[3])), side = 3, line = 0,
+      at = theta)
+mtext(c(expression(pi[i1]), expression(pi[i2]), expression(pi[i3]),
+        expression(pi[i4])), at = c(-1.9, -.5, 1, 2.1), line = -1.8, side = 1)
+mtext(expression(paste(bold(x)[i]^{T}, bold(beta))), side = 1,
+      line = 1)
+@
+\caption{Illustration of a cumulative link model in terms of the
+  latent distribution.}
+  \label{fig:latentCLM}
+\end{figure}
+
+
+%% A cumulative link model can be motivated by linear model for a latent
+%% variable. Suppose a latent variable $S_i$ follows the linear model:
+%% \begin{equation*}
+%%   S_i = \alpha + \bm x_i^T \bm\beta + \varepsilon_i, 
+%%   \quad \varepsilon \sim N(0, \sigma^2) ,
+%% \end{equation*}
+%% The observed
+%% variable, $Y_i$ is then generated as a coarsened version of $S_i$ in
+%% $J$ groups where $Y_i = j$ is observed if $\theta_j < S_i \leq
+%% \theta_{j-1}$ and $\{\theta_j\}$ for $j = 0, \ldots, J$ are
+%% strictly increasing with $\theta_0 \equiv -\infty$ and $\theta_J \equiv
+%% \infty$. 
+
+The cumulative probability of an observation falling in
+category $j$ or below is then:
+\begin{equation}
+  \label{eq:gammas}
+  \gamma_{ij} = P(Y_i \leq j) = P(S_i \leq \theta_j^*) = 
+  P\left( Z_i \leq \frac{\theta_j^* - \alpha - \bm x_i^T \bm\beta^*}{\sigma} \right) = 
+  \Phi\left(\frac{\theta_j^* - \alpha - \bm x_i^T \bm\beta^*}{\sigma} \right)
+\end{equation}
+where $Z_i = (S_i - \alpha - \bm x_i^T \bm\beta^*)/\sigma \sim N(0, 1)$ and
+$\Phi$ is the standard normal CDF. 
+
+Since the absolute location and scale of the latent variable, $\alpha$
+and $\sigma$ respectively, are not identifiable from ordinal
+observations, an identifiable model is
+\begin{equation}
+  \label{eq:clm_basic}
+  \gamma_{ij} = \Phi(\theta_j - \bm x_i^T \bm\beta) ,
+\end{equation}
+with identifiable parameter functions: 
+\begin{equation}
+  \label{eq:15}
+  \theta_j = (\theta_j^* - \alpha) / \sigma \quad \textup{and} 
+  \quad \bm\beta =  \bm\beta^* / \sigma ~.
+\end{equation}
+%% The latter can therefore be thought of as signal-to-noise ratios. 
+Observe how the minus in \eqref{eq:clm_basic} entered naturally such that
+a positive $\beta$ means a shift of the latent distribution in a
+positive direction.
+
+Model~\eqref{eq:clm_basic} is exactly a cumulative link model with
+a probit link. Other distributional assumptions for $S$ correspond
+to other link functions. In general assuming that the cumulative
+distribution funtion of $S$ is $F$ corresponds to assuming the link
+function is $F^{-1}$, cf. Table~\ref{tab:linkFunctions}. 
+
+Some expositions of the latent variable motivation for cumulative link
+models get around the identifibility problem by introducing
+resctrictions on $\alpha$ and $\sigma$, usually $\alpha = 0$ and
+$\sigma = 1$ are chosen, which leads to the same definition of
+the threshold and regression parameters that we use here. However, it
+seems misleading to introduce restrictions on unidentifiable
+parameters. If observations really arize from a continuous latent
+variable, $\alpha$ and $\sigma$ are real unknown parameters and it
+makes little sense to restrict them to take certain values. This
+draws focus from the appropriate \emph{relative}
+signal-to-ratio interpretation of the parameters evident from
+\eqref{eq:15}. 
+
+\setkeys{Gin}{width=.4\textwidth}
+\begin{figure}
+  \centering
+<<echo=FALSE, results=hide, fig=TRUE, width=4, height=4>>=
+x <- seq(-6, 6, len = 1e3)
+plot(x, dlogis(x), type = "l", ylab = "Density", xlab = "",
+     axes=FALSE) 
+axis(1); axis(2)
+lines(x, dnorm(x, sd = pi/sqrt(3)), lty=2)
+@ 
+<<echo=FALSE, results=hide, fig=TRUE, width=4, height=4>>=
+plot(x, plogis(x), type = "l", ylab="Distribution", xlab="",
+     axes=FALSE)
+axis(1); axis(2)
+lines(x, pnorm(x, sd = pi/sqrt(3)), lty = 2)
+@ 
+  \caption{Left: densities. Right: distributions of logistic (solid) and
+normal (dashed) distributions with mean zero and variance $\pi^2 / 3$
+which corresponds to the standard form for the logistic distribution.}
+\label{fig:logisticNormalComparison}
+\end{figure}
+
+The standard form of the logistic distribution has mean zero and
+variance $\pi^2 / 3$. The logistic distribution is symmetric and shows
+a some resemblence with a normal distribution with the same mean
+and variance in the central part of the distribution; the tails of the
+logistic distribution are a little heavier than the tails of the normal
+distribution. In Fig.~\ref{fig:logisticNormalComparison} the normal
+and logistic distributions are 
+compared with variance $\pi^2/3$. Therefore, to a reasonable
+approximation, the parameters of logit and probit models are related
+in the following way:
+\begin{equation}
+  \label{eq:14}
+  \theta_j^{\textup{probit}} \approx \theta_j^{\textup{logit}} / (\pi /
+  \sqrt 3) \quad \textup{and} \quad
+  \bm\beta^{\textup{probit}} \approx \bm\beta^{\textup{logit}} / (\pi /
+  \sqrt 3)~,
+\end{equation}
+where $\pi / \sqrt 3 \approx 1.81$
+
+\begin{example}
+  Considering once again the wine data the coefficients from logit and
+  probit models with additive effects of temperature and contact are
+<<>>=
+fm1 <- clm(rating ~ contact + temp, data = wine, link = "logit")
+fm2 <- clm(rating ~ contact + temp, data = wine, link = "probit")
+structure(rbind(coef(fm1), coef(fm2)),
+          dimnames=list(c("logit", "probit"), names(coef(fm1))))
+@   
+In comparison the approximate probit estimates using~\eqref{eq:14} are 
+<<>>=
+coef(fm1) / (pi / sqrt(3))
+@ 
+These estimates are a great deal closer to the real probit estimates
+than the unscaled logit estimates. The average difference between the
+probit and approximate probit estimates being
+\Sexpr{round(mean(coef(fm1) / (pi/sqrt(3)) - coef(fm2)), 3)}.
+\end{example}
+
+\subsubsection{More on parameter interpretation}
+\label{sec:more-param-interpr}
+
+Observe that the regression parameter in cumulative link models,
+cf. \eqref{eq:15} are signal-to-noise ratios. This means that adding a
+covariate to a cumulative link model that reduces the residual noise
+in the corresponding latent model will increase the signal-to-noise
+ratios. Thus adding a covariate will (often) increase the coefficients
+of the other covariates in the cumulative link model. This is
+different from linear models, where (in orthogonal designs) adding a
+covariate does not alter the value of the other
+coefficients\footnote{but the same thing happens in other generalized
+  linear models, e.g., binomial and Poisson models, where the variance
+  is determined by the mean.}.
+\citet{bauer09}, extending work by \citet{winship84} suggests a way to
+rescale the coefficients such they are comparable in size during model
+development. See also \citet{fielding04}.
+
+\begin{example}
+  Consider the estimate of \texttt{temp} in models for the wine data
+  ignoring and controlling for \texttt{contact}, respectively:
+<<>>=
+coef(clm(rating ~ temp, data = wine, link = "probit"))["tempwarm"]
+coef(clm(rating ~ temp + contact, data = wine, link = "probit"))["tempwarm"]
+@   
+and observe that the estimate of \texttt{temp} is larger when
+controlling for \texttt{contact}. In comparison the equivalent
+estimates in linear models are not affected---here we use the observed
+scores for illustration:
+<<>>=
+coef(lm(as.numeric(rating) ~ temp, data = wine))["tempwarm"] 
+coef(lm(as.numeric(rating) ~ contact + temp, data = wine))["tempwarm"] 
+@ 
+In this case the coefficients are exactly identical, but in designs
+that are not orthogonal and observed studies with correlated
+covariates they will only be approximately the same.
+\end{example}
+
+Regardless of how the threshold parameters discretize the scale of the
+latent variable, the regression paramaters $\bm\beta$ have the same
+interpretation. Thus $\bm\beta$ have the same meaning whether the
+ordinal variable is measured in, say, five or six categories. Further,
+the nature of the model interpretation will not chance if two
+or more categories are amalgamated, while parameter estimates will, of
+course, not be completely identical. This means that regression parameter
+estimates can be compared (to the extent that the noise level is the
+same) across studies where 
+response scales with a different number of response categories are
+adopted. In comparison, for linear models used on scores, it is not
+so simple to just combine two scores, and parameter estimates from
+different linear models are not directly comparable. 
+
+If the latent variable, $S_i$ is approximated by scores assigned to
+the response variable, denote this variable $Y_i^*$, then a linear
+model for $Y_i^*$ can provide approximate estimates of $\bm\beta$ by
+applying \eqref{eq:15} for cumulative probit models\footnote{these
+  approximate regression parameters  could be used as starting values
+  for an iterative algorithm to find the ML estimates of $\bm\beta$,
+  but we have not found it worth the trouble in our Newton algorithm}. 
+The quality of the estimates rest on a number of aspects:
+\begin{itemize}
+%% \item Generally $S_i$ should be well approximated by $Y_i$.
+\item The scores assigned to the ordinal response variable should
+  be structurally equivalent to the thresholds, $\bm\theta^*$ that
+  generate $Y_i$ from $S_i$. In particular, if the (equidistant)
+  numbers $1, \ldots, J$ are the scores assigned to the response
+  categories, the thresholds, $\bm\theta^*$ are also assumed to be
+  equidistant. 
+\item The distribution of $Y_i^*$ should not deviate too much from a
+  bell-shaped curve; especially there should not be too many
+  observations in the end categories
+\item By appeal to the central limit theorem the coarsening of $S_i$
+  into $Y_i^*$ will ``average out'' such that bias due to coarsening
+  is probably small. 
+\end{itemize}
+This approximate estimation scheme extends to other latent variable
+distributions than the normal where linear models are exchanged with
+the appropriate location-scale models,
+cf. Table~\ref{tab:linkFunctions}.  
+
+%% a linear model on scores is used as an approximation t
+%% A linear model on scores can provide an approximation to the 
+%% as an approximation to the latent variable, 
+%% 
+%% If it were possible to observe the latent variable $S_i$, we could
+%% consider the linear model \eqref{eq:LMforLatentVariable}: 
+%% \begin{equation*}
+%%   M_0:~ S_i = \alpha + \beta_1^* x_{1i} + \varepsilon_i, \quad
+%%   \varepsilon_i \sim  N(0, \sigma_0^2) ~.
+%% \end{equation*}
+%% The corresponding regression parameters in a cumulative probit model
+%% would be $\beta_1 = \beta_1^* / \sigma_0$. If we assign scores to the
+%% observed ordinal variable, $Y_i$, e.g., just the numbers $1, 2,
+%% \ldots, J$ then we can consider a linear model for this coasened
+%% version of $S_i$, call it $Y_i^*$. If the distribution of $Y_i^*$ does
+%% not deviate too much from a bell-shaped curve; especially there should not be too
+%% many observations in the end categories, if we assume that the
+%% thresholds that generated $Y_i$ from $S_i$ are approximately
+%% equidistant, then by appeal to the central limit theorem we can assume
+%% that the coarsening of $S_i$ into $Y_i^*$ will not affect parameter
+%% estimates appreciably. That is, we are assuming that the parameter
+%% estimates from a linear model for $Y_i^*$ will be approximately the
+%% same as the estimates from a linear model for $S_i$ had we observed
+%% it. To a first approximation the parameter estimates from a cumulative
+%% probit model are then $\tilde\beta = \hat\beta^* /
+%% \sigma_{\varepsilon}$. 
+
+\begin{example}
+  Consider the following linear model for the rating scores of the
+  wine data, cf. Table~\ref{tab:wineData}:
+  \begin{equation*}
+    Y_i^* = \alpha + \beta_1 \mathtt{temp}_i + \beta_2
+    \mathtt{contact}_i + \varepsilon_i \quad 
+    \varepsilon_i ~ \sim N(0, \sigma_{\varepsilon}^2)
+  \end{equation*}
+  The relative parameter estimates, $\tilde\beta$ are
+<<>>=
+lm1 <- lm(as.numeric(rating) ~ contact + temp, data =wine)
+sd.lm1 <- summary(lm1)$sigma
+coef(lm1)[-1] / sd.lm1
+@
+which should be compared with the estimates from the corresponding
+cumulative probit model:
+<<>>=
+fm1 <- clm(rating ~ contact + temp, data = wine, link = "probit")
+coef(fm1)[-(1:4)]
+@ 
+The relative estimates from the linear model are a lower than
+the cumulative probit estimates, which is a consequence of the
+fact that the assumptions for the linear model are not fulfilled. In
+particular the distance between the thresholds is not equidistant: 
+<<>>=
+diff(coef(fm1)[1:4])
+@ 
+while the distribution is probably sufficiently bell-shaped,
+cf. Fig~\ref{fig:ratingsHist}. 
+
+\begin{figure}
+  \centering
+<<echo=FALSE, results=hide, fig=TRUE, height=3.5>>=
+plot(table(as.numeric(wine$rating)), ylab="", las = 1)
+@   
+  \caption{Histogram of the ratings in the wine data,
+    cf. Table~\ref{tab:wineData}.} 
+  \label{fig:ratingsHist}
+\end{figure}
+~
+\end{example}
+
+
+%% Thus, from a CLM we obtain estimates of $\theta^*_j$ and $\mu_i^*$
+%% while if $S_i$ were available we would from a linear model obtain
+%% estimates of $\alpha$,  $\mu_i$ and $\sigma$. 
+%% 
+%% leads to a cumulative link model:
+%% \begin{equation*}
+%%   \gamma_{ij} = F(\theta_j - \bm x_i^T \bm\beta) ,
+%% \end{equation*}
+%% where the cumulative probabilities are $\gamma_{ij} = P(Y_i \leq j|\bm
+%% x_i) = P(S_i \leq \theta_j |\bm x_i)$. Here $F$ is the inverse link
+%% function and can be any CDF defined on the entire real line. 
+%% Often $F$ is chosen to be the logistic distribution which leads to a
+%% logit link. Other common choices of $F$ are made from location-scale
+%% distributions including the normal or Gaussian (probit link), the
+%% extreme value minimum and maximum distributions (log-log and
+%% complementary log-log links) and the Cauchy (cauchit link)
+%% distributions. 
+%% 
+%% Although we stated above that the distribution of $\varepsilon_i$ has the
+%% standard form with zero location and unit scale, the absolute location
+%% and scale of $S_i$ are not identifiable from the ordinal
+%% observations. Consequently the regression parameters, $\bm\beta$ can
+%% be thought of as signal-to-noise ratios. 
+%% 
+%% The individual probabilities are given by $\pi_{ij} = \gamma_{ij} -
+%% \gamma_{i,j-1}$. 
+%% In our example $S$ could be the perceived bitterness of wine. 
+%% \begin{example}
+%%   Latent variable interpretation of the parameters of the wine model. 
+%% \end{example}
+
+\section{Assessing the likelihood and model convergence}
+
+\marginpar{Write section example based}
+
+Cumulative link models are non-linear models and in general the
+likelihood function non-linear models is not garantied to be uni-modal
+or nice and bell-shaped. In cumulative link models, the threshold
+parameters are even restricted to be ordered and therefore naturally
+bounded. It can therefore be interesting to visualize the likelihood
+function in the neighborhood of the optimum. To do this we use the
+\texttt{slice} function. As the name implies, it extracts a
+(one-dimensional) slice of the likelihood function:
+<<slice1, echo=TRUE, results=hide>>=
+slice.fm1 <- slice(fm1, lambda = 5)
+par(mfrow = c(2, 3))
+plot(slice.fm1)
+@ 
+The result is shown in Fig.~\ref{fig:slice1}. \texttt{lambda} controls
+the range of 
+parameter values for which the slice is computed. The square root of
+the diagonal elements of the Hessian at the optimum are measures of
+curvature in the likelihood functions for each of the parameters, and
+\texttt{lambda} indicates how many of these curvature units away from
+the optimum the slice is to be computed. Working in curvature units is
+a way to standardize the parameter range even if some parameters are
+much better determined (much less curvature in the log-likelihood)
+than others. Here we wanted to assess the shape of the log-likelihood
+function, so we chose a relatively large value for \texttt{lambda}. By
+default the quadratic approximation is included for reference in the
+plot. 
+
+\setkeys{Gin}{width=.32\textwidth}
+\begin{figure}
+  \centering
+<<slice11, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, which = 1)
+@ 
+<<slice12, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, which = 2)
+@ 
+<<slice13, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, which = 3)
+@ 
+<<slice14, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, which = 4)
+@ 
+<<slice15, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, which = 5)
+@ 
+<<slice16, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, which = 6)
+@ 
+\caption{Slices of the (negative) log-likelihood function for
+  parameters in a 
+  model for the bitterness-of-wine data. Dashed lines indicate
+  quadratic approximations to the log-likelihood function and
+  vertical bars the indicate maximum likelihood estimates.}
+\label{fig:slice1}
+\end{figure}
+
+For this model we see that the log-likelihood function is nicely
+quadratic for the regression parameters while it is less so for the
+threshold parameters and particularly bad for the end
+thresholds. There also appears to be only one optimum. 
+
+From Fig.~\ref{fig:slice1} it seems that the parameter estimates as
+indicated by the vertical bars are close to the optimum indicating
+successful model convergence. To investigate more closely we slice the
+likelihood at a much smaller scale:
+<<slice2, echo=TRUE, results=hide>>=
+slice2.fm1 <- slice(fm1, lambda = 1e-5)
+par(mfrow = c(2, 3))
+plot(slice2.fm1)
+@ 
+The resulting figure is shown in Fig.~\ref{fig:slice2}. Observe that
+1) the model has converged and all parameters estimates are correct to
+at least six decimals and 2) the quadratic approximation is
+indistinguishable from the log-likelihood at this scale. 
+
+\setkeys{Gin}{width=.32\textwidth}
+\begin{figure}
+  \centering
+<<slice21, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, which = 1)
+@ 
+<<slice22, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, which = 2)
+@ 
+<<slice23, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, which = 3)
+@ 
+<<slice24, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, which = 4)
+@ 
+<<slice25, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, which = 5)
+@ 
+<<slice26, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, which = 6)
+@ 
+  \caption{Slices of the (negative) log-likelihood function for
+    parameters in a model for the bitterness-of-wine data very close
+    to the MLEs. Dashed lines indicate 
+    quadratic approximations to the log-likelihood function and
+    vertical bars the indicate maximum likelihood estimates.}
+\label{fig:slice2}
+\end{figure}
+
+Unfortunately there is no general way to infer confidence intervals
+from the likelihood slices---for that we have to use the
+computationally more intensive profile likelihoods. 
+Compared to the profile likelihoods discussed in
+section~\ref{sec:conf-interv-prof}, the slice 
+is much less computationally demanding since the likelihood function
+is only evaluated---not optimized, at a range of parameter values. 
+
+
+\section{Confidence intervals and profile likelihood}
+\label{sec:conf-interv-prof}
+
+\marginpar{write section with examples}
+
+Confidence intervals are convenient for summarizing the uncertainty
+about estimated parameters. The classical symmetric
+estimates given by
+$\hat\beta \pm z_{1 - \alpha/2}\hat{\textup{se}}(\hat\beta)$ are based
+on the Wald statistic\footnote{where $z_{1 - \alpha/2}$ is
+  the $(1 - \alpha/2)$-quantile of the standard normal CDF.}, 
+$w(\beta) = (\hat\beta - \beta) / \hat{\textup{se}}(\hat\beta)$ and
+available by:  
+<<CIWald, echo=TRUE, results=verb>>=
+confint(fm1, type = "Wald")
+@ 
+A similar result could be obtained by \texttt{confint.default(fm1)}.
+However, outside linear models asymmetric confidence intervals often
+better reflect the uncertainty in the parameter estimates.
+More accurate, and generally asymmetric, confidence intervals can be
+obtained by using the likelihood root statistic instead; this relies
+on the so-called profile likelihood written here for an arbitrary
+scalar parameter $\beta_a$:
+\begin{equation*}
+  \ell_p(\beta_a; \bm y) = \arg\max_{\bm\theta, \bm\beta_{-a}}
+  \ell(\bm\theta, \bm\beta; \bm y)~,
+\end{equation*}
+where $\bm\beta_{-a}$ is the vector of regression parameters without
+the $a$th one. In words, the profile log-likelihood for $\beta_a$ is
+given as the full log-likelihood optimized over all parameters but
+$\beta_a$. To obtain a smooth function, the likelihood is
+optimized over a range of values of $\beta_a$ around the ML estimate,
+$\hat\beta_a$, further, these points are interpolated by a spline to
+provide an even smoother function. 
+
+The likelihood root statistic [refs] is defined as:
+\marginpar{should the minus be there?}
+\begin{equation*}
+  r(\beta_a) = \textup{sign}(\hat\beta_a - \beta_a) \sqrt{-2 [
+    \ell(\hat{\bm\theta}, \hat{\bm\beta}; \bm y) - \ell_p(\beta_a; \bm y)]} 
+\end{equation*}
+and just like the Wald statistic its reference distribution is the
+standard normal. Confidence intervals based on the likelihood root
+statistic are defined as those values of $\beta_a$ for which
+$r(\beta_a)$ is in between, say, $-1.96$ and $1.96$ for 95\%
+confidence intervals. Formally the confidence intervals are defined as  
+\begin{equation*}
+  CI:~\left\{ \beta_a; |r(\beta_a)| < z_{1 - \alpha/2} \right\} ~.
+\end{equation*}
+To fix ideas the likelihood root statistic\footnote{actually we
+  reversed the sign of the statistic in the display since a line from
+  lower-left to upper-right looks better than a line from upper-left
+  to lower-right.}
+is shown for the
+\texttt{tempwarm} parameter in the model for the wine data given
+above in Fig.~\ref{fig:lrootStatistic}. 
+The figure is made with the following code:
+<<rootStatistic, echo=TRUE, results=verb, fig=TRUE, include=FALSE>>=
+pr1 <- profile(fm1, which.beta="tempwarm")
+plot(pr1, root=TRUE)
+@ 
+The horizotal lines indicate 95\% and 99\% confidence intervals and
+the dashed line is the Wald statistic. Incidently, and as is clear
+from the figure, the Wald statistic is also the tangient line to the
+likelihood root statistic in the ML estimate. As indicated by the
+figure, the profile likelihood confidence limits for
+\texttt{tempwarm} are larger than the Wald counterparts and the
+discrepancy increases with the confidence level.
+
+\setkeys{Gin}{width=.5\textwidth}
+\begin{figure}
+  \centering
+<<plotRootStatistic, echo=FALSE, results=hide, fig=TRUE, include=TRUE>>=
+<<rootStatistic>>
+@ 
+  \caption{Likelihood root statistic (solid) and Wald statistic (dashed)
+    for the \texttt{tempwarm} parameter in the model for the wine data.}
+\label{fig:lrootStatistic}
+\end{figure}
+
+The profile likelihood confidence intervals are provided by default
+application of \texttt{confint}:
+<<profileCI, echo=TRUE, results=verb>>=
+confint(fm1)
+@ 
+
+The visualization of the likelihood root statistic can be helpful in
+diagnozing non-linearity in the parameterization of the model. The
+linear scale is particularly suited for this rather than other scales,
+such as the quadratic scale at which the log-likelihood lives. In
+summarizing the results of a models fit, I find the relative
+likelihood scale, $\exp(-r(\beta_a)^2 / 2)$ informative. These
+relative profile likelihoods are obtained with 
+<<profileLikelihood, echo=TRUE>>=
+pr1 <- profile(fm1, alpha=1e-4)
+plot(pr1)
+@ 
+and provided in Fig.~\ref{fig:ProfileLikelihood}. The evidence about
+the parameters is directly visible; the ML estimate has maximum
+support, 1 and values away from here are less supported by the
+data, 95\% and 99\% confidence intervals are readily read of the plots
+as intersections with the horizontal lines. Most importantly the plots
+emphasize that a range of parameter values are actually quite well
+supported by the data---something which is easy to forget when
+focus is on the precise numbers of the ML estimates. 
+
+\setkeys{Gin}{width=.32\textwidth}
+\begin{figure}
+  \centering
+<<prof1, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(pr1, parm=1)
+@   
+<<prof2, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(pr1, parm=2)
+@   
+  \caption{Relative profile likelihoods for the regression parameters
+    in the Wine study.} 
+  \label{fig:ProfileLikelihood}
+\end{figure}
+
+\subsection{Model selection}
+\label{sec:model-selection}
+
+Several tools are available for variable assessment and model
+selection. 
+
+<<add, echo=TRUE, results=verb, eval=FALSE>>=
+drop1(fm1, test="Chi")
+add1(update(fm1, ~ 1), ~ + contact + temp, test="Chi")
+
+lm1 <- lm(response ~ contact + temp, data = wine)
+drop1(lm1, test = "F")
+add1(lm(response ~ 1, data = wine), ~.+contact + temp, test = "F")
+@ 
+
+\subsection{Structured thresholds}
+\label{sec:struct-thresh}
+
+
+\subsection{Predictions}
+\label{sec:predictions}
+
+\section{Miscalleneaus}
+\label{sec:miscalleneaus}
+
+\citet{thompson81} showed that cumulative logit models can be fitted
+by application of composite link functions.
+
+
+
+\bibliography{ordinal}
+%% \newpage
+
+\end{document}
+
+<<misc, eval=FALSE>>=
+
+@ 
+

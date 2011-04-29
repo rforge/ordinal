@@ -110,102 +110,60 @@ print.summary.clm <- function(x, digits = x$digits, signif.stars =
   }
   invisible(x)
 }
+  
+logLik.clm <- function(object, ...)
+  structure(object$logLik, df = object$edf, class = "logLik")
 
-slice <- function(object, ...) {
-  UseMethod("slice")
+extractAIC.clm <- function(fit, scale = 0, k = 2, ...) {
+  edf <- fit$edf
+  c(edf, -2*fit$logLik + k * edf)
 }
 
+### NOTE: AIC.clm implicitly defined via logLik.clm
 
-slice.clm <-
-  function(x, which = seq_along(par), lambda = 3, grid = 1e2,
-           quad = TRUE)
+anova.clm <- function (object, ..., test = c("Chisq", "none"))
+### make more appropriate printing of model formulae, potential
+### threshold structures and link functions.
 {
-  ## argument matching and testing:
-  stopifnot(is.numeric(lambda) && lambda > 0)
-  stopifnot(is.numeric(grid) && grid >= 1)
-  grid <- as.integer(grid)
-  par <- coef(x)
-  stopifnot(is.numeric(which))
-  stopifnot(length(which) == length(unique(which)))
-  stopifnot(all(which >= 1) && all(which <= length(par)))
-  which <- as.integer(which)
-  parNames <- names(par)
-  npar <- length(par)
-  ml <- x$logLik
-  
-  ## get environment corresponding to x:
-  rho <- update(x, doFit = FALSE)
-  names(par) <- NULL
-  rho$par <- par ## set rho$par to mle
-  stopifnot(isTRUE(all.equal(clm.nll(rho), -x$logLik)))
-
-  curv <- 1/diag(x$Hess) ## curvature in nll wrt. par
-  par.range <- par + sqrt(curv) %o% c(-lambda, lambda)
-  ## par.seq - list of length npar:
-  par.seq <- sapply(which, function(ind) {
-    seq(par.range[ind, 1], par.range[ind, 2], length = grid) }, 
-                    simplify = FALSE)
-  ## compute relative nll for all par.seq for each par:
-  nll <- lapply(which, function(par.ind) { # for each par
-    rho$par <- par ## reset par values to MLE
-    sapply(par.seq[[par.ind]], function(par.val) { # for each val
-      rho$par[par.ind] <- par.val
-      clm.nll(rho) + ml ## relative nll
-    })
-  })
-  
-  ## collect results in a list of data.frames:
-  res <- lapply(which, function(i) {
-    structure(data.frame(par.seq[[i]], nll[[i]]),
-              names = c(parNames[i], "nll"))
-  })
-
-  ## set attributes:
-  names(res) <- parNames[which]
-  attr(res, "original.fit") <- x
-  class(res) <- "slice.clm"
-
-  if(!quad) return(res)
-  ## compute quadratic approx to nll:
-  Quad <- function(par, mle, curv)
-    ((mle - par)^2 / curv / 2)
-  for(i in which) 
-    res[[i]]$quad <- Quad(par.seq[[i]], par[i], curv[i])
-  
-  return(res)
+  test <- match.arg(test)
+  dots <- list(...)
+  if (length(dots) == 0)
+    stop('anova is not implemented for a single "clm" object')
+  mlist <- list(object, ...)
+  nt <- length(mlist)
+  dflis <- sapply(mlist, function(x) x$df.residual)
+  s <- order(dflis, decreasing = TRUE)
+  mlist <- mlist[s]
+  if (any(!sapply(mlist, inherits, "clm")))
+    stop('not all objects are of class "clm"')
+  ns <- sapply(mlist, function(x) length(x$fitted.values))
+  if(any(ns != ns[1]))
+    stop("models were not all fitted to the same dataset")
+  rsp <- unique(sapply(mlist, function(x) {
+                       tmp <- attr(x$model, "terms")
+                       class(tmp) <- "formula"
+                       paste(tmp[2]) } ))
+  mds <- sapply(mlist, function(x) {
+      tmp1 <- attr(x$model, "terms")
+      class(tmp1) <- "formula"
+      paste(tmp1[3]) })
+### FIXME: Extract formulae from the matched call instead to get the
+### random effects included as well?
+  dfs <- dflis[s]
+  lls <- sapply(mlist, function(x) -2*x$logLik)
+  tss <- c("", paste(1:(nt - 1), 2:nt, sep = " vs "))
+  df <- c(NA, -diff(dfs))
+  x2 <- c(NA, -diff(lls))
+  pr <- c(NA, 1 - pchisq(x2[-1], df[-1]))
+  out <- data.frame(Model = mds, Resid.df = dfs, '-2logLik' = lls,
+                    Test = tss, Df = df, LRtest = x2, Prob = pr)
+  names(out) <- c("Model", "Resid. df", "-2logLik", "Test",
+                  "   Df", "LR stat.", "Pr(Chi)")
+  if (test == "none") out <- out[, 1:6]
+  class(out) <- c("Anova", "data.frame")
+  attr(out, "heading") <-
+    c("Likelihood ratio tests of cumulative link models\n",
+      paste("Response:", rsp))
+  out
 }
 
-plot.slice.clm <-
-  function(x, which = seq_along(x), type = c("quadratic", "linear"),
-           plot.mle = TRUE, ...)
-{
-  type <- match.arg(type)
-  stopifnot(is.numeric(which))
-  which <- as.integer(which)
-  ml <- attr(x, "original.fit")$logLik
-
-  ## take the signed sqrt of nll and quad:
-  if(type == "linear") {
-    sgn.sqrt <- function(par, mle, nll)
-      (2 * (par > mle) - 1) * sqrt(nll)
-    mle <- coef(attr(x, "original.fit"))
-    for(i in which) {
-      x[[i]]$nll <- sgn.sqrt(x[[i]][1], mle[i], x[[i]]$nll)
-      if(!is.null(x[[i]]$quad))
-        x[[i]]$quad <- sgn.sqrt(x[[i]][1], mle[i], x[[i]]$quad)
-    }
-  }
- 
-  ## actual plotting:
-  for(i in which) {
-    z <- x[[i]]
-    plot(z[1:2], type = "l", ...)
-    if(!is.null(z$quad))
-      lines(z[[1]], z[[3]], lty = 2)
-    if(plot.mle && type == "quadratic")
-      abline(v = coef(attr(x, "original.fit"))[i])
-  }
-  
-  return(invisible())
-}
-  

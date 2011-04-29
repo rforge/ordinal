@@ -1,30 +1,35 @@
-\name{dropCoef}
-\alias{dropCoef}
+\name{drop.coef}
+\alias{drop.coef}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
   Insure Full Rank Design Matrix
 }
 \description{
-  Coefficients (columns) are removed from a design matrix, equivalently
-  \code{model.matrix} to insure that it has full rank.
+  Coefficients (columns) are dropped from a design matrix to insure that
+  it has full rank. 
 }
 \usage{
-dropCoef(X)
+drop.coef(X, silent = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{X}{
     a design matrix, e.g., the result of \code{\link{model.matrix}}
-    possibly of less than full rank, i.e., with redundant parameters
-    (columns). 
+    possibly of less than full column rank, i.e., with redundant
+    parameters. Works for \code{ncol(X) >= 0} and \code{nrow(X) >= 0}. 
+  }
+  \item{silent}{
+    should a message not be issued if X is column rank deficient?
   }
 }
 \details{
   The redundant columns of the design matrix are identified with the
-  LAPACK implementation of the \code{\link{qr}} decomposition. 
+  LAPACK implementation of the \code{\link{qr}} decomposition. The first
+  \code{qr(X)$rank} columns are retained, so columns are dropped from
+  the end when possible. 
 }
 \value{
-  the design matrix \code{X} without redundant columns.
+  The design matrix \code{X} without redundant columns. 
 }
 \author{
   Rune Haubo B Christensen
@@ -33,11 +38,21 @@ dropCoef(X)
   \code{\link{qr}} and \code{\link{lm}}
 }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
 
-## The function is currently defined as
+data(soup, package = "ordinal")
+X <- model.matrix( ~ PRODID * DAY, data = soup)
+ncol(X)
+newX <- drop.coef(X)
+ncol(newX)
+
+## Essentially this is being computed:
+qr.X <- qr(X, tol = 1e-7, LAPACK = FALSE)
+newX <- X[, qr.X$pivot[1:qr.X$rank], drop = FALSE]
+## is newX of full column rank?
+ncol(newX) == qr(newX)$rank
+## the number of columns being dropped:
+ncol(X) - ncol(newX)
+
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

@@ -23,7 +23,7 @@
 ### -------- Notes ------------
 ### - change 'scale' to 'log scale' in print and summary
 ### - drop observations with zero or negative weights - at least give
-###   a warning.
+###   a warning. Also re-evaluate the no. levels of the response
 ### - alter print.summary.clmm to display data information as in
 ###   print.lmer
 ### - implement fixef() and ranef()
@@ -67,10 +67,10 @@ clm <-
 
   ## Test rank deficiency and possibly drop some parameters:
   ## X is guarantied to have an intercept at this point.
-  frames$X <- dropCoef(frames$X)
+  frames$X <- drop.coef(frames$X)
   
   ## Compute the transpose of the Jacobian for the threshold function,
-  ## tJac and the names of the threshold parameters, alphaNames:
+  ## tJac and the names of the threshold parameters, alpha.names:
   ths <- makeThresholds(frames$y, threshold)
 
   ## set envir; rho with variables: B1, B2, o1, o2, wts, pfun,
@@ -98,13 +98,16 @@ clm <-
 ### FIXME: add arg non.conv = c("error", "warn", "message") ?
 
   ## Modify and return results:
-  res <- clm.finalize(fit, weights = frames$wts, mc = match.call(),
-                      contrasts = contrasts,
-                      tJac = ths$tJac,
-                      na.action = attr(frames$mf, "na.action"),
-                      terms = frames$terms, 
-                      alphaNames = ths$alphaNames,
-                      betaNames = colnames(frames$X)[-1])
+  res <- clm.finalize(fit, weights = frames$wts,
+                      alpha.names = ths$alpha.names,
+                      beta.names = colnames(frames$X)[-1])
+  res$link <- link
+  res$threshold <- threshold
+  res$call <- match.call()
+  res$contrasts <- contrasts
+  res$na.action <- attr(frames$mf, "na.action")
+  res$terms <- frames$terms
+  res$tJac <- ths$tJac
 
   ## add model.frame to results list?
   if(model) res$model <- frames$mf
@@ -112,19 +115,18 @@ clm <-
   return(res)
 }
 
-clm.finalize <- function(fit, weights, mc, contrasts, tJac, na.action, 
-                         terms, alphaNames, betaNames)
+clm.finalize <- function(fit, weights, alpha.names, beta.names)
 {   
-  nalpha <- length(alphaNames)
-  nbeta <- length(betaNames)
+  nalpha <- length(alpha.names)
+  nbeta <- length(beta.names)
   stopifnot(length(fit$par) == nalpha + nbeta)
   
   fit <- within(fit, {
     alpha <- par[1:nalpha]
-    names(alpha) <- alphaNames
+    names(alpha) <- alpha.names
     beta <- if(nbeta > 0) par[nalpha + 1:nbeta]
     else numeric(0)
-    names(beta) <- betaNames
+    names(beta) <- beta.names
     coefficients <- c(alpha, beta)
     
     names(gradient) <- names(coefficients)
@@ -136,37 +138,12 @@ clm.finalize <- function(fit, weights, mc, contrasts, tJac, na.action,
     fitted.values <- fitted
     df.residual = nobs - edf
 
-    tJac <- tJac
-    terms <- terms
-    contrasts <- contrasts
-    na.action <- na.action
-    call <- mc
-    logLik <- -fit$nll
+    logLik <- -nll
 
     rm(list = c("par"))
   })
   class(fit) <- "clm"
   return(fit)
-}
-
-dropCoef <- function(X) {
-### For a clm it is assumed that X has an intercept
-  stopifnot(is.matrix(X))
-  
-  qr.X <- qr(X, tol = 1e-7, LAPACK = FALSE)
-  if(qr.X$rank == ncol(X)) return(X)
-
-  warning(gettextf("design is rank deficient so dropping %d coef",
-                   ncol(X) - qr.X$rank), call. = FALSE)
-  ## warning(gettextf("design is rank deficient so dropping some coef"))
-  ## take the columns correponding to the first qr.x$rank pivot
-  ## elements of X:
-  newX <- X[, qr.X$pivot[1:qr.X$rank], drop = FALSE]
-  if(qr.X$rank != qr(newX)$rank)
-    stop(gettextf("determination of full rank design matrix failed"),
-         call. = FALSE)
-### Should the rank deficiency be testet on B1 and B2?
-  return(newX) 
 }
 
 clm.model.frame <- function(mc, contrasts) {
@@ -242,7 +219,7 @@ setLinks <- function(rho, link) {
                      "log-gamma" = function(x, lambda) dlgamma(x, lambda))
   rho$gfun <- switch(link,
                      logit = glogis,
-                     probit = function(x) -x * dnorm(x),
+                     probit = gnorm, 
                      loglog = function(x) -ggumbel(-x),
                      cloglog = ggumbel,
                      cauchit = gcauchy,
@@ -325,10 +302,10 @@ clm.newRho <-
   ntheta <- nlevels(y) - 1
   n <- nrow(X)
   B2 <- 1 * (col(matrix(0, n, ntheta + 1)) == c(unclass(y)))
-  rho$o1 <- c(100 * B2[, ntheta + 1]) - offset
-  rho$o2 <- c(-100 * B2[,1]) - offset
-  B1 <- B2[,-(ntheta + 1), drop=FALSE]
-  B2 <- B2[,-1, drop=FALSE]
+  rho$o1 <- c(1e5 * B2[, ntheta + 1]) - offset
+  rho$o2 <- c(-1e5 * B2[,1]) - offset
+  B1 <- B2[, -(ntheta + 1), drop = FALSE]
+  B2 <- B2[, -1, drop = FALSE]
   rho$B1 <- B1 %*% tJac
   rho$B2 <- B2 %*% tJac
   nbeta <- NCOL(X) - 1
@@ -339,7 +316,7 @@ clm.newRho <-
   }
   dimnames(rho$B1) <- NULL
   dimnames(rho$B2) <- NULL
-  
+
   rho$fitted <- numeric(length = n)
   rho$wts <- weights
 
@@ -370,7 +347,7 @@ clm.fit <-
 
   ## ensure X has full rank, generate threshold structure and set the
   ## rho environment:
-  X <- dropCoef(X)
+  X <- drop.coef(X)
   ths <- makeThresholds(y, threshold)
   rho <- clm.newRho(parent.frame(), y = y, X = X, weights = weights,
                     offset = offset, link = link, tJac = ths$tJac)
@@ -385,13 +362,12 @@ clm.fit <-
   ## fit the clm:
   fit <- clm.fit.env(rho, control = control)
   return(fit)
-### FIXME: should 'par' be 'coefficients'?
+### FIXME: should 'par' be 'coefficients' to allow coef(fit) etc.?
 ### FIXME: should fit contain 'vcov'?
 }
   
 clm.fit.env <-
-  function(rho, control = list(trace = 0, maxIter = 100,
-                  gradTol = 1e-4, maxLineIter = 10))
+  function(rho, control = list())
 ### The main work horse: Where the actual fitting of the clm goes on.
 ### Fitting the clm via Newton-Raphson with step halfing. 
 
@@ -400,10 +376,8 @@ clm.fit.env <-
 ### clm.grad - gradient of nll wrt. par
 ### clm.hess - hessian of nll wrt. par
 ### Trace - for trace information
-
-### FIXME: use do.call(clm.control, control) to ensure none are
-### missing? 
 {
+  control <- do.call(clm.control, control)
   stepFactor <- 1
   innerIter <- 0
   conv <- 1  ## Convergence flag
@@ -494,7 +468,7 @@ clm.fit.env <-
     stepFactor <- min(1, 2 * stepFactor)
   } ## end Newton iterations
 
-### FIXME: warn if fitted values are close to 0 or 1
+### FIXME: warn if fitted values are close to 0 or 1?
   
   if(conv > 0) { ## optimization failed
     if(control$trace > 0) cat(message, fill = TRUE)
@@ -510,7 +484,7 @@ clm.fit.env <-
               convergence = conv,
               ## 0: successful convergence
               ## 1: iteration limit reached
-              ## 2: step factor reducd below minimum
+              ## 2: step factor reduced below minimum
               message = message,
               maxGradient = maxGrad,
               niter = c(outer = i, inner = innerIter),
@@ -519,39 +493,42 @@ clm.fit.env <-
 }
 
 
+### Old versions:
 clm.nll <- function(rho) { ## negative log-likelihood
   with(rho, {
     eta1 <- drop(B1 %*% par) + o1
     eta2 <- drop(B2 %*% par) + o2
     fitted <- pfun(eta1) - pfun(eta2)
     if(all(fitted > 0))
-### FIXME: rather if(all(is.finite(fitted)) && all(fitted > 0)) ???
+### NOTE: Need test here because some fitted <= 0 if thresholds are
+### not ordered increasingly.
+### It is assumed that 'all(is.finite(pr)) == TRUE' 
       -sum(wts * log(fitted))
     else Inf
   })
 }
 
 clm.grad <- function(rho) { ## gradient of the negative log-likelihood
-### return: vector of gradients - NA if fitted are not defined
+### return: vector of gradients
   with(rho, {
     p1 <- dfun(eta1)
     p2 <- dfun(eta2)
     wtpr <- wts/fitted
-    if(all(fitted > 0))
-      -crossprod((B1 * p1 - B2 * p2), wtpr)
-    else rep(NA, nalpha + nbeta)
+    -crossprod((B1 * p1 - B2 * p2), wtpr)
+### NOTE: It is assumed that all(fitted > 0) == TRUE and that
+### all(is.finite(c(p1, p2))) == TRUE
   })
 }
 
 clm.hess <- function(rho) { ## hessian of the negative log-likelihood
-### return Hessian matrix - NA if fitted are not defined
+### return Hessian matrix
   with(rho, {
     dS.psi <- crossprod(B1 * gfun(eta1) * wtpr, B1) -
       crossprod(B2 * gfun(eta2) * wtpr, B2)
     dpi.psi <- B1 * p1 - B2 * p2
-    if (all(fitted > 0))
-      -dS.psi + crossprod(dpi.psi, (dpi.psi * wtpr / fitted))
-    else array(NA, dim = c(nalpha + nbeta, nalpha + nbeta))
+    -dS.psi + crossprod(dpi.psi, (dpi.psi * wtpr / fitted))
+### NOTE: It is assumed that all(fitted > 0) == TRUE and that
+### all(is.finite(c(g1, g2))) == TRUE
   })
 }
 
@@ -566,7 +543,7 @@ Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
 
 makeThresholds <- function(y, threshold) {
 ### Generate the threshold structure summarized in the transpose of
-### the Jacobian matrix, tJac. Also generating nalpha and alphaNames.
+### the Jacobian matrix, tJac. Also generating nalpha and alpha.names.
 
 ### args:
 ### y - response variable, a factor
@@ -579,7 +556,7 @@ makeThresholds <- function(y, threshold) {
   if(threshold == "flexible") {
     tJac <- diag(ntheta)
     nalpha <- ntheta
-    alphaNames <- paste(lev[-length(lev)], lev[-1], sep="|")
+    alpha.names <- paste(lev[-length(lev)], lev[-1], sep="|")
   }
   
   if(threshold == "symmetric") {
@@ -590,7 +567,7 @@ makeThresholds <- function(y, threshold) {
       tJac <- t(cbind(diag(-1, nalpha)[nalpha:1, 1:(nalpha-1)],
                       diag(nalpha)))
       tJac[,1] <- 1
-      alphaNames <-
+      alpha.names <-
         c("central", paste("spacing.", 1:(nalpha-1), sep=""))
     }
     else { ## ntheta is even
@@ -599,7 +576,7 @@ makeThresholds <- function(y, threshold) {
                     rbind(diag(-1, ntheta / 2)[(ntheta / 2):1,],
                           diag(ntheta / 2)))
       tJac[,2] <- rep(0:1, each = ntheta / 2)
-      alphaNames <- c("central.1", "central.2",
+      alpha.names <- c("central.1", "central.2",
                       paste("spacing.", 1:(nalpha-2), sep=""))
     }
   }
@@ -609,9 +586,9 @@ makeThresholds <- function(y, threshold) {
       stop("equidistant thresholds are only meaningful for responses with 3 or more levels")
     tJac <- cbind(1, 0:(ntheta-1))
     nalpha <- 2
-    alphaNames <- c("threshold.1", "spacing")
+    alpha.names <- c("threshold.1", "spacing")
   }
-  return(list(tJac = tJac, nalpha = nalpha, alphaNames = alphaNames))
+  return(list(tJac = tJac, nalpha = nalpha, alpha.names = alpha.names))
 }
 
 clm.control <-
