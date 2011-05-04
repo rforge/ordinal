@@ -1,44 +1,44 @@
 \name{gumbel}
 \alias{dgumbel}
 \alias{pgumbel}
+\alias{qgumbel}
+\alias{rgumbel}
 \alias{ggumbel}
-\alias{dgumbel2}
-\alias{pgumbel2}
-\alias{ggumbel2}
-%- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-  The Gumbel distribution
+  The Gumbel Distribution
 %%  ~~function to do ... ~~
 }
 \description{
-  Density, distribution function and gradient of density of the extreme
-  value (minimum and maximum) distributions. The extreme value maximum
-  distribution is also known as the Gumbel distribution.
-  These are implemented in C
-  for speed and care is taken that the correct results are provided for
-  values of \code{NA}, \code{NaN}, \code{Inf}, \code{-Inf} or just
-  extremely small or large. 
+  Density, distribution function, quantile function, random generation,
+  and gradient of density of the extreme 
+  value (maximum and minimum) distributions. The Gumbel distribution is
+  also known as the extreme value maximum distribution, the
+  double-exponential distribution and the log-Weibull distribution. 
   %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
 
-pgumbel(q, location = 0, scale = 1, lower.tail = TRUE)
+dgumbel(x, location = 0, scale = 1, log = FALSE, max = TRUE)
 
-pgumbel2(q, location = 0, scale = 1, lower.tail = TRUE)
+pgumbel(q, location = 0, scale = 1, lower.tail = TRUE, max = TRUE)
 
-dgumbel(x, location = 0, scale = 1, log = FALSE)
+qgumbel(p, location = 0, scale = 1, lower.tail = TRUE, max = TRUE)
 
-dgumbel2(x, location = 0, scale = 1, log = FALSE)
+rgumbel(n, location = 0, scale = 1, max = TRUE)
 
-ggumbel(x)
-
-ggumbel2(x)
+ggumbel(x, max = TRUE)
 
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{x,q}{
     numeric vector of quantiles.
+  }
+  \item{p}{
+    vector of probabilities.
+  }
+  \item{n}{
+    number of observations.
   }
   \item{location}{
     numeric scalar.
@@ -53,53 +53,74 @@ ggumbel2(x)
   \item{log}{
     logical; if \code{TRUE}, probabilities p are given as log(p).
   }
+  \item{max}{
+    distribution for extreme maxima (default) or minima? The default
+    corresponds to the standard right skew Gumbel distribution.
+  }
 }
 \details{
 
-  The Gumbel (maximum) distribution function is defined as \ldots and
-  corresponds to the complementary(?) log-log (\code{cloglog}) link.
+  \code{dgumbel}, \code{pgumbel} and \code{ggumbel} are implemented in C
+  for speed and care is taken that 'correct' results are provided for
+  values of \code{NA}, \code{NaN}, \code{Inf}, \code{-Inf} or just
+  extremely small or large. 
 
-  The density and gradient of the density are defined as\ldots
+  See the 'Primer' vignette for the definition of the Gumbel
+  distribution and its relation to the log-log and complementary-log-log
+  link used in cumulative link models, cf. \code{\link{clm}} and
+  others. See the examples for numerical relations between the max and
+  min variants.
   
-  These distribution functions, densities and gradients are used in the
+  The distribution functions, densities and gradients are used in the
   Newton-Raphson algorithms in fitting cumulative link models with
   \code{\link{clm}} and cumulative link mixed models with
   \code{\link{clmm}}. 
 }
 \value{
-  \code{pgumbel}[2] gives the distribution function, \code{dgumbel}[2]
-  gives the density and \code{ggumbel}[2] gives the gradient of the
-  density. 
+  \code{pgumbel} gives the distribution function, \code{dgumbel}
+  gives the density, \code{ggumbel} gives the gradient of the
+  density, \code{qgumbel} gives the quantile function, and
+  \code{rgumbel} generates random deviates.
 }
 \references{
   \url{wikipedia.org/wiki/Gumbel_distribution}
 }
 \seealso{
-  Gradients of densities are also implemented for the normal, logistic,
-  cauchy, log-gamma distribution and Aranda-Ordaz
-  distributions. 
+  Gradients of densities are also implemented for the normal, logistic, 
+  cauchy, cf. \code{\link[=gnorm]{gfun}}, log-gamma distribution,
+  cf. \code{\link{lgamma}} and Aranda-Ordaz distributions. 
 }
 \author{
   Rune Haubo B Christensen
 }
 \examples{
 
-## Illustrating the symmetry of the distribution functions:
-pgumbel(5) == 1 - pgumbel2(-5) ## TRUE
-dgumbel(5) == dgumbel2(-5)     ## TRUE
-ggumbel(5) == -ggumbel2(-5)    ## TRUE
+## Illustrating the symmetry of the distribution functions:p
+pgumbel(5) == 1 - pgumbel(-5, max=FALSE) ## TRUE
+dgumbel(5) == dgumbel(-5, max=FALSE) ## TRUE
+ggumbel(5) == -ggumbel(-5, max=FALSE) ## TRUE
 
 ## More examples:
 x <- -5:5
 
-pgumbel(x)
+(pp <- pgumbel(x))
+qgumbel(pp)
 dgumbel(x)
 ggumbel(x)
 
-pgumbel2(x)
-dgumbel2(x)
-ggumbel2(x)
+(ppp <- pgumbel(x, max=FALSE))
+## Observe lack of precision:
+qgumbel(ppp, max=FALSE)
+dgumbel(x, max=FALSE)
+ggumbel(x, max=FALSE)
+
+## random deviates:
+set.seed(1)
+(r1 <- rgumbel(10))
+set.seed(1)
+r2 <- -rgumbel(10, max = FALSE)
+all(r1 == r2) ## TRUE
 
 }
-\keyword{models}
+\keyword{distribution}
 

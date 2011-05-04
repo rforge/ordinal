@@ -36,9 +36,17 @@ gcauchy(x)
     \item gnorm: If \eqn{f(x)} is the normal density with mean 0 and
     spread 1, then the gradient is \deqn{f'(x) = -x f(x)
     }
-    \item{glogis: pending
+    \item{glogis: If \eqn{f(x)} is the logistic density with mean 0 and
+      scale 1, then the gradient is
+      \deqn{f'(x) = 2 \exp(-x)^2 (1 + \exp(-x))^{-3} -
+	\exp(-x)(1+\exp(-x))^{-2}}
     }
-    \item{pcauchy: pending
+    \item{pcauchy: If
+      \eqn{f(x) = [\pi(1 + x^2)^2]^{-1}}{f(x) =1 / [pi (1 + x^2)^2]}
+      is the cauchy density with mean 0 and scale 1, then the gradient
+      is
+      \deqn{f'(x) = -2x [\pi(1 + x^2)^2]^{-1}}{f'(x) = -2x / [pi (1 +
+	x^2)^2]}
     }
   }
   
@@ -65,5 +73,5 @@ glogis(x)
 gcauchy(x)
 
 }
-\keyword{models}
+\keyword{distribution}
 

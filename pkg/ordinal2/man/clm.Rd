@@ -11,7 +11,7 @@
   thresholds that restricts the thresholds or cut-points to be e.g.,
   equidistant or symmetrically arranged around the central
   threshold(s). A Newton algorithm is used to optimize the likelihood
-  function which is very speedy compared to general optimization
+  function which is speedy compared to general optimization
   routines such as \code{\link{optim}}.
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
@@ -67,7 +67,7 @@ clm(formula, data, weights, start, subset, doFit = TRUE, na.action,
     a call to \code{\link{clm.control}}.
   }
   \item{link}{
-    link function, i.e. the type of location-scale distribution
+    link function, i.e., the type of location-scale distribution
     assumed for the latent distribution. The default \code{"logit"} link
     gives the proportional odds model.
   }
