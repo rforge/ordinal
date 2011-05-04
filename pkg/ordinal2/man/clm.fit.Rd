@@ -10,8 +10,9 @@
 }
 \usage{
 clm.fit(y, X, weights = rep(1, nrow(X)), offset = rep(0, nrow(X)),
-control = list(), start, link = c("logit", "probit", "cloglog",
-"loglog"), threshold = c("flexible", "symmetric", "equidistant"))
+control = list(), start,
+link = c("logit", "probit", "cloglog", "loglog", "cauchit"),
+threshold = c("flexible", "symmetric", "equidistant"))
 
 }
 %- maybe also 'usage' for other objects documented here.
