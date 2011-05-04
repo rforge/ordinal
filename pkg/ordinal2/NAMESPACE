@@ -27,8 +27,8 @@ export(slice)
 export(drop.coef)
 
 export(gnorm, glogis, gcauchy,
-       pgumbel, dgumbel, ggumbel,
-       pgumbel2, dgumbel2, ggumbel2,
+       pgumbel, dgumbel, ggumbel, qgumbel, rgumbel,
+       ## pgumbel2, dgumbel2, ggumbel2,
        plgamma, dlgamma, glgamma ## ,
        ## pAO, dAO, gAO,
        )

@@ -541,9 +541,9 @@ section~\ref{sec:latent-vari-motiv}.
     \hline
     Name & logit & probit & log-log & clog-log$^a$ & cauchit \\
     \hline
-    Distribution & logistic & Normal & Gumbel (min)$^b$ & Gumbel (max)$^b$ &
+    Distribution & logistic & Normal & Gumbel (max)$^b$ & Gumbel (min)$^b$ &
     Cauchy$^c$ \\
-    Shape & symmetric & symmetric & left skew & right skew &
+    Shape & symmetric & symmetric & right skew & left skew &
     kurtotic \\
     Link function ($F^{-1}$)  & $\log[\gamma / (1 - \gamma)]$ & $\Phi^{-1}(\gamma)$ & 
     $-\log[-\log(\gamma)]$ & $\log[ -\log(1 - \gamma)]$ & $\tan[\pi
@@ -620,16 +620,17 @@ flexible link functions are available for \texttt{clm} in package
       Year & \multicolumn{6}{c}{Income} \\
       \cline{2-8}
 <<echo=FALSE, results=tex>>=
-freq <- c(6.5, 8.2, 11.3, 23.5, 15.6, 12.7, 22.2,
-          4.3, 6, 7.7, 13.2, 10.5, 16.3, 42.1)
-year <- factor(rep(c("1960", "1970"), each = 7))
-income <- c(0, 3, 5, 7, 10, 12, 15)
-income <- paste(income, c(rep("-", 6), "+"), c(income[-1], ""),
-                sep = "")
-income <- data.frame(year=year, freq=freq,
-                     income=factor(rep(income, 2), ordered=TRUE,
-                       levels=income)) 
-tab <- xtabs(freq ~ year + income, income)
+## freq <- c(6.5, 8.2, 11.3, 23.5, 15.6, 12.7, 22.2,
+##           4.3, 6, 7.7, 13.2, 10.5, 16.3, 42.1)
+## year <- factor(rep(c("1960", "1970"), each = 7))
+## income <- c(0, 3, 5, 7, 10, 12, 15)
+## income <- paste(income, c(rep("-", 6), "+"), c(income[-1], ""),
+##                 sep = "")
+## income <- data.frame(year=year, freq=freq,
+##                      income=factor(rep(income, 2), ordered=TRUE,
+##                        levels=income)) 
+data(income, package="ordinal2")
+tab <- xtabs(pct ~ year + income, income)
 attr(tab, "class") <- NULL
 attr(tab, "call") <- NULL
 print(xtable(as.data.frame(tab)), only.contents = TRUE)
@@ -638,8 +639,13 @@ print(xtable(as.data.frame(tab)), only.contents = TRUE)
   \end{table}
   
   \citet{mccullagh80} present data on income distribution in the
-  Northeast US reproduced in Table~\ref{tab:incomeMcCullagh80}. 
-  The numbers are percentages
+  Northeast US reproduced in Table~\ref{tab:incomeMcCullagh80} and
+  available in package \textsf{ordinal2} as the object
+  \texttt{income}.  
+  The unit of the income groups are thousands of (constant) 1973 US
+  dollars. 
+  The numbers in the body of the table are percentages of the
+  population 
   summing to 100 in each row\footnote{save rounding error}, so these
   are not the orginal observations. The uncertainty of parameter
   estimates depends on the sample size, which is unknown here, so
@@ -660,7 +666,7 @@ print(xtable(as.data.frame(tab)), only.contents = TRUE)
 <<>>=
 links <- c("logit", "probit", "cloglog", "loglog", "cauchit")
 sapply(links, function(link) {
-  clm(income ~ year, data=income, weights=freq, link=link)$logLik })
+  clm(income ~ year, data=income, weights=pct, link=link)$logLik })
 @ 
 The cauchit link attains the highest log-likelihood closely followed
 by the complementary log-log link. 

@@ -2,7 +2,7 @@
 R version 2.12.2 (2011-02-25)
 Copyright (C) 2011 The R Foundation for Statistical Computing
 ISBN 3-900051-07-0
-Platform: x86_64-pc-mingw32/x64 (64-bit)
+Platform: i386-pc-mingw32/i386 (32-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -58,7 +58,7 @@ formula: rating ~ temp * contact
 data:    wine
 
  link  threshold nobs logLik AIC    niter max.grad
- logit flexible  72   -86.42 186.83 7(0)  5.22e-12
+ logit flexible  72   -86.42 186.83 7(0)  5.21e-12
 
 Coefficients:
            tempwarm          contactyes tempwarm:contactyes 
@@ -72,7 +72,7 @@ formula: rating ~ temp * contact
 data:    wine
 
  link  threshold nobs logLik AIC    niter max.grad cond.H 
- logit flexible  72   -86.42 186.83 7(0)  5.22e-12 5.1e+01
+ logit flexible  72   -86.42 186.83 7(0)  5.21e-12 5.1e+01
 
 Coefficients:
                     Estimate Std. Error z value Pr(>|z|)    
@@ -356,7 +356,7 @@ formula: SURENESS ~ PRODID
 data:    soup
 
  link  threshold nobs logLik   AIC     niter max.grad cond.H 
- logit flexible  1847 -2677.27 5374.54 7(1)  3.77e-13 2.3e+02
+ logit flexible  1847 -2677.27 5374.54 7(1)  1.77e-13 2.3e+02
 
 Coefficients:
         Estimate Std. Error z value Pr(>|z|)    
@@ -460,15 +460,87 @@ PRODTest   0.7423   0.0680    10.9117 < 2.22e-16
 Threshold coefficients:
             Estimate Std. Error z value 
 threshold.1  -0.8110   0.0560   -14.4894
-spacing       0.3344   0.0106    31.6184
+spacing       0.3344   0.0106    31.6183
 
 log-likelihood: -2763.463 
 AIC: 5536.926 
-Condition number of Hessian: 2428.774 
+Condition number of Hessian: 2428.915 
 > 
 > 
 > 
 > 
+> cleanEx()
+> nameEx("confint.clm")
+> ### * confint.clm
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: confint.clm
+> ### Title: Confidence intervals and profile likelihoods for parameters in
+> ###   cumulative link models
+> ### Aliases: confint.clm confint.profile.clm profile.clm plot.profile.clm
+> ### Keywords: models
+> 
+> ### ** Examples
+> 
+> 
+> data(wine)
+> fm1 <- clm(rating ~ temp * contact, data = wine)
+> 
+> ## Accurate profile likelihood confidence intervals compared to the
+> ## conventional Wald intervals:
+> confint(fm1) ## type = "profile"
+Waiting for profiling to be done...
+                          2.5 %   97.5 %
+tempwarm             0.99435182 3.761793
+contactyes           0.08378091 2.694828
+tempwarm:contactyes -1.45985126 2.180286
+> confint(fm1, type = "Wald")
+                          2.5 %   97.5 %
+tempwarm             0.94735154 3.695017
+contactyes           0.05318714 2.641734
+tempwarm:contactyes -1.45110279 2.170201
+> pr1 <- profile(fm1)
+> confint(pr1)
+                          2.5 %   97.5 %
+tempwarm             0.99438454 3.761828
+contactyes           0.08379044 2.694864
+tempwarm:contactyes -1.45984555 2.180280
+> 
+> ## plotting the profiles:
+> par(mfrow = c(2, 2))
+> plot(pr1, root = TRUE) ## check for linearity 
+> par(mfrow = c(2, 2))
+> plot(pr1)
+> par(mfrow = c(2, 2))
+> plot(pr1, approx = TRUE)
+> par(mfrow = c(2, 2))
+> plot(pr1, Log = TRUE)
+> par(mfrow = c(2, 2))
+> plot(pr1, Log = TRUE, relative = FALSE)
+> 
+> ## Example from polr in package MASS:
+> ## Fit model from polr example:
+> data(housing, package = "MASS")
+> fm1 <- clm(Sat ~ Infl + Type + Cont, weights = Freq,
++   data = housing)
+> 
+> pr1 <- profile(fm1)
+> confint(pr1)
+                   2.5 %      97.5 %
+InflMedium     0.3616414  0.77195394
+InflHigh       1.0409699  1.53958119
+TypeApartment -0.8069592 -0.33940409
+TypeAtrium    -0.6705863 -0.06204486
+TypeTerrace   -1.3893864 -0.79533930
+ContHigh       0.1733588  0.54792872
+> par(mfrow=c(2,2))
+> plot(pr1)
+> 
+> 
+> 
+> 
+> graphics::par(get("par.postscript", pos = 'CheckExEnv'))
 > cleanEx()
 > nameEx("dropCoef")
 > ### * dropCoef
@@ -514,7 +586,7 @@ design is rank deficient so dropping 1 coef
 > ### Name: gfun
 > ### Title: Gradients of common densities
 > ### Aliases: gnorm glogis gcauchy
-> ### Keywords: models
+> ### Keywords: distribution
 > 
 > ### ** Examples
 > 
@@ -543,28 +615,30 @@ design is rank deficient so dropping 1 coef
 > flush(stderr()); flush(stdout())
 > 
 > ### Name: gumbel
-> ### Title: The Gumbel distribution
-> ### Aliases: dgumbel pgumbel ggumbel dgumbel2 pgumbel2 ggumbel2
-> ### Keywords: models
+> ### Title: The Gumbel Distribution
+> ### Aliases: dgumbel pgumbel qgumbel rgumbel ggumbel
+> ### Keywords: distribution
 > 
 > ### ** Examples
 > 
 > 
-> ## Illustrating the symmetry of the distribution functions:
-> pgumbel(5) == 1 - pgumbel2(-5) ## TRUE
+> ## Illustrating the symmetry of the distribution functions:p
+> pgumbel(5) == 1 - pgumbel(-5, max=FALSE) ## TRUE
 [1] TRUE
-> dgumbel(5) == dgumbel2(-5)     ## TRUE
+> dgumbel(5) == dgumbel(-5, max=FALSE) ## TRUE
 [1] TRUE
-> ggumbel(5) == -ggumbel2(-5)    ## TRUE
+> ggumbel(5) == -ggumbel(-5, max=FALSE) ## TRUE
 [1] TRUE
 > 
 > ## More examples:
 > x <- -5:5
 > 
-> pgumbel(x)
+> (pp <- pgumbel(x))
  [1] 3.507389e-65 1.942338e-24 1.892179e-09 6.179790e-04 6.598804e-02
  [6] 3.678794e-01 6.922006e-01 8.734230e-01 9.514320e-01 9.818511e-01
 [11] 9.932847e-01
+> qgumbel(pp)
+ [1] -5 -4 -3 -2 -1  0  1  2  3  4  5
 > dgumbel(x)
  [1] 5.205427e-63 1.060480e-22 3.800543e-08 4.566281e-03 1.793741e-01
  [6] 3.678794e-01 2.546464e-01 1.182050e-01 4.736901e-02 1.798323e-02
@@ -574,17 +648,98 @@ design is rank deficient so dropping 1 coef
  [6]  0.000000e+00 -1.609672e-01 -1.022077e-01 -4.501065e-02 -1.765386e-02
 [11] -6.647605e-03
 > 
-> pgumbel2(x)
+> (ppp <- pgumbel(x, max=FALSE))
  [1] 0.006715298 0.018148927 0.048568007 0.126576982 0.307799372 0.632120559
  [7] 0.934011964 0.999382021 0.999999998 1.000000000 1.000000000
-> dgumbel2(x)
+> ## Observe lack of precision:
+> qgumbel(ppp, max=FALSE)
+ [1]  -5  -4  -3  -2  -1   0   1   2   3 Inf Inf
+> dgumbel(x, max=FALSE)
  [1] 6.692700e-03 1.798323e-02 4.736901e-02 1.182050e-01 2.546464e-01
  [6] 3.678794e-01 1.793741e-01 4.566281e-03 3.800543e-08 1.060480e-22
 [11] 5.205427e-63
-> ggumbel2(x)
+> ggumbel(x, max=FALSE)
  [1]  6.647605e-03  1.765386e-02  4.501065e-02  1.022077e-01  1.609672e-01
  [6]  0.000000e+00 -3.082152e-01 -2.917423e-02 -7.253539e-07 -5.683979e-21
 [11] -7.673485e-61
+> 
+> ## random deviates:
+> set.seed(1)
+> (r1 <- rgumbel(10))
+ [1] -0.28224819  0.01153789  0.58496474  2.34047303 -0.47066805  2.23351289
+ [7]  2.86621319  0.88114707  0.76907246 -1.02391536
+> set.seed(1)
+> r2 <- -rgumbel(10, max = FALSE)
+> all(r1 == r2) ## TRUE
+[1] TRUE
+> 
+> 
+> 
+> 
+> cleanEx()
+> nameEx("income")
+> ### * income
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: income
+> ### Title: Income distribution (percentages) in the Northeast US
+> ### Aliases: income
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> 
+> data(income)
+> 
+> print(income)
+   year  pct income
+1  1960  6.5    0-3
+2  1960  8.2    3-5
+3  1960 11.3    5-7
+4  1960 23.5   7-10
+5  1960 15.6  10-12
+6  1960 12.7  12-15
+7  1960 22.2    15+
+8  1970  4.3    0-3
+9  1970  6.0    3-5
+10 1970  7.7    5-7
+11 1970 13.2   7-10
+12 1970 10.5  10-12
+13 1970 16.3  12-15
+14 1970 42.1    15+
+> 
+> ## Convenient table:
+> (tab <- xtabs(pct ~ year + income, income))
+      income
+year    0-3  3-5  5-7 7-10 10-12 12-15  15+
+  1960  6.5  8.2 11.3 23.5  15.6  12.7 22.2
+  1970  4.3  6.0  7.7 13.2  10.5  16.3 42.1
+> 
+> ## small rounding error in 1970:
+> rowSums(tab)
+ 1960  1970 
+100.0 100.1 
+> 
+> ## compare link functions via the log-likelihood:
+> links <- c("logit", "probit", "cloglog", "loglog", "cauchit")
+> sapply(links, function(link) {
++   clm(income ~ year, data=income, weights=pct, link=link)$logLik })
+    logit    probit   cloglog    loglog   cauchit 
+-353.3589 -353.8036 -352.8980 -355.6028 -352.8434 
+> ## a heavy tailed (cauchy) or left skew (cloglog) latent distribution
+> ## is fitting best.
+> 
+> ## The data are defined as:
+> income.levels <- c(0, 3, 5, 7, 10, 12, 15)
+> income <- paste(income.levels, c(rep("-", 6), "+"),
++                 c(income.levels[-1], ""), sep = "")
+> income <-
++   data.frame(year=factor(rep(c("1960", "1970"), each = 7)),
++              pct = c(6.5, 8.2, 11.3, 23.5, 15.6, 12.7, 22.2, 
++                4.3, 6, 7.7, 13.2, 10.5, 16.3, 42.1),
++              income=factor(rep(income, 2), ordered=TRUE,
++                levels=income)) 
 > 
 > 
 > 
@@ -598,7 +753,7 @@ design is rank deficient so dropping 1 coef
 > ### Name: lgamma
 > ### Title: The log-gamma distribution
 > ### Aliases: plgamma dlgamma glgamma
-> ### Keywords: models
+> ### Keywords: distribution
 > 
 > ### ** Examples
 > 
@@ -610,15 +765,15 @@ design is rank deficient so dropping 1 coef
 > all.equal(plgamma(x, lambda = -1), pgumbel(x)) ## TRUE, but:
 [1] TRUE
 > plgamma(x, lambda = -1) == pgumbel(x)
- [1] FALSE FALSE FALSE FALSE  TRUE  TRUE FALSE  TRUE  TRUE  TRUE  TRUE
-> plgamma(x, lambda = 1) == pgumbel2(x)
- [1] FALSE FALSE FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE
+ [1] FALSE FALSE FALSE  TRUE  TRUE  TRUE FALSE  TRUE  TRUE  TRUE  TRUE
+> plgamma(x, lambda = 1) == pgumbel(x, max = FALSE)
+ [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
 > 
 > dlgamma(x, lambda = 0) == dnorm(x)
  [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
 > dlgamma(x, lambda = -1) == dgumbel(x)
  [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
-> dlgamma(x, lambda = 1) == dgumbel2(x)
+> dlgamma(x, lambda = 1) == dgumbel(x, max = FALSE)
  [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
 > 
 > glgamma(x, lambda = 0) == gnorm(x)
@@ -626,15 +781,15 @@ design is rank deficient so dropping 1 coef
 > all.equal(glgamma(x, lambda = -1), ggumbel(x)) ## TRUE, but:
 [1] TRUE
 > glgamma(x, lambda = -1) == ggumbel(x)
- [1]  TRUE FALSE FALSE FALSE  TRUE  TRUE FALSE FALSE FALSE  TRUE FALSE
-> all.equal(glgamma(x, lambda = 1), ggumbel2(x)) ## TRUE, but:
+ [1]  TRUE FALSE FALSE  TRUE  TRUE  TRUE  TRUE FALSE FALSE FALSE FALSE
+> all.equal(glgamma(x, lambda = 1), ggumbel(x, max = FALSE)) ## TRUE, but:
 [1] TRUE
-> glgamma(x, lambda = 1) == ggumbel2(x)
- [1] FALSE  TRUE FALSE FALSE FALSE  TRUE  TRUE FALSE FALSE FALSE  TRUE
+> glgamma(x, lambda = 1) == ggumbel(x, max = FALSE)
+ [1] FALSE FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE FALSE FALSE  TRUE
 > ## There is a loss of accuracy, but the difference is very small: 
-> glgamma(x, lambda = 1) - ggumbel2(x)
- [1] -8.673617e-19  0.000000e+00 -1.387779e-17 -1.387779e-17 -2.775558e-17
- [6]  0.000000e+00  0.000000e+00  3.469447e-18  1.058791e-22 -7.523164e-37
+> glgamma(x, lambda = 1) - ggumbel(x, max = FALSE)
+ [1] -8.673617e-19 -3.469447e-18 -6.938894e-18 -1.387779e-17  0.000000e+00
+ [6]  0.000000e+00  0.000000e+00  0.000000e+00  1.058791e-22 -7.523164e-37
 [11]  0.000000e+00
 > 
 > ## More examples:
@@ -789,7 +944,7 @@ formula: rating ~ temp * contact
 data:    wine
 
  link  threshold nobs logLik AIC    niter max.grad cond.H 
- logit flexible  72   -86.42 186.83 7(0)  5.22e-12 5.1e+01
+ logit flexible  72   -86.42 186.83 7(0)  5.21e-12 5.1e+01
 
 Coefficients:
                     Estimate Std. Error z value Pr(>|z|)    
@@ -812,7 +967,7 @@ Threshold coefficients:
 > ### * <FOOTER>
 > ###
 > cat("Time elapsed: ", proc.time() - get("ptime", pos = 'CheckExEnv'),"\n")
-Time elapsed:  13.53 0.09 13.62 NA NA 
+Time elapsed:  16.3 0.06 16.43 NA NA 
 > grDevices::dev.off()
 null device 
           1 
