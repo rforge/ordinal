@@ -74,29 +74,38 @@ clm <-
   ## tJac and the names of the threshold parameters, alpha.names:
   ths <- makeThresholds(frames$y, threshold)
 
-  ## set envir; rho with variables: B1, B2, o1, o2, wts, pfun,
-  ## dfun, gfun, fitted, control/ctrl:
-  rho <- with(frames, {
-    clm.newRho(parent.frame(), y = y, X = X, weights = wts,
-               offset = off, link = link,  tJac = ths$tJac) })
+  ## set envir rho with variables: B1, B2, o1, o2, wts, fitted:
+  rho <- with(frames,
+              clm.newRho(parent.frame(), y=y, X=X, weights=wts,
+                         offset=off, tJac=ths$tJac) )
 
   ## set starting values for the parameters:
-  if(missing(start))
+  if(missing(start)) 
     start <- clm.start(frames$y, frames$X, has.intercept = TRUE,
                        threshold = threshold)
   stopifnot(is.numeric(start) && 
             length(start) == (ths$nalpha + ncol(frames$X) - 1) )
   rho$par <- start
-### FIXME: if(link == "cauchit") fit probit clm and use coef as
-### start. 
+  ## start cauchit models at the probit estimates:
+  if(link == "cauchit" && is.null(match.call()$start)) {
+    setLinks(rho, link="probit")
+    fit <- try(clm.fit.env(rho), silent=TRUE) ## standard control values
+    if(class(fit) == "try-error") 
+      stop("Failed to find suitable starting values: please supply some")
+    rho$par <- fit$par
+  }
+  
+  ## Set pfun, dfun and gfun in rho:
+  setLinks(rho, link)
 
-  ## possibly return the environment, rho without fitting:
+  ## possibly return the environment rho without fitting:
   if(!doFit) return(rho)
 
   ## fit the clm:
   control$method <- NULL
   fit <- clm.fit.env(rho, control)
-### FIXME: add arg non.conv = c("error", "warn", "message") ?
+### FIXME: add arg non.conv = c("error", "warn", "message") to allow
+### non-converged fits to be returned?
 
   ## Modify and return results:
   res <- clm.finalize(fit, weights = frames$wts,
@@ -297,15 +306,11 @@ clm.start <- function(y, threshold, X, has.intercept = TRUE)
 ### Regression par: y, X, wts, off, link, OR regParStart <- rep(0, p)
 
 clm.newRho <-
-  function(parent, y, X, weights, offset, link, tJac)
+  function(parent, y, X, weights, offset, tJac)
 ### Setting variables in rho: B1, B2, o1, o2, wts, pfun,
 ### dfun, gfun
 {
   rho <- new.env(parent = parent)
-  
-  ## Set pfun, dfun and gfun in rho:
-  setLinks(rho, link)
-### FIXME: Should links be set like tJac etc.
 
   ## Make B1, B2, o1, o2 based on y, X and tJac:
   ntheta <- nlevels(y) - 1
@@ -335,7 +340,7 @@ clm.newRho <-
 clm.fit <-
   function(y, X, weights = rep(1, nrow(X)), offset = rep(0, nrow(X)),
            control = list(), start, 
-           link = c("logit", "probit", "cloglog", "loglog"), 
+           link = c("logit", "probit", "cloglog", "loglog", "cauchit"), 
            threshold = c("flexible", "symmetric", "equidistant"))
 {
   ## Initial argument matching and testing:
@@ -358,8 +363,8 @@ clm.fit <-
   ## rho environment:
   X <- drop.coef(X)
   ths <- makeThresholds(y, threshold)
-  rho <- clm.newRho(parent.frame(), y = y, X = X, weights = weights,
-                    offset = offset, link = link, tJac = ths$tJac)
+  rho <- clm.newRho(parent.frame(), y=y, X=X, weights=weights,
+                    offset=offset, tJac=ths$tJac)
 
   ## set starting values for the clm:
   if(missing(start))
@@ -367,6 +372,17 @@ clm.fit <-
   stopifnot(is.numeric(start) && 
             length(start) == (ths$nalpha + ncol(X) - 1) )
   rho$par <- start
+  ## start cauchit models at the probit estimates:
+  if(link == "cauchit" && is.null(match.call()$start)) {
+    setLinks(rho, link="probit")
+    fit <- try(clm.fit.env(rho), silent=TRUE) ## standard control values
+    if(class(fit) == "try-error") 
+      stop("Failed to find suitable starting values: please supply some")
+    rho$par <- fit$par
+  }
+
+  ## Set pfun, dfun and gfun in rho:
+  setLinks(rho, link)
   
   ## fit the clm:
   fit <- clm.fit.env(rho, control = control)

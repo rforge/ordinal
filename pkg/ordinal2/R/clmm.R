@@ -35,10 +35,10 @@ clmm <-
 
   ## set and update rho environment:
   rho <- with(frames, {
-    clm.newRho(parent.frame(), y = y, X = X, weights = wts,
-               offset = off, link = link, tJac = ths$tJac) })
-  rho.clm2clmm(rho = rho, Zt = frames$Zt, grList = frames$grList,
-               ctrl = control$ctrl)
+    clm.newRho(parent.frame(), y=y, X=X, weights=wts,
+               offset=off, tJac=ths$tJac) })
+  rho.clm2clmm(rho=rho, Zt=frames$Zt, grList=frames$grList,
+               ctrl=control$ctrl)
   
 ### NOTE: alpha.names, beta.names, random.names, tau.names?
 ### nalpha, nbeta, nrandom, ntau
@@ -52,6 +52,9 @@ clmm <-
   stopifnot(is.numeric(start) && 
             length(start) == (nalpha + nbeta + ntau))
   rho$par <- start
+  
+  ## Set pfun, dfun and gfun in rho:
+  setLinks(rho, link)
   
   ## possibly return the environment, rho without fitting:
   if(!doFit)  return(rho)
@@ -193,8 +196,8 @@ rho.clm2clmm <- function(rho, Zt, grList, ctrl)
 
 clmm.start <- function(frames, link, threshold) {
   ## get starting values from clm:
-  fit <- with(frames, {
-    clm.fit(y, X, wts, off, link = link, threshold = threshold) }) 
+  fit <- with(frames,
+              clm.fit(y, X, wts, off, link=link, threshold=threshold))
   
   ## initialize variance parameters to zero:
   start <- c(fit$par, rep(0, length(frames$grList)))
