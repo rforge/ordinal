@@ -622,7 +622,7 @@ clm.control <-
 ### FIXME: change Newton to clm.fit?
   
   if(!all(is.numeric(c(maxIter, gradTol, maxLineIter))))
-    stop("maxIter, gradTol, maxLineIter, convTol should all be numeric")
+    stop("maxIter, gradTol, and maxLineIter should all be numeric")
   
   ## method <- match.arg(method)
   ctrl <- list(method = match.arg(method),
