@@ -18,6 +18,7 @@
 ##  2L: thresholds and beta = 0
 ##  3l: thresholds and beta via glm.fit
 ### Need y in rho to set starting values via binomial glm.
+## Simple starting values are enough for the standard link functions. 
 
 
 ### -------- Notes ------------
@@ -25,16 +26,16 @@
 ### - drop observations with zero or negative weights - at least give
 ###   a warning. Also re-evaluate the no. levels of the response
 ### - alter print.summary.clmm to display data information as in
-###   print.lmer
+###   print.lmer. OK
 ### - implement fixef() and ranef()
 ### - use ginv in NR alg to accomodate non-identifiability?
 ### - be more particular about method dispatch and class inheritance
-### - to avoid e.g. clm.dropterm being called by a clmm object.
+###   to avoid e.g. clm.dropterm being called by a clmm object.
 ### - test rank of B1 / B2 when some threshold parameters are
 ###   undefined? Is this enough of to ensure identifiability (by
-###   dropping some coef)?
+###   dropping some coef)? drop.coef on X is enough. OK
 ### - format cond(Hess) in scientific format - it is the order of
-###   magnitude that is relevant.
+###   magnitude that is relevant. OK
 
 clm <-
   function(formula, data, weights, start, subset, doFit = TRUE,
@@ -102,13 +103,27 @@ clm <-
                       alpha.names = ths$alpha.names,
                       beta.names = colnames(frames$X)[-1])
   res$link <- link
+  res$start <- start
   res$threshold <- threshold
   res$call <- match.call()
   res$contrasts <- contrasts
   res$na.action <- attr(frames$mf, "na.action")
   res$terms <- frames$terms
   res$tJac <- ths$tJac
-
+  res$info <- with(res, {
+    data.frame("link" = link,
+               "threshold" = threshold,
+               "nobs" = nobs, 
+               "logLik" = formatC(logLik, digits=2, format="f"),
+               "AIC" = formatC(-2*logLik + 2*edf, digits=2,
+                 format="f"),
+               "niter" = paste(niter[1], "(", niter[2], ")", sep=""),
+               "max.grad" = formatC(maxGradient, digits=2,
+                 format="e") 
+               ## BIC is not part of output since it is not clear what
+               ## the no. observations are. 
+               )
+  })
   ## add model.frame to results list?
   if(model) res$model <- frames$mf
   
@@ -137,9 +152,7 @@ clm.finalize <- function(fit, weights, alpha.names, beta.names)
     n <- length(weights)
     fitted.values <- fitted
     df.residual = nobs - edf
-
     logLik <- -nll
-
     rm(list = c("par"))
   })
   class(fit) <- "clm"
@@ -204,24 +217,24 @@ setLinks <- function(rho, link) {
   rho$pfun <- switch(link,
                      logit = plogis,
                      probit = pnorm,
-                     cloglog = pgumbel,
+                     cloglog = pgumbel2,
                      cauchit = pcauchy,
-                     loglog = pgumbel2,
+                     loglog = pgumbel,
                      "Aranda-Ordaz" = function(x, lambda) pAO(x, lambda),
                      "log-gamma" = function(x, lambda) plgamma(x, lambda))
   rho$dfun <- switch(link,
                      logit = dlogis,
                      probit = dnorm,
-                     cloglog = dgumbel,
+                     cloglog = dgumbel2,
                      cauchit = dcauchy,
-                     loglog = dgumbel2,
+                     loglog = dgumbel,
                      "Aranda-Ordaz" = function(x, lambda) dAO(x, lambda),
                      "log-gamma" = function(x, lambda) dlgamma(x, lambda))
   rho$gfun <- switch(link,
                      logit = glogis,
                      probit = gnorm, 
-                     loglog = function(x) -ggumbel(-x),
-                     cloglog = ggumbel,
+                     cloglog = function(x) -ggumbel(-x),
+                     loglog = ggumbel,
                      cauchit = gcauchy,
                      "Aranda-Ordaz" = function(x, lambda) gAO(x, lambda), ## shouldn't happen
                      "log-gamma" = function(x, lambda) glgamma(x, lambda)
@@ -270,10 +283,6 @@ start.beta <- function(X, has.intercept = TRUE)
 clm.start <- function(y, threshold, X, has.intercept = TRUE)
   return(c(start.threshold(y, threshold),
            start.beta(X, has.intercept)))  
-
-### Will these very simple starting values be enough for the NR alg to
-### converge robustly to the optimum?  
-
 
 ### Parameters in rho needed to optimize a clm:
 ### Initial:
@@ -492,8 +501,6 @@ clm.fit.env <-
   return(res)
 }
 
-
-### Old versions:
 clm.nll <- function(rho) { ## negative log-likelihood
   with(rho, {
     eta1 <- drop(B1 %*% par) + o1

@@ -470,10 +470,10 @@ same event at $\bm x_2$ is
   %% \label{eq:4}
   \textup{OR} = \frac{\gamma_j(\bm x_1) / [1 - \gamma_j(\bm x_1)]}
   {\gamma_j(\bm x_2) / [1 - \gamma_j(\bm x_2)]} = 
-  \frac{\exp(\theta_j - \bm x_1 \bm\beta)}
-  {\exp(\theta_j - \bm x_2 \bm\beta)}
+  \frac{\exp(\theta_j - \bm x_1^T \bm\beta)}
+  {\exp(\theta_j - \bm x_2^T \bm\beta)}
   %% =&~ \exp(\theta_j - \theta_j - \bm x_1 \bm\beta + \bm x_2 \bm\beta) 
-  = \exp[(\bm x_2 - \bm x_1)\bm\beta]
+  = \exp[(\bm x_2^T - \bm x_1^T)\bm\beta]
 \end{equation*}
 which is independent of $j$. Thus the cumulative odds ratio is
 proportional to the distance between $\bm x_1$ and $\bm x_2$ which
@@ -542,14 +542,16 @@ section~\ref{sec:latent-vari-motiv}.
     Name & logit & probit & log-log & clog-log$^a$ & cauchit \\
     \hline
     Distribution & logistic & Normal & Gumbel (min)$^b$ & Gumbel (max)$^b$ &
-    Cauchy ($t_1$)$^c$ \\
-    Shape & symmetric & symmetric & right skew (?) & left (?) skew &
+    Cauchy$^c$ \\
+    Shape & symmetric & symmetric & left skew & right skew &
     kurtotic \\
-    Link function ($F^{-1}$)  & $\log[\gamma / (1 - \gamma)]$ & $\Phi^{-1}(\gamma)$ & & & \\
-    Inverse link ($F$) & $1 / [1 + \exp(\eta)]$ & $\Phi(\eta)$ & &
-    $\exp(\exp(-\eta))$ & $\arctan(\eta)/\pi + 0.5$ \\
+    Link function ($F^{-1}$)  & $\log[\gamma / (1 - \gamma)]$ & $\Phi^{-1}(\gamma)$ & 
+    $-\log[-\log(\gamma)]$ & $\log[ -\log(1 - \gamma)]$ & $\tan[\pi
+    (\gamma - 0.5)]$ \\
+    Inverse link ($F$) & $1 / [1 + \exp(\eta)]$ & $\Phi(\eta)$ & 
+    $\exp(-\exp(-\eta))$ & $1 - \exp[-\exp(\eta)]$ & $\arctan(\eta)/\pi + 0.5$ \\
     Density ($f = F'$) & $\exp(-\eta) / [1 + \exp(-\eta)]^2$ & $\phi(\eta)$ &
-    & $\exp(-\exp(-\eta) - \eta)$ & $1 / \pi(1 + \eta^2)$ \\
+    $\exp(-\exp(-\eta) - \eta)$ & $\exp[-\exp(\eta) + \eta]$ & $1 / [\pi(1 + \eta^2)]$ \\
     \hline
   \end{tabular}
   \end{center}
@@ -580,16 +582,27 @@ or equivalently
   \bm\beta ~.
 \end{equation}
 Here $1 - \gamma_{j}(\bm x_i)$ is the probability or survival beyond
-category $j$ given $\bm x_i$. Thus, similar to the proportional odds
-model, the ratio of hazard functions beyond category $j$ at $\bm x_1$
-relative to $\bm x_2$ (the hazard ratio, $HR$) is:
+category $j$ given $\bm x_i$. The proportional hazards model has the
+property that
 \begin{equation*}
-  HR = \frac{-\log\{1 - \gamma_{j}(\bm x_2) \}}
-  {-\log\{1 - \gamma_{j}(\bm x_1) \}} = 
-  \frac{\exp( \theta_j - \bm x_1^T \bm\beta )}
-  {\exp( \theta_j - \bm x_2^T \bm\beta )} =
-  \exp[(\bm x_2 - \bm x_1)\bm\beta]
+  \log \{ \gamma_{j}(\bm x_1) \} = \exp[ (\bm x_2^T - \bm x_1^T)
+  \bm\beta ] \log \{ \gamma_{j}(\bm x_2) \}~.
 \end{equation*}
+If the log-log link is used on the response categories in the reverse
+order, this is equivalent to using the c-log-log link on the response
+in the original order. This reverses the sign of $\bm\beta$ as well as
+the sign and order of $\{\theta_j\}$ while the likelihood and standard
+errors remain unchanged.
+%% Thus, similar to the proportional odds
+%% model, the ratio of hazard functions beyond category $j$ at $\bm x_1$
+%% relative to $\bm x_2$ (the hazard ratio, $HR$) is:
+%% \begin{equation*}
+%%   HR = \frac{-\log\{1 - \gamma_{j}(\bm x_2) \}}
+%%   {-\log\{1 - \gamma_{j}(\bm x_1) \}} = 
+%%   \frac{\exp( \theta_j - \bm x_1^T \bm\beta )}
+%%   {\exp( \theta_j - \bm x_2^T \bm\beta )} =
+%%   \exp[(\bm x_2 - \bm x_1)\bm\beta]
+%% \end{equation*}
 
 In addition to the standard links in Table~\ref{tab:linkFunctions},
 flexible link functions are available for \texttt{clm} in package
@@ -708,14 +721,13 @@ rather than six rows.
 The details of the actual algorithm by which the likelihood function
 is optimized is deferred to a later section.
 
-\marginpar{Have I got the signs right in the following?}
-
 According to standard likelihood theory, the variance-covariance
 matrix of the parameters can be obtained as the inverse of the
 observed Fisher information matrix. This matrix is given by the 
-negative Hessian of the log-likelihood function evaluated at the
-maximum likelihood estimates. Standard errors can be obtained as the
-square root of the diagonal of the variance-covariance matrix. 
+negative Hessian of the log-likelihood function\footnote{equivalently
+  the Hessian of the negative log-likelihood function.} evaluated at
+the maximum likelihood estimates. Standard errors can be obtained as
+the square root of the diagonal of the variance-covariance matrix. 
 
 Let $\bm\alpha = [\bm\theta, \bm\beta]$ denote the full set of
 parameters. The Hessian matrix is then given as the second order
@@ -727,12 +739,14 @@ estimates:
     \bm\alpha \partial \bm \alpha^T} \bigg|_{\bm\alpha =
     \hat{\bm\alpha}} ~.
 \end{equation}
-The observed Fisher information matrix is then $I(\hat{\bm\alpha}) =
-- \bm H$ and the standard errors are given by
+The observed Fisher information matrix is then 
+$\bm I(\hat{\bm\alpha}) = - \bm H$ 
+and the standard errors are given by
 \begin{equation}
   \label{eq:8}
   \textup{se}(\hat{\bm\alpha}) =
-  \sqrt{\textup{diag}[I(\hat{\bm\alpha})^{-1}]} .
+  \sqrt{\textup{diag}[\bm I(\hat{\bm\alpha})^{-1}]} =
+  \sqrt{\textup{diag}[-\bm H(\hat{\bm\alpha})^{-1}]} .
 \end{equation}
 
 Another general way to obtain the variance-covariance matrix of the
@@ -744,9 +758,10 @@ information matrix as a by-product of the algorithm, and
 Newton-Raphson algorithms (such as the one used for \texttt{clm} in
 \textsf{ordinal2}) similarly produce the observed Fisher information
 matrix. 
-
-\marginpar{Mention which is better and refer to Efron and Hinkley}
-
+\citet{efron78} considered the choice of observed versus expected
+Fisher information and argued that the observed information contains
+relevant information thus it is prefered over the expected
+information. 
 
 \citet{pratt81} and \citet{burridge81} showed (seemingly independent
 of each other) that the log-likelihood function of cumulative link
@@ -1494,7 +1509,6 @@ plot(table(as.numeric(wine$rating)), ylab="", las = 1)
 ~
 \end{example}
 
-
 %% Thus, from a CLM we obtain estimates of $\theta^*_j$ and $\mu_i^*$
 %% while if $S_i$ were available we would from a linear model obtain
 %% estimates of $\alpha$,  $\mu_i$ and $\sigma$. 
@@ -1525,6 +1539,141 @@ plot(table(as.numeric(wine$rating)), ylab="", las = 1)
 %% \begin{example}
 %%   Latent variable interpretation of the parameters of the wine model. 
 %% \end{example}
+
+
+\subsection{Structured thresholds}
+\label{sec:struct-thresh}
+
+In this section we will motivate and describe structures on the
+thresholds in cumulative link models. Three options are available in
+\texttt{clm} using the \texttt{threshold} argument: flexible,
+symmetric and equidistant thresholds.  
+The default option is
+\texttt{"flexible"}, which corresponds to the conventional ordered, but
+otherwise unstructured thresholds. The \texttt{"symmetric"} option
+restricts the thresholds to be symmetric while the
+\texttt{"equidistant"} option restricts the thresholds to be equally
+spaced. 
+
+
+\subsubsection{Symmetric thresholds}
+\label{sec:symmetric-thresholds}
+
+
+The basic cumulative link model assumed that the thresholds are
+constant for all values of $\bm x^T_i \bm\beta$, that they are ordered
+and finite but otherwise without structure. In questionaire type
+response scales, the question is often of the form ``how much do you
+agree with \emph{statement}'' with response categories
+ranging from ``completely agree'' to ``completely disagree''
+%% , the central category being ``neither agree or disagree'' 
+in addition to a number of intermediate categories possibly with
+appropriate ancoring words. 
+In this situation the response
+scale is meant to be perceived as being symmetric, thus, for example,
+the end categories are equally far from the central category/categories. 
+Thus, in
+the analysis of such data it can be relevant to restrict the
+thresholds to be symmetric or at least test the hypothesis of
+symmetric thresholds against the more general alternative requiring
+only that the thresholds are ordered in the conventional cumulative
+link model. An example with six response categories and five
+thresholds is given in Table~\ref{tab:symmThresholds1} where the
+central threshold, $\theta_3$ maps to $c$ while $a$ and $b$ are
+\emph{spacing}s determining the distance to the remaining thresholds. 
+Symmetric thresholds is a
+parsimonious alternative since three rather than five parameters are
+required to determine the thresholds in this case. Naturally at least
+four response categories, i.e., three thresholds are required for the
+symmetric thresholds to use less parameters than the general
+alternative. With an even number of thresholds, we use a
+parameterization with two central thresholds as shown in
+Table~\ref{tab:symmThresholds2}.  
+
+\begin{table}
+  \centering
+  \caption{Symmetric thresholds with six response categories use the
+    three parameters $a$, $b$ and $c$.}
+  \label{tab:symmThresholds1}
+  \begin{tabular}{cccccc}
+    \hline
+    $\theta_1$ & $\theta_2$ & $\theta_3$ & $\theta_4$ & $\theta_5$ \\
+   $-b+c$ & $-a+c$ & $c$ & $a+c$ & $b+c$ \\
+   \hline
+  \end{tabular}
+\end{table}
+
+\begin{table}
+  \centering
+  \caption{Symmetric thresholds with seven response categories use the
+    four parameters, $a$, $b$, $c$ and $d$.}
+  \label{tab:symmThresholds2}
+  \begin{tabular}{cccccc}
+    \hline
+    $\theta_1$ & $\theta_2$ & $\theta_3$ & $\theta_4$ & $\theta_5$ & $\theta_6$\\
+   $-b+c$ & $-a+c$ & $c$ & $d$ & $a+d$ & $b+d$ \\
+   \hline
+  \end{tabular}
+\end{table}
+
+\begin{example}
+  I am missing some good data to use here.
+\end{example}
+
+
+\subsubsection{Equidistant thresholds}
+\label{sec:equid-thresh}
+
+Ordinal data sometimes arize when the intensity of some perception is
+rated on an ordinal response scale. An example of such a scale is the
+ratings of the bitterness of wine described in
+example~\ref{exa:wine-data}. In such cases it is natural to
+hypothesize that the thresholds are equally spaced, or equidistant
+as we shall denote this structure. Equidistant thresholds use only two
+parameters and our parameterization can be described by the following mapping:
+\begin{equation}
+  \label{eq:17}
+  \theta_j = a + b(j-1), \quad \textup{for} \quad j=1, \ldots, J-1
+\end{equation}
+such that $\theta_1 = a$ is the first threshold and $b$ denotes the
+distance between adjacent thresholds.
+
+\begin{example}
+  In example~\ref{exa:fitting-cumulative-link-models} we fitted a
+  model for the wine data 
+  (cf. Table~\ref{tab:wineData}) with additive effects of temperature
+  and contact while only restricting the thresholds to be suitably
+  ordered. For convenience this model fit is repeated here:
+<<>>=
+fm1 <- clm(rating ~ temp + contact, data=wine)
+summary(fm1)
+@ 
+The succesive distances between the thresholds in this model are
+<<>>=
+diff(fm1$alpha)
+@ 
+so the distance between the thresholds seems to be decreasing.
+However, the standard errors of the thresholds are about half the size
+of the distances, so their position is not that well determined. A
+model where the thresholds are restricted to be equally spaced is
+fitted with 
+<<>>=
+fm2 <- clm(rating ~ temp + contact, data=wine, threshold="equidistant") 
+summary(fm2)
+@ 
+so here 
+$\hat\theta_1 = \hat a = \Sexpr{round(fm2[["alpha"]][1], 3)}$ and 
+$\hat b = \Sexpr{round(fm2[["alpha"]][2], 3)}$ in the parameterization
+of \eqref{eq:17}. We can test the assumption of equidistant thresholds
+against the flexible alternative with a likelihood ratio test:
+<<>>=
+anova(fm1, fm2)
+@ 
+so the $p$-value is 
+$p = \Sexpr{format.pval(anova(fm1, fm2)[2,7], digits=3)}$
+not providing much evidence against equidistant thresholds.  
+\end{example}
+
 
 \section{Assessing the likelihood and model convergence}
 
@@ -1763,33 +1912,188 @@ plot(pr1, parm=2)
   \label{fig:ProfileLikelihood}
 \end{figure}
 
-\subsection{Model selection}
-\label{sec:model-selection}
+%% ## \subsection{Model selection}
+%% ## \label{sec:model-selection}
+%% ## 
+%% ## Several tools are available for variable assessment and model
+%% ## selection. 
+%% ## 
+%% ## <<add, echo=TRUE, results=verb, eval=FALSE>>=
+%% ## drop1(fm1, test="Chi")
+%% ## add1(update(fm1, ~ 1), ~ + contact + temp, test="Chi")
+%% ## 
+%% ## lm1 <- lm(response ~ contact + temp, data = wine)
+%% ## drop1(lm1, test = "F")
+%% ## add1(lm(response ~ 1, data = wine), ~.+contact + temp, test = "F")
+%% ## @ 
+%% ## 
+%% ## \subsection{Predictions}
+%% ## \label{sec:predictions}
+%% ## 
+\section{Cumulative Link Mixed Models}
+\label{sec:cumul-link-mixed}
 
-Several tools are available for variable assessment and model
-selection. 
+The effects of explanatory variables in the cumulative link models we
+have considered until now are said to be \emph{fixed effects}. In this
+chapter we will introduce so-called \emph{random effects} which
+combined with fixed effects leads to the so-called \emph{mixed effects
+models}, or simply \emph{mixed models}.  
+The motivations for using random effects are many and diverse. Often
+some kind of grouping structure is present in the data and random
+effects are introduced to model this grouping structure. Grouped data
+can be understood as a \emph{samples of samples}, where the samples
+as well as the samples-of-samples are considered random. 
 
-<<add, echo=TRUE, results=verb, eval=FALSE>>=
-drop1(fm1, test="Chi")
-add1(update(fm1, ~ 1), ~ + contact + temp, test="Chi")
+As an example consider a study of consumer preference of two products,
+$A$ and $B$, say. Consumers can be considered a random sample from the
+population of consumers to which our results are to generalize, while
+we are not intested in generalizing the effect of products to the
+population; only these two products are of interest. This is a general
+theme: when we wish our results or inference for a particular
+explanatory variable to generalize to a population, we consider the
+effects of this variable random; otherwise the effects are usually
+considered fixed. Also observe that we obtained a \emph{sample} of
+consumers which each provided a \emph{sample} of preference ratings,
+thus we have a sample of samples.
 
-lm1 <- lm(response ~ contact + temp, data = wine)
-drop1(lm1, test = "F")
-add1(lm(response ~ 1, data = wine), ~.+contact + temp, test = "F")
+Another characteristic is that samples from the same consumer are more
+similar than samples from different consumers (on average) since
+samples from the same consumer share a random consumer
+effect. Observations on the same consumer are said to be correlated. 
+
+A basic cumulative link mixed model reads
+\begin{equation}
+  \label{eq:CLMM_simple}
+  \gamma_{ijk} = F(\theta_j - \bm x_{ik}^T \bm\beta - u_k),
+\end{equation}
+where $u_k$ is the random effect for the $k$th group or cluster,
+$x_{ik}$ are the explanatory variables for the $i$th sample on the
+$k$th cluster and $\bm\beta$ are the parameters for the fixed
+effects. Observe the minus before the random effects, so they have the
+same direction of effect as $\bm\beta$,
+cf. section~\ref{sec:latent-vari-motiv}. 
+
+We will assume throughout that the random effects are independently
+and identically normally distributed: 
+\begin{equation}
+  \label{eq:19}
+  U_k \sim N(0, \sigma_u^2),
+\end{equation}
+where $u_k$ are the observed values of $U_k$.
+Though other distributions are possible, this choice is conventional
+and convenient and often a reasonable choice, at least as a
+first approximation. The ordinal observations are assumed to follow a
+multinomial distribution conditional on $\bm X$ and the observed value
+of the random effects $U_k = u_k$ for all $k$.
+
+The random effects in \eqref{eq:CLMM_simple} are said to work on the
+intercepts, $\{\theta_j \}$ since $\theta_j - u_k$ is a $k$-specific
+shift of the thresholds or intercepts. In a latent distribution
+interpretation, the $u_k$ induce a cluster-specific shift of the
+latent distributions relative to the thresholds. 
+
+In \eqref{eq:CLMM_simple} the $\{u_k\}$ are not parameters as are
+$\bm\beta$, rather, they are realized values of the random variable,
+$U_k$. The values, $\{ u_k \}$ are unobservable though it is possible
+to construct predictions of them based on the fitted model. The
+parameter that determines the distribution of $u_k$ is $\sigma_u$, so
+in \eqref{eq:CLMM_simple} random effects are introduced at the expense
+of a single parameter, though there can be thousands or more random
+effects.  
+Sometimes an alternative to the mixed model is to allow the grouping
+variable to have fixed effects---this is possible, in particular, when
+the there are many cluster-specific samples relative to the number of
+clusters. One problem by doing so is that the number of parameters
+increase with the number of clusters and this cause the ML estimators
+of the model parameters to be inconsistent. On the other hand the
+estimators are consistent in the mixed model since the number of
+parameters is constant with the increase of the number of clusters.  
+
+\begin{example}
+  In this example we will revisit the wine data presented in
+  example~\ref{exa:wine-data} and Table~\ref{tab:wineData}. 
+  In this example we will extend previous analyses of these data by
+  considering the effect of judges. Nine judges made each their
+  ratings of the wines and it is possible that judges perceived and
+  used the response scale differently and therefore induced
+  judge-specific structural differences in the wine ratings. 
+  
+  Judges are effectively used as the measurement instrument with which
+  wine bitterness is measured and a general challenge is that as
+  measurement instruments, humans are very hard to calibrate. Further,
+  the concepts measured in this way are often not possible to
+  quantify; in addition to perceptions, attitude, agreement and
+  preference are other concepts without unanbiguous and meaningful
+  continuous measurement scales.
+  A certain degree of bitternes is not uniquely related to any category
+  on the rating scale, further \emph{bitterness} is a personal
+  perception that vary between individuals. Possibly
+  the simplest type of judge-specific differences arize if judges
+  perception of bitterness are shifted relative to each other on the
+  response scale. Thus if one judge rates two wines as 2 and 4,
+  another judge may rate them as 3 and 5 because that judge perceives
+  the bitterness as more intense than the first judge or because the
+  judge perceives the response scale different from the first judge. 
+  
+  We could model the judge-specific shifts of bitterness perception by
+  including a fixed effect of judges in a cumulative link
+  model. However, we are not interested in the judge-specific effects
+  per say, rather we want to control for these effects in the
+  interpretation of the other effects. 
+  
+  The judge-specific shifts of bitterness perception can be modeled
+  with cumulative link mixed model with the following structure in the
+  linear predictor: 
+  \begin{equation}
+    \eta_{ij} = \theta_j + \beta_1 (\mathtt{temp}_i) + \beta_2
+    (\mathtt{contact}_i) + u (\mathtt{judge_i})~.
+  \end{equation}
+  where $u( \mathtt{judge_i}) \sim N(0, \sigma_u^2)$
+  This model can be fitted and summarized with 
+<<>>=
+mm1 <- clmm(rating ~ temp + contact + (1| judge), data=wine)
+summary(mm1)
 @ 
 
-\subsection{Structured thresholds}
-\label{sec:struct-thresh}
+The computational method used is the Laplace approximation and the
+parameter estimates are
+\begin{equation*}
+  \hat\beta_1 = 3.06 \quad \hat\beta_2 = 1.83 
+  \quad \sigma_u^2 = 1.13^2
+\end{equation*}
+Observe that these estimates are larger in magnitude than the
+estimates from the model that ignored the judges effects in
+example~\ref{exa:fitting-cumulative-link-models}. This effect is known
+as the \emph{attenuation} effect which reflects that effects in models
+that average over (or marginalizes over) the distribution of judges
+(which corresponds to ignoring judges in the model) are attenuated, i.e.,
+smaller in absolute magnitude than the effects that conditional on the
+judge effects. Correspondingly the models are sometimes referred to as
+\emph{marginal models} and \emph{conditional models}. 
+\end{example}
 
-
-\subsection{Predictions}
-\label{sec:predictions}
-
-\section{Miscalleneaus}
-\label{sec:miscalleneaus}
-
-\citet{thompson81} showed that cumulative logit models can be fitted
-by application of composite link functions.
+%% \subsection{Estimation of cumulative link mixed models.}
+%% \label{sec:estim-cumul-link-mixed-models}
+%% 
+%% 
+%% 
+%% 
+%% \subsubsection{Motivation for assumption of normally distributed random effects}
+%% 
+%% \begin{itemize}
+%% \item Simple distribution on the entire real line which the linear
+%%   predictor spanns
+%% \item only models the second moment in addition to the first captured
+%%   by the remaining predictor
+%% \item 
+%% \end{itemize}
+%% 
+%% 
+%% \section{Miscalleneaus}
+%% \label{sec:miscalleneaus}
+%% 
+%% \citet{thompson81} showed that cumulative logit models can be fitted
+%% by application of composite link functions.
 
 
 

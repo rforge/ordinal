@@ -42,6 +42,8 @@ vcov.clmm <- function(object, ...)
 summary.clmm <- function(object, digits = max(3, .Options$digits - 3),
                          correlation = FALSE, ...)
 {
+  if(is.null(object$Hessian))
+    stop("Model needs to be fitted with Hess = TRUE")
   object$varMat <- matrix(c(object$stDev^2, object$stDev),
                           nrow = length(object$stDev), ncol=2)
   rownames(object$varMat) <- names(object$stDev)

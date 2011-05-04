@@ -148,11 +148,12 @@ par(mfrow = c(2, 2))
 plot(pr1, Log = TRUE, relative = FALSE)
 
 ## other link functions:
-fm4 <- update(fm1, link = "logit") ## default
-fm4 <- update(fm1, link = "probit")
-fm4 <- update(fm1, link = "loglog")
-fm4 <- update(fm1, link = "cloglog")
-fm4 <- update(fm1, link = "cauchit")
+fm4.lgt <- update(fm1, link = "logit") ## default
+fm4.prt <- update(fm1, link = "probit")
+fm4.ll <- update(fm1, link = "loglog")
+fm4.cll <- update(fm1, link = "cloglog")
+fm4.cct <- update(fm1, link = "cauchit")
+anova(fm4.lgt, fm4.prt, fm4.ll, fm4.cll, fm4.cct)
 
 ## structured thresholds:
 fm5 <- update(fm1, threshold = "symmetric")
