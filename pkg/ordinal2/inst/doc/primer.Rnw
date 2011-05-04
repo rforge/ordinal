@@ -1670,7 +1670,7 @@ against the flexible alternative with a likelihood ratio test:
 anova(fm1, fm2)
 @ 
 so the $p$-value is 
-$p = \Sexpr{format.pval(anova(fm1, fm2)[2,7], digits=3)}$
+$p = \Sexpr{format.pval(anova(fm1, fm2)[2,6], digits=3)}$
 not providing much evidence against equidistant thresholds.  
 \end{example}
 

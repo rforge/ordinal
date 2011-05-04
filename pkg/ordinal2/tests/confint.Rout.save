@@ -1,0 +1,212 @@
+
+R version 2.12.2 (2011-02-25)
+Copyright (C) 2011 The R Foundation for Statistical Computing
+ISBN 3-900051-07-0
+Platform: i386-pc-mingw32/i386 (32-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> #################################
+> ## test profile and confint methods:
+> library(ordinal2)
+Loading required package: MASS
+Loading required package: ucminf
+Loading required package: numDeriv
+Loading required package: Matrix
+Loading required package: lattice
+
+Attaching package: 'Matrix'
+
+The following object(s) are masked from 'package:base':
+
+    det
+
+> data(wine, package = "ordinal2")
+> fm1 <- clm(rating ~ contact + temp, data = wine)
+> summary(fm1)
+formula: rating ~ contact + temp
+data:    wine
+
+ link  threshold nobs logLik AIC    niter max.grad cond.H 
+ logit flexible  72   -86.49 184.98 7(0)  4.01e-12 2.7e+01
+
+Coefficients:
+           Estimate Std. Error z value Pr(>|z|)    
+contactyes   1.5278     0.4766   3.205  0.00135 ** 
+tempwarm     2.5031     0.5287   4.735 2.19e-06 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1 
+
+Threshold coefficients:
+    Estimate Std. Error z value
+1|2  -1.3444     0.5171  -2.600
+2|3   1.2508     0.4379   2.857
+3|4   3.4669     0.5978   5.800
+4|5   5.0064     0.7309   6.850
+> 
+> ## profile.clm and confint.clm:
+> pr1 <- profile(fm1)
+> confint(pr1)
+               2.5 %   97.5 %
+contactyes 0.6158045 2.492424
+tempwarm   1.5097839 3.595251
+> pr1 <- profile(fm1, which.beta = 1:2)
+> confint(pr1)
+               2.5 %   97.5 %
+contactyes 0.6158045 2.492424
+tempwarm   1.5097839 3.595251
+> pr1 <- profile(fm1, which.beta = 2:1)
+> confint(pr1)
+               2.5 %   97.5 %
+tempwarm   1.5097839 3.595251
+contactyes 0.6158045 2.492424
+> pr1 <- profile(fm1, which.beta = 1)
+> confint(pr1)
+               2.5 %   97.5 %
+contactyes 0.6158045 2.492424
+> pr1 <- profile(fm1, which.beta = 2)
+> confint(pr1)
+            2.5 %   97.5 %
+tempwarm 1.509784 3.595251
+> pr1 <- try(profile(fm1, which.beta = 0), silent = TRUE) ## error
+> pr1 <- try(profile(fm1, which.beta = "no.par"), silent = TRUE) ## error
+> pr1 <- try(profile(fm1, which.beta = -1), silent = TRUE) ## error
+> pr1 <- profile(fm1, which.beta = "tempwarm") 
+> confint(pr1)
+            2.5 %   97.5 %
+tempwarm 1.509784 3.595251
+> pr1 <- profile(fm1, alpha = 0.1)
+> confint(pr1) ## should give NA in this case?
+           2.5 % 97.5 %
+contactyes    NA     NA
+tempwarm      NA     NA
+> pr1 <- profile(fm1, max.steps = 9)
+> pr1 <- profile(fm1, step.warn = 7)
+> pr1 <- profile(fm1, nsteps = 6)
+> pr1 <- profile(fm1, trace = 1)
+
+Parameter: contactyes down
+
+Parameter: contactyes up
+
+Parameter: tempwarm down
+
+Parameter: tempwarm up
+> pr1 <- profile(fm1, control = list(gradTol = .1))
+> confint(pr1) ## not at all unreliable...
+               2.5 %   97.5 %
+contactyes 0.6158145 2.492406
+tempwarm   1.5098121 3.595211
+> 
+> ## single regression coef setting:
+> fm2 <- clm(rating ~ contact, data = wine)
+> summary(fm2)
+formula: rating ~ contact
+data:    wine
+
+ link  threshold nobs logLik AIC    niter max.grad cond.H 
+ logit flexible  72   -99.96 209.91 6(0)  1.67e-07 1.7e+01
+
+Coefficients:
+           Estimate Std. Error z value Pr(>|z|)   
+contactyes   1.2070     0.4499   2.683   0.0073 **
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1 
+
+Threshold coefficients:
+    Estimate Std. Error z value
+1|2 -2.13933    0.48981  -4.368
+2|3  0.04257    0.32063   0.133
+3|4  1.71449    0.38637   4.437
+4|5  2.97875    0.50207   5.933
+> pr2 <- profile(fm2)
+> confint(pr2)
+               2.5 %   97.5 %
+contactyes 0.3403978 2.110952
+> 
+> ## confint.clm:
+> confint(fm1)
+Waiting for profiling to be done...
+               2.5 %   97.5 %
+contactyes 0.6157925 2.492404
+tempwarm   1.5097627 3.595225
+> confint(fm1, 2)
+Waiting for profiling to be done...
+            2.5 %   97.5 %
+tempwarm 1.509763 3.595225
+> confint(fm1, 1)
+Waiting for profiling to be done...
+               2.5 %   97.5 %
+contactyes 0.6157925 2.492404
+> confint(fm1, "tempwarm")
+Waiting for profiling to be done...
+            2.5 %   97.5 %
+tempwarm 1.509763 3.595225
+> confint(fm1, type = "profile")
+Waiting for profiling to be done...
+               2.5 %   97.5 %
+contactyes 0.6157925 2.492404
+tempwarm   1.5097627 3.595225
+> confint(fm1, type = "Wald")
+               2.5 %   97.5 %
+contactyes 0.5936345 2.461961
+tempwarm   1.4669081 3.539296
+> confint(fm1, 2, type = "Wald")
+            2.5 %   97.5 %
+tempwarm 1.466908 3.539296
+> confint(fm1, level = 0.5)
+Waiting for profiling to be done...
+               25 %     75 %
+contactyes 1.209254 1.852544
+tempwarm   2.152051 2.865757
+> confint(fm1, level = 1 - 1e-6)
+Waiting for profiling to be done...
+                  0 %    100 %
+contactyes -0.7003630 4.091731
+tempwarm    0.1351282 5.520007
+> confint(fm1, level = 1 - 1e-10) ## extreme, but it works
+Waiting for profiling to be done...
+                  0 %    100 %
+contactyes -1.4045009 5.059182
+tempwarm   -0.5753928 6.774556
+> confint(fm1, trace = 1)
+Waiting for profiling to be done...
+
+Parameter: contactyes down
+
+Parameter: contactyes up
+
+Parameter: tempwarm down
+
+Parameter: tempwarm up
+               2.5 %   97.5 %
+contactyes 0.6157925 2.492404
+tempwarm   1.5097627 3.595225
+> 
+> ## plot.profile:
+> pr1 <- profile(fm1, which=1:2, alpha = 1e-3)
+> par(mfrow = c(1,2))
+> plot(pr1)
+> plot(pr1, 1)
+> plot(pr1, "contactyes")
+> plot(pr1, level = .97)
+> plot(pr1, Log = TRUE)
+> try(plot(pr1, relative = FALSE), silent = TRUE) ## error
+> plot(pr1, root = TRUE)
+> plot(pr1, approx = TRUE)
+> plot(pr1, n=10)
+> plot(pr1, ylim = c(0,2))
+> plot(pr1, las = 1)
+> plot(pr2)
+> 
+> 

@@ -225,6 +225,7 @@ print.anova.clm <-
   print(models, right=FALSE)
   printCoefmat(x, digits=digits, signif.stars=signif.stars,
                tst.ind=4, cs.ind=NULL, # zap.ind=2, #c(1,5),
-               P.values=TRUE, has.Pvalue=TRUE, na.print="")
+               P.values=TRUE, has.Pvalue=TRUE, na.print="", ...)
+  return(invisible(x))
 }
 

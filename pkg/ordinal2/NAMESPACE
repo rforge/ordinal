@@ -43,6 +43,7 @@ S3method(slice, clm)
 S3method(plot, slice.clm)
 
 S3method(anova, clm)
+S3method(print, anova.clm)
 ## S3method(predict, clm)
 
 S3method(profile, clm)

@@ -631,12 +631,6 @@ clm.control <-
                gradTol = as.numeric(gradTol),
                maxLineIter = as.integer(maxLineIter))
   
-  ## if(convTol <= 0)
-  ##   stop("convTol should be > 0")
-  ## if(method == "Newton" && convTol > gradTol)
-  ##   stop("convTol should be <= gradTol")
-  
-  ## list(method = method, ctrl = ctrl)
   return(ctrl)
 }
 
