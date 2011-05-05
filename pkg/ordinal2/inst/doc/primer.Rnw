@@ -1716,22 +1716,22 @@ plot.
 \begin{figure}
   \centering
 <<slice11, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice.fm1, which = 1)
+plot(slice.fm1, parm = 1)
 @ 
 <<slice12, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice.fm1, which = 2)
+plot(slice.fm1, parm = 2)
 @ 
 <<slice13, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice.fm1, which = 3)
+plot(slice.fm1, parm = 3)
 @ 
 <<slice14, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice.fm1, which = 4)
+plot(slice.fm1, parm = 4)
 @ 
 <<slice15, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice.fm1, which = 5)
+plot(slice.fm1, parm = 5)
 @ 
 <<slice16, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice.fm1, which = 6)
+plot(slice.fm1, parm = 6)
 @ 
 \caption{Slices of the (negative) log-likelihood function for
   parameters in a 
@@ -1764,22 +1764,22 @@ indistinguishable from the log-likelihood at this scale.
 \begin{figure}
   \centering
 <<slice21, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice2.fm1, which = 1)
+plot(slice2.fm1, parm = 1)
 @ 
 <<slice22, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice2.fm1, which = 2)
+plot(slice2.fm1, parm = 2)
 @ 
 <<slice23, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice2.fm1, which = 3)
+plot(slice2.fm1, parm = 3)
 @ 
 <<slice24, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice2.fm1, which = 4)
+plot(slice2.fm1, parm = 4)
 @ 
 <<slice25, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice2.fm1, which = 5)
+plot(slice2.fm1, parm = 5)
 @ 
 <<slice26, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(slice2.fm1, which = 6)
+plot(slice2.fm1, parm = 6)
 @ 
   \caption{Slices of the (negative) log-likelihood function for
     parameters in a model for the bitterness-of-wine data very close

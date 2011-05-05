@@ -3,7 +3,7 @@ slice <- function(object, ...) {
 }
 
 slice.clm <-
-  function(object, which = seq_along(par), lambda = 3, grid = 1e2,
+  function(object, parm = seq_along(par), lambda = 3, grid = 1e2,
            quad.approx = TRUE, ...)
 {
   ## argument matching and testing:
@@ -11,17 +11,17 @@ slice.clm <-
   stopifnot(is.numeric(grid) && grid >= 1)
   grid <- as.integer(grid)
   par <- coef(object)
-  parNames <- names(par)
+  par.names <- names(par)
   npar <- length(par)
-  stopifnot(length(which) == length(unique(which)))
-  if(is.character(which))
-    which <- match(which, parNames, nomatch = 0)
-  if(!all(which %in% seq_along(par)))
-    stop("invalid 'which' argument")
-  stopifnot(length(which) > 0)
-  which <- as.integer(which)
+  stopifnot(length(parm) == length(unique(parm)))
+  if(is.character(parm))
+    parm <- match(parm, par.names, nomatch = 0)
+  if(!all(parm %in% seq_along(par)))
+    stop("invalid 'parm' argument")
+  stopifnot(length(parm) > 0)
+  parm <- as.integer(parm)
   ml <- object$logLik
-  which.names <- parNames[which]
+  parm.names <- par.names[parm]
 
   ## get environment corresponding to object:
   rho <- update(object, doFit = FALSE)
@@ -29,70 +29,82 @@ slice.clm <-
   rho$par <- par ## set rho$par to mle
   stopifnot(isTRUE(all.equal(clm.nll(rho), -object$logLik)))
 
+  ## generate sequence of parameters at which to compute the
+  ## log-likelihood:
   curv <- 1/diag(object$Hess) ## curvature in nll wrt. par
   par.range <- par + sqrt(curv) %o% c(-lambda, lambda)
   ## par.seq - list of length npar:
-  par.seq <- sapply(which, function(ind) {
+  par.seq <- sapply(parm, function(ind) {
     seq(par.range[ind, 1], par.range[ind, 2], length = grid) }, 
                     simplify = FALSE)
-  ## compute relative nll for all par.seq for each par:
-  nll <- lapply(seq_along(which), function(i) { # for each par
+  ## compute relative logLik for all par.seq for each par:
+  logLik <- lapply(seq_along(parm), function(i) { # for each par
     rho$par <- par ## reset par values to MLE
     sapply(par.seq[[ i ]], function(par.val) { # for each val
-      rho$par[ which[i] ] <- par.val
-      clm.nll(rho) + ml ## relative nll
+      rho$par[ parm[i] ] <- par.val
+      -clm.nll(rho) - ml ## relative logLik
     })
   })
   
   ## collect results in a list of data.frames:
-  res <- lapply(seq_along(which), function(i) {
-    structure(data.frame(par.seq[[ i ]], nll[[ i ]]),
-              names = c(which.names[i], "nll"))
+  res <- lapply(seq_along(parm), function(i) {
+    structure(data.frame(par.seq[[ i ]], logLik[[ i ]]),
+              names = c(parm.names[i], "logLik"))
   })
 
   ## set attributes:
-  names(res) <- which.names
+  names(res) <- parm.names
   attr(res, "original.fit") <- object
   class(res) <- "slice.clm"
 
   if(!quad.approx) return(res)
-  ## compute quadratic approx to nll:
+  ## compute quadratic approx to *positive* logLik:
   Quad <- function(par, mle, curv)
-    ((mle - par)^2 / curv / 2)
-  for(i in seq_along(which))
+    -((mle - par)^2 / curv / 2)
+  for(i in seq_along(parm))
     res[[ i ]]$quad <-
-      Quad(par.seq[[ i ]], par[ which[i] ], curv[ which[i] ])
+      Quad(par.seq[[ i ]], par[ parm[i] ], curv[ parm[i] ])
   
   return(res)
 }
 
 plot.slice.clm <-
-  function(x, which = seq_along(x), type = c("quadratic", "linear"),
-           plot.mle = TRUE, ...)
+  function(x, parm = seq_along(x), type = c("quadratic", "linear"),
+           plot.mle = TRUE,
+           ask = prod(par("mfcol")) < length(parm) && dev.interactive(),
+           ...)
 {
   type <- match.arg(type)
-  stopifnot(is.numeric(which))
-  which <- as.integer(which)
+  stopifnot(is.numeric(parm))
+  parm <- as.integer(parm)
   of <- attr(x, "original.fit")
   par <- coef(of)
   ml <- of$logLik
 
   ## take the signed sqrt of nll and quad:
   if(type == "linear") {
-    sgn.sqrt <- function(par, mle, nll)
-      (2 * (par > mle) - 1) * sqrt(nll)
+    sgn.sqrt <- function(par, mle, logLik)
+      (2 * (par > mle) - 1) * sqrt(-logLik)
     mle <- coef(attr(x, "original.fit"))
-    for(i in which) {
-      x[[i]]$nll <- sgn.sqrt(x[[i]][1], mle[i], x[[i]]$nll)
+    for(i in parm) {
+      x[[i]]$logLik <- sgn.sqrt(x[[i]][1], mle[i], x[[i]]$logLik)
       if(!is.null(x[[i]]$quad))
         x[[i]]$quad <- sgn.sqrt(x[[i]][1], mle[i], x[[i]]$quad)
     }
+    ylab <- "Signed log-likelihood root"
+  }
+  else
+    ylab <- "Relative log-likelihood"
+
+  if(ask) {
+    oask <- devAskNewPage(TRUE)
+    on.exit(devAskNewPage(oask))
   }
  
   ## actual plotting:
-  for(i in which) {
+  for(i in parm) {
     z <- x[[i]]
-    plot(z[1:2], type = "l", ...)
+    plot(z[1:2], type = "l", ylab=ylab, ...)
     if(!is.null(z$quad))
       lines(z[[1]], z[[3]], lty = 2)
     if(plot.mle && type == "quadratic")

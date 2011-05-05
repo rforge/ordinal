@@ -1,4 +1,4 @@
-\name{slice.clm}
+\name{slice}
 \alias{slice}
 \alias{slice.clm}
 \alias{plot.slice.clm}
@@ -17,24 +17,27 @@
 \usage{
 slice(object, ...)
 
-\method{slice}{clm}(object, which = seq_along(par), lambda = 3,
-grid = 100, quad.approx = TRUE, ...)
+\method{slice}{clm}(object, parm = seq_along(par), lambda = 3,
+     grid = 100, quad.approx = TRUE, ...)
 
-\method{plot}{slice.clm}(x, which = seq_along(x),
-type = c("quadratic", "linear"), plot.mle = TRUE, ...)
+\method{plot}{slice.clm}(x, parm = seq_along(x),
+    type = c("quadratic", "linear"), plot.mle = TRUE,
+    ask = prod(par("mfcol")) < length(parm) && dev.interactive(), ...)
 
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{object}{for the \code{clm} method an object of class
-    \code{"clm"}, i.e., the result of a call to \code{clm}
+    \code{"clm"}, i.e., the result of a call to \code{clm}.
   }
   \item{x}{
-    a \code{slice.clm} object, i.e., the result of \code{slice(clm.object)}
+    a \code{slice.clm} object, i.e., the result of
+    \code{slice(clm.object)}.
   }
-  \item{which}{
-    a numeric vector indexing the parameters. By default all parameters
-    are selected
+  \item{parm}{
+    for \code{slice.clm} a numeric or character vector indexing
+    parameters, for \code{plot.slice.clm} only a numeric vector is
+    accepted. By default all parameters are selected.
   }
   \item{lambda}{
     the number of curvature units on each side of the MLE the slice
@@ -58,6 +61,10 @@ type = c("quadratic", "linear"), plot.mle = TRUE, ...)
     include a vertical line at the MLE (maximum likelihood estimate)
     when \code{type = "quadratic"}? Ignored for \code{type = "linear"}. 
   }
+  \item{ask}{
+    logical; if \code{TRUE}, the user is asked before each plot, see
+    \code{\link{par}}\code{(ask=.)}. 
+  }
   \item{\dots}{
     further arguments to \code{plot.default} for the plot method. Not
     used in the slice method.
@@ -70,8 +77,8 @@ type = c("quadratic", "linear"), plot.mle = TRUE, ...)
   The \code{slice} method returns a list of \code{data.frame}s with one
   \code{data.frame} for each parameter slice. Each \code{data.frame}
   contains in the first column the values of the parameter and in the
-  second column the values of the negative log-likelihood
-  \code{"nll"}. A third column is present if \code{quad.approx = TRUE}
+  second column the values of the (positive) log-likelihood
+  \code{"logLik"}. A third column is present if \code{quad.approx = TRUE}
   and contains the corresponding quadratic approximation to the
   log-likelihood. The original model fit is included as the attribute
   \code{"original.fit"}. 
