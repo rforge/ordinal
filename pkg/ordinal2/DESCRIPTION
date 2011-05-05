@@ -7,12 +7,5 @@ Author: Rune Haubo B Christensen
 Maintainer: Rune Haubo B Christensen <rhbc@imm.dtu.dk>
 Imports: numDeriv
 Depends: MASS, ucminf, Matrix
-Description: This package implements likelihood based models for
-  ordinal (ordered categorical)
-  data based on cumulative probabilities in the framework of
-  cumulative 
-  link (mixed) models. This includes the important proportional odds
-  model, structured thresholds (cut-points) and random
-  effects. Further, a range of estimation procedures and a range of
-  auxiliary functions are implemented.
+Description: This package implements cumulative link (mixed) models also known as ordered regression models, proportional odds models, proportional hazards models for grouped survival times and ordered logit/probit/... models. Estimation is via maximum likelihood and mixed models are fitted with the Laplace approximation. Multiple random effect terms are allowed and they may be nested, crossed or partially nested/crossed. Restrictions of symmetry and equidistance can be imposed on the thresholds (cut-points). Standard model methods are available (summary, anova, drop-methods, step, confint etc.) in addition to profile methods and slice methods for visualizing the likelihood function and checking convergence.
 License: GPL (>= 2)

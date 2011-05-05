@@ -1,53 +1,41 @@
-print.clmm <- function(x, ...)
+print.clmm <- 
+  function(x, digits = max(3, getOption("digits") - 3), ...)
 {
   cat("Cumulative Link Mixed Model fitted with the Laplace approximation\n",
       fill=TRUE)
-  if(!is.null(cl <- x$call)) {
-    cat("Call:\n")
-    dput(cl, control=NULL)
-  }
+  cat("formula:", deparse(x$call$formula), fill=TRUE)
+  if(!is.null(data.name <- x$call$data))
+    cat("data:   ", deparse(data.name), fill=TRUE)
+  if(!is.null(x$call$subset))
+    cat("subset: ", deparse(x$call$subset), fill=TRUE)
+  cat("\n")
+
+  print(x$info, row.names=FALSE, right=FALSE)
 
   cat("\nRandom effects:\n")
-  varMat <- matrix(c(x$stDev^2, x$stDev), nrow =
-                   length(x$stDev), ncol=2)
-  rownames(varMat) <- names(x$stDev)
-  colnames(varMat) <- c("Var", "Std.Dev")
-  print(varMat, ...)
+  print(x$varMat, digits=digits, ...)
   
   if(length(x$beta)) {
     cat("\nCoefficients:\n")
-    print(x$beta, ...)
-  } else 
+    print(x$beta, digits=digits, ...)
+  } else {
     cat("\nNo Coefficients\n")
-  
+  }
   if(length(x$alpha) > 0) {
     cat("\nThresholds:\n")
-    print(x$alpha, ...)
+    print(x$alpha, digits=digits, ...)
   }
-  cat("\nlog-likelihood:", format(x$logLik, nsmall=2), "\n")
-  cat("AIC:", format(-2*x$logLik + 2*x$edf, nsmall=2), "\n")
+
   if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
-  invisible(x)
+  return(invisible(x))
 }
 
-vcov.clmm <- function(object, ...)
-{
-    if(is.null(object$Hessian)) {
-        stop("Model needs to be fitted with Hess = TRUE")
-    }
-    dn <- dimnames(object$Hessian)
-    structure(ginv(object$Hessian), dimnames = dn)
-}
+vcov.clmm <- function(object, ...) vcov.clm(object, ...)
 
-summary.clmm <- function(object, digits = max(3, .Options$digits - 3),
-                         correlation = FALSE, ...)
+summary.clmm <- function(object, correlation = FALSE, ...)
 {
   if(is.null(object$Hessian))
     stop("Model needs to be fitted with Hess = TRUE")
-  object$varMat <- matrix(c(object$stDev^2, object$stDev),
-                          nrow = length(object$stDev), ncol=2)
-  rownames(object$varMat) <- names(object$stDev)
-  colnames(object$varMat) <- c("Var", "Std.Dev")
   
   npar <- length(object$alpha) + length(object$beta)
   coef <- matrix(0, npar, 4,
@@ -74,45 +62,47 @@ summary.clmm <- function(object, digits = max(3, .Options$digits - 3),
         object$correlation <-
           (vc / sd) / rep(sd, rep(object$edf, object$edf))
   }
+  object$info$cond.H <- formatC(object$condHess, digits=1, format="e")
   object$coefficients <- coef
-  object$digits <- digits
   class(object) <- "summary.clmm"
-  object
+  return(object)
 }
 
-print.summary.clmm <- function(x, digits = x$digits, signif.stars =
-                              getOption("show.signif.stars"), ...)
+print.summary.clmm <-
+  function(x, digits = max(3, getOption("digits") - 3),
+           signif.stars = getOption("show.signif.stars"), ...)
 {
-### FIXME: what about the the signif.stars ???
-### FIXME: print lmer-like information about data size, logLik, AIC,
-### BIC, etc.
   cat("Cumulative Link Mixed Model fitted with the Laplace approximation\n",
       fill=TRUE)
-  if(!is.null(cl <- x$call)) {
-    cat("Call:\n")
-    dput(cl, control=NULL)
-  }
-  
+  cat("formula:", deparse(x$call$formula), fill=TRUE)
+  if(!is.null(data.name <- x$call$data))
+    cat("data:   ", deparse(data.name), fill=TRUE)
+  if(!is.null(x$call$subset))
+    cat("subset: ", deparse(x$call$subset), fill=TRUE)
+  cat("\n")
+
+  print(x$info, row.names=FALSE, right=FALSE)
+
   cat("\nRandom effects:\n")
-  print(x$varMat, ...)
+  print(x$varMat, digits=digits, ...)
   
-  coef <- format(round(x$coefficients, digits=digits))
-  coef[,4] <- format.pval(x$coefficients[, 4])
-  nbeta <- length(x$beta); nalpha <- length(x$alpha)
+  nbeta <- length(x$beta)
+  nalpha <- length(x$alpha)
   if(nbeta > 0) {
     cat("\nCoefficients:\n")
-    print(coef[nalpha + 1:nbeta, , drop=FALSE], quote = FALSE, ...)
+    printCoefmat(x$coefficients[nalpha + 1:nbeta, , drop=FALSE],
+                 digits=digits, signif.stars=signif.stars,
+                 has.Pvalue=TRUE, ...) 
   } else {
     cat("\nNo Coefficients\n")
   }
   if(nalpha > 0) { ## always true
     cat("\nThreshold coefficients:\n")
-    print(coef[seq_len(nalpha), -4, drop=FALSE], quote = FALSE, ...)
+    printCoefmat(x$coefficients[seq_len(nalpha), -4, drop=FALSE],
+                 digits=digits, has.Pvalue=FALSE, signif.stars=FALSE,
+                 ...) 
   }
   
-  cat("\nlog-likelihood:", format(x$logLik, nsmall=2), "\n")
-  cat("AIC:", format(-2*x$logLik + 2*x$edf, nsmall=2), "\n")
-  cat("Condition number of Hessian:", format(x$condHess, nsmall=2), "\n")
   if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
   if(!is.null(correl <- x$correlation)) {
     cat("\nCorrelation of Coefficients:\n")
@@ -121,5 +111,10 @@ print.summary.clmm <- function(x, digits = x$digits, signif.stars =
     correl[!ll] <- ""
     print(correl[-1, -ncol(correl)], quote = FALSE, ...)
   }
-  invisible(x)
+  return(invisible(x))
 }
+
+anova.clmm <- function(object, ...)
+  anova.clm(object, ...)
+  
+  

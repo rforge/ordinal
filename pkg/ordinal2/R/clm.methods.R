@@ -1,4 +1,5 @@
-print.clm <- function(x, ...)
+print.clm <- 
+  function(x, digits = max(3, getOption("digits") - 3), ...)
 {
   cat("formula:", deparse(x$call$formula), fill=TRUE)
   if(!is.null(data.name <- x$call$data))
@@ -11,22 +12,24 @@ print.clm <- function(x, ...)
 
   if(length(x$beta)) {
     cat("\nCoefficients:\n")
-    print(x$beta, ...)
+    print(x$beta, digits=digits, ...)
   } else {
     cat("\nNo Coefficients\n")
   }
   if(length(x$alpha) > 0) {
     cat("\nThresholds:\n")
-    print(x$alpha, ...)
+    print(x$alpha, digits=digits, ...)
   }
 
   if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
-  invisible(x)
+  return(invisible(x))
 }
 
 vcov.clm <- function(object, ...)
 {
-  dn <- names(object$coefficients)
+  if(is.null(object$Hessian)) 
+    stop("Model needs to be fitted with Hess = TRUE")
+  dn <- dimnames(object$Hessian)
   H <- object$Hessian
   ## To handle NaNs in the Hessian resulting from parameter
   ## unidentifiability:  
@@ -37,11 +40,10 @@ vcov.clm <- function(object, ...)
   }
   else
     VCOV <- MASS::ginv(H)
-  structure(VCOV, dimnames = list(dn, dn))
+  return(structure(VCOV, dimnames = dn))
 }
 
-summary.clm <- function(object, digits = max(3, .Options$digits - 3),
-                        correlation = FALSE, ...)
+summary.clm <- function(object, correlation = FALSE, ...)
 {
   if(is.null(object$Hessian))
     stop("Model needs to be fitted with Hess = TRUE")
@@ -71,13 +73,13 @@ summary.clm <- function(object, digits = max(3, .Options$digits - 3),
   }
   object$info$cond.H <- formatC(object$condHess, digits=1, format="e")
   object$coefficients <- coef
-  object$digits <- digits
   class(object) <- "summary.clm"
-  object
+  return(object)
 }
 
-print.summary.clm <- function(x, digits = x$digits, signif.stars =
-                              getOption("show.signif.stars"), ...)
+print.summary.clm <- 
+  function(x, digits = max(3, getOption("digits") - 3),
+           signif.stars = getOption("show.signif.stars"), ...)
 {
   cat("formula:", deparse(x$call$formula), fill=TRUE)
   if(!is.null(data.name <- x$call$data))
@@ -113,7 +115,7 @@ print.summary.clm <- function(x, digits = x$digits, signif.stars =
     correl[!ll] <- ""
     print(correl[-1, -ncol(correl)], quote = FALSE, ...)
   }
-  invisible(x)
+  return(invisible(x))
 }
   
 logLik.clm <- function(object, ...)
@@ -185,9 +187,11 @@ anova.clm <- function(object, ...)
   if (length(dots) == 0)
     stop('anova is not implemented for a single "clm" object')
   mlist <- list(object, ...)
+  if(!all(sapply(mlist, class) %in% c("clm", "clmm")))
+    stop("only 'clm' and 'clmm' objects are allowed")
   no.par <- sapply(mlist, function(x) x$edf)
   ## order list with increasing no. par:
-  ord <- order(no.par, decreasing=TRUE)
+  ord <- order(no.par, decreasing=FALSE)
   mlist <- mlist[ord]
   no.par <- no.par[ord]
   no.tests <- length(mlist)
@@ -198,8 +202,8 @@ anova.clm <- function(object, ...)
   models.names <- c('formula:', "link:", "threshold:")
   AIC <- sapply(mlist, function(x) -2*x$logLik + 2*x$edf)
   logLiks <- sapply(mlist, function(x) x$logLik)
-  statistic <- c(NA, -2*diff(sapply(mlist, function(x) x$logLik)))
-  df <- c(NA, -diff(no.par))
+  statistic <- c(NA, 2*diff(sapply(mlist, function(x) x$logLik)))
+  df <- c(NA, diff(no.par))
   pval <- c(NA, pchisq(statistic[-1], df[-1], lower.tail=FALSE))
   pval[!is.na(df) & df==0] <- NA 
   tab <- data.frame(no.par, AIC, logLiks, statistic, df, pval) 

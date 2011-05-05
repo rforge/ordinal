@@ -17,7 +17,7 @@ clmm <-
   if(missing(contrasts)) contrasts <- NULL
 
   ## set control parameters:
-  if (missing(control)) control <- clmm.control(...)
+  if(missing(control)) control <- clmm.control(...)
   if(!setequal(names(control), c("method", "ctrl", "optCtrl")))
     stop("specify 'control' via clmm.control()")
 
@@ -63,10 +63,14 @@ clmm <-
   fit <- clmm.fit.env(rho, control = control$optCtrl, Hess)
     
   ## Modify and return results:
-  res <- clmm.finalize(fit, frames, mc = match.call(),
-                       contrasts = contrasts,
-                       tJac = ths$tJac,
-                       alpha.names = ths$alpha.names)
+  fit$link <- link
+  fit$start <- start
+  fit$threshold <- threshold
+  fit$call <- match.call()
+  fit$contrasts <- contrasts
+  fit$tJac <- ths$tJac
+  res <- clmm.finalize(fit=fit, frames=frames,
+                       alpha.names=ths$alpha.names) 
   
   ## add model.frame to results list?
   if(model) res$model <- frames$mf
@@ -381,10 +385,7 @@ Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
 }
 
 clmm.finalize <-
-  function(fit, frames, mc = match.call(),
-           contrasts = contrasts,
-           tJac = ths$tJac,
-           alpha.names = ths$alpha.names)
+  function(fit, frames, alpha.names = ths$alpha.names)
 {
   ## get coefficient names and lengths:
   beta.names <- colnames(frames$X)[-1]
@@ -414,21 +415,31 @@ clmm.finalize <-
       dimnames(Hessian) <- list(names(coefficients),
                                 names(coefficients))
     }
+    varMat <- matrix(c(stDev^2, stDev),
+                     nrow = length(stDev), ncol=2)
+    dimnames(varMat) <- list(tau.names, c("Var", "Std.Dev"))
     ## set various fit elements:
     edf <- length(coefficients) ## estimated degrees of freedom
     nobs <- sum(frames$wts)
     n <- length(frames$wts)
     fitted.values <- fitted
     df.residual = nobs - edf
-    tJac <- tJac
     terms <- frames$terms
-    contrasts <- contrasts
     na.action <- frames$na.action
-    call <- mc
-    logLik <- fit$logLik
-    Niter <- Niter
-    optRes <- optRes
-
+    info <-
+      data.frame("link" = link,
+                 "threshold" = threshold,
+                 "nobs" = nobs, 
+                 "logLik" = formatC(logLik, digits=2, format="f"),
+                 "AIC" = formatC(-2*logLik + 2*edf, digits=2,
+                   format="f"),
+                 "niter" = paste(optRes$info["neval"], "(", Niter, ")",
+                   sep=""), 
+                 "max.grad" = formatC(optRes$info["maxgradient"], digits=2,
+                   format="e") 
+                 ## BIC is not part of output since it is not clear what
+                 ## the no. observations are. 
+                 )
     ## compute ranef estimates and conditional variance:
     ranef <- rep.int(stDev, nlev) * random
     names(ranef) <- as.vector(unlist(random.names))
