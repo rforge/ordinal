@@ -1,13 +1,13 @@
 Package: ordinal
 Type: Package
 Title: Regression Models for Ordinal Data
-Version: 2011.04-21
-Date: 2011-04-21
+Version: 2011.05-10
+Date: 2011-05-10
 Author: Rune Haubo B Christensen
 Maintainer: Rune Haubo B Christensen <rhbc@imm.dtu.dk>
 Imports: numDeriv
 Depends: MASS, ucminf
-Suggests: nlme, lme4, nnet
+Suggests: nlme, lme4, nnet, xtable
 Description: This package implements likelihood based models for
   ordinal (ordered categorical)
   data based on cumulative probabilities in the framework of
