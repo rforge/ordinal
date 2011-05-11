@@ -207,8 +207,10 @@ or cut-points.
 We take the judge effects to be random, and assume that the judge
 effects are IID normal: $u(\mathtt{judge}_i) \sim N(0, \sigma_u^2)$.
 
-We can fit and summarize this model with the \texttt{clmm} function in
-package \textsf{ordinal}:
+We fit this model with the \texttt{clmm} function in
+package \textsf{ordinal}. Here we save the fitted \texttt{clmm} model
+in the object \texttt{fm1} (short for \texttt{f}itted \texttt{m}odel
+\texttt{1}) and \texttt{print} the model by simply typing its name:
 <<>>=
 fm1 <- clmm(rating ~ temp + contact, random=judge, data=wine)
 fm1
@@ -216,7 +218,8 @@ fm1
 Maximum likelihood estimates of the parameters are provided using the
 Laplace approximation to compute the likelihood function. A
 more accurate approximation is provided by the adaptive Gauss-Hermite
-quadrature method. Here we use 10 quadrature nodes:
+quadrature method. Here we use 10 quadrature nodes and use the
+\texttt{summary} method to display additional information:
 <<>>=
 fm2 <- clmm(rating ~ temp + contact, random=judge, data=wine,
             Hess=TRUE, nAGQ=10)
