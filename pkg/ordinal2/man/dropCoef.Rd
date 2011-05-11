@@ -24,7 +24,7 @@ drop.coef(X, silent = FALSE)
 }
 \details{
   The redundant columns of the design matrix are identified with the
-  LAPACK implementation of the \code{\link{qr}} decomposition. The first
+  LINPACK implementation of the \code{\link{qr}} decomposition. The first
   \code{qr(X)$rank} columns are retained, so columns are dropped from
   the end when possible. 
 }

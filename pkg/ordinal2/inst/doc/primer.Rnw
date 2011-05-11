@@ -1680,10 +1680,481 @@ $p = \Sexpr{format.pval(anova(fm1, fm2)[2,6], digits=3)}$
 not providing much evidence against equidistant thresholds.  
 \end{example}
 
+\subsection{*Matrix representation of cumulative link models}
+
+Just as a linear model can be expressed as $\bm Y = \bm X\bm\beta +
+\bm \varepsilon$, cumulative link models can also be expressed in
+terms of matrices. The matrix representation of cumualtive link
+models is a little more complicated than it is for linear models and 
+(univariate) generalized linear models because of the special role of
+the threshold parameters. 
+
+The matrix representation of cumulative link models is important in
+order to efficiently evaluate the log-likelihood and the first and
+second derivatives of the log-likelihood function with respect to the
+parameters. These are important in order to efficiently optimize the
+likelihood function when fitting cumulative link models.
+
+
+
+
+
+
+\section{Maximum likelihood estimation of cumulative link models}
+\label{sec:maxim-likel-estim-1}
+
+We will distinguish between cumulative link models of the
+form~\eqref{eq:5} and more involved models with at least one of the
+following complications: random effects, scale effects, nominal
+effects and flexible link functions. Structured thresholds are allowed
+in first class of models, which we denote standard cumulative link
+models. 
+
+In the optimization literature it is conventional to \emph{minimize}
+an objective function rather than to \emph{maximize} it. As our
+objective function in this section we therefore adopt the
+\emph{negative} log-likelihood function.
+
+For standard cumulative link models, we will describe a Newton-Raphson
+algorithm. While for the general cumulative link models we will use a
+general purpose optimizer of the quasi-Newton type. General purpose
+optimizers can be used for standard cumulative link models, but the
+Newton algorithm has some advantages here. 
+
+\subsection{A Newton algorithm for standard cumulative link models}
+\label{sec:newt-algor-stand}
+
+Let $\bm\psi^{(i)}$ denote the vector of parameters at iteration
+$i$. The Newton-Raphson procedure works by computing 
+\begin{equation*}
+  \bm\psi^{(i+1)} = \bm\psi^{(i)} - \bm H(\bm\psi^{(i)}; \bm y)^{-1}
+  \bm g(\bm\psi^{(i)}; \bm y)
+\end{equation*}
+where $\bm H(\bm\psi^{(i)} ; \bm y) = -\ell_{\psi\psi}''(\bm\psi;
+\bm y)$ is the Hessian, i.e. the second order derivative of the
+negative log-likelihood function with respect to the parameters,
+$\bm\psi^{(i)}$ and $\bm g(\bm\psi^{(i)}; \bm y) = -\ell_{\psi}'(\bm\psi;
+\bm y)$ is the gradient.
+Each new parameter vector $\bm\psi^{(i+1)}$ is obtained by computing
+the step; 
+$\bm \Lambda^{(i)} = \bm H(\bm\psi^{(i)}; \bm y)^{-1} \bm g(\bm\psi^{(i)};
+  \bm y)$ with the Hessian and gradient evaluated the current
+parameters; $\bm\psi^{(i)}$. 
+To evaluate the log-likelihood, the gradient and Hessian efficiently
+we express the cumulative link model in the following matrix notation: 
+
+
+The Newton algorithm can be motivated by approximating the objective 
+function with a second order Taylor approximation and then solving 
+this.  
+
+\subsection{Motivation for the Newton algorithm for standard
+  cumulative link models}
+\label{sec:motiv-newt-algor}
+
+The convergence rate of a Newton algorithm is said to be quadratic,
+which is the best we can hope for. 
+This means that the Newton algorithm has to take fewer steps than many
+other algorithms to obtain the same accuracy in the estimates. 
+The quadratic convergence rate is attained
+when the shape of the objective function is close to a parabola, i.e.,
+the objective function behaves as a quadratic function. This is often
+the case for nicely behaved likelihood functions, especially near the
+optimum. 
+
+The speedyness of an optimization algorithm not only depends on the
+convergence rate of the algorithm, but also on how much computation
+has to be done at each iteration. This is exactly the reason that the
+Newton algorithm is not always the fastest algorithm even though it
+has the best convergence rate. For instance, the Newton algorithm
+requires that both gradient and Hessian are computed at each
+iteration. In a quasi Newton algorithm only the gradient needs to be
+computed while an internal approximation of the Hessian is updated at
+each iteration. If evaluation of the Hessian requires many
+computations, a quasi Newton algorithm may well be faster than a
+genuine Newton algorithm. 
+
+In standard cumulative link models both
+gradient and Hessians can be computed relatively easily and with a
+moderate amount of computations. 
+
+A general problem with the Newton algorithm is that even though the
+Newton step\footnote{the step is a vector; there is a step for each
+  parameter.} may be in the right direction, it can be too large to 
+actually cause a reduction in the objective function. 
+The algorithm is said to over-shoot.
+An effective modification is to successively half the length of the
+step until the new coefficients cause a reduction in the objective
+function. This is adopted in the the \textsf{ordinal2} package.
+
+In cumulative link models a full Newton step may cause the ordering of
+the threshold coefficients to be changed. In this case we define the
+negative log-likelihood to be infinity. This causes the algorithm to
+successively half the step length and eventually the step is small
+enough that the new threshold coefficients have the right ordering and
+the negative log-likelihood is reduced. 
+
+As mentioned in section~\ref{sec:maxim-likel-estim},
+\citet{pratt81} and \citet{burridge81} showed (seemingly independent
+of each other) that the log-likelihood function of cumulative link
+models with the link functions considered in
+Table~\ref{tab:linkFunctions}, except for the cauchit link, is
+concave. This means that there is a unique global optimum so there is
+no risk of convergence to a local optimum. It also means that the step
+of a Newton-Raphson algorithm is quarantied to be in the direction of
+a higher likelihood. 
+
+In conclusion the Newton algorithm works well for cumulative link
+models because 1) the log-likelihood function is approximately
+quadratic, 2) the Hessian does not require too many computations and
+3) the Newton step is guarantied to be in the right direction. 
+
+
 
 \section{Assessing the likelihood and model convergence}
-
+\label{sec:assess-likel-model}
 \marginpar{Write section example based}
+
+Closed form expressions for the ML estimates of cumulative link models
+do not exist, so iterative algorithms have to be used to fit
+cumulative link models.
+Such algorithms usually produce a sequence of coefficients that
+get closer and closer to the true coefficients such that each new set
+of coefficients attain a higher log-likelihood than the previous
+set. At some point the algorithm terminates and returns the
+coefficients. 
+
+A rather general requirement is that the numerical error in the
+parameter estimates should be small relative to their statistical
+uncertainty. 
+Also, for likelihood ratio tests, we want the log-likelihood for the
+models involved to be determined precise enough that likelihood ratio
+tests of nested models are accurate.
+
+In this section we will consider how to quantify the numerical error
+in parameter estimates, in standard errors and in the log-likelihood.  
+
+%% The statistical uncertainty is usually based on a model
+%% fit and often the standard errors of the parameters are used for this
+%% purpose. Since the statistical uncertainty as measured by standard
+%% errors is computed at some coefficients, the statistical uncertainty
+%% against which we should measure the numerical error also depends on
+%% the numerical error. 
+
+Models are used for different purposes with different requirements to
+the degree of accuracy. We will discuss which requirements will be
+reasonable and attainable in different settings.
+
+Before we move on, lets introduce some terminology: 
+We refer to a \emph{coefficient} as a parameter estimate and use
+\emph{true coefficient} to denote the correct and exact coefficient or
+ML parameter estimate. Thus a true coefficient is not the same as a
+true parameter. Estimating a coefficient accurately means that the
+difference between the coefficient estimate and the true coefficient
+is ssmall, i.e., that the numerical error in the coefficient estimate
+is small. On the other hand, if a parameter is estimated accurately,
+it means that the statistical uncertainty of that parameter (for
+instance measured by its standard error) is small. 
+
+We distinguish between convergence and
+termination. Termination is the point at which the optimizer stops
+iterating. Successful termination is a binary variable: either the
+optimizer terminated without errors or it didn't. A model has
+converged if the coefficients are close enough to the true
+coefficients. An optimizer can terminate with a model fit that has not
+converged. 
+
+
+
+\subsection{What is convergence?}
+
+In finite computer arithmetic with double precision, numbers are only
+be represented with around 16 digits. This means that we cannot hope
+to know model coefficients or the log-likelihood to any higher
+precision than that. Hoever, even this limit is optimistic due to the
+numerical errors that occur when adding and multiplying numbers with
+finite precision. 
+
+But who needs to know model coefficients more accurately than with,
+say, six digits? The real problem here is not the coefficients are
+\emph{correct} or not, but whether they are \emph{sufficiently
+  accurate}. The same consideration applies to the log-likelihood and
+standard errors. 
+
+A basic problem is that we want to estimate the coefficients with high
+enough precision, but we also do not want to perform unnessecary
+computations, so we want the optimization to stop when the estimates
+are accurate enough. This means that the optimization does not
+(necessarily) stop due to lack of progress, but because it is
+instructed not ro proceed from this point.
+
+We can only quantify the distance from our current coefficient values
+to the true coefficients if we have more precise coefficients. If the
+optimizer stops from lack of progress, it is hard to obtain more
+precise coefficients. If the optimizer stops because the termination
+criteria are met, then we can tighten the termination criteria and ask
+the optimizer to proceed with additional iterations. 
+
+\begin{example}
+  In \texttt{clm} the termination criterion is the maximum absolute
+  gradient, \texttt{gradTol} with default value \texttt{1e-6}. If we
+  increase this value the optimizer will take fewer steps:
+<<>>=
+fm1 <- clm(rating ~ contact + temp, data=wine, gradTol = 1e-3)
+fm1$niter
+@ 
+If we decrease \texttt{gradTol} the optimizer will take additional steps:
+<<>>=
+fm2 <- clm(rating ~ contact + temp, data=wine, gradTol = 1e-12)
+fm2$niter
+@ 
+The difference here.
+\end{example}
+
+The likelihood function of a cumulative link models approximately has
+the shape of a downward facing parabola. The closer to the optimum the
+closer the shape. Looking at the likelihood function, it is clear that
+for a coefficient to be close to the true coefficient, we must require
+that the gradient, i.e., the tangent line to the likelihood function
+at the coefficient is close to zero. A small gradient is also
+satisfied at saddle points, so we must also require that the
+likelihood function is downward facing. This is satisfied if the
+negative Hessian is positive definit, which means that all the eigen
+values of the negative Hessian should be positive. These requirements
+are generally known as the KKT conditions. While this ensures that *a*
+maximum has been reached, they do not say whether a local optimum has
+been reached rather than the global optimum. However, X and Y showed
+that the likelihood function is concave if the parameters are
+identified, so there can be no local optimum that is also not the
+global optimum.  
+
+The Newton (-Raphson) optimization algorithm is a very speedy
+algorithm for concave and approximately quadratic objective
+functions. The rate of convergence is said to be quadratic, which, in
+terms of the coefficients, means that the number of correct digits
+roughly doubles with each iteration. This behavior is generally seen
+when the first couple of digits have been correctly determined. Thus,
+when the  
+
+\subsection{Assessment of model convergence}
+\label{sec:assessm-model-conv}
+
+Once we have fitted a cumulative link model we may ask accurate the
+parameter estimates returned by \texttt{clm} are. To assess
+convergence we can use the the \texttt{convergence} function, but for
+a brief look, we already get some initial information from the
+summary. Consider, for example the following model for the wine data
+that we already considered in example ZZ:
+<<>>=
+fm1  <- clm(rating ~ contact, dat=wine)
+summary(fm1)
+@ 
+The last three entries of the first table displays information about
+the estimation of the model. The \texttt{niter} entry displays the
+number of iterations of the Newton-Raphson algorithm used to estimate
+the model with the number of iterations in the inner loop where
+step-halfings take place in parentheses. In this case seven iterations
+were taken from the starting values and the full Newton step was taken
+in all iterations. \texttt{}
+The starting values are available as \verb|fm1$start|. 
+We are also informed that the maximum absolute gradient is 
+\Sexpr{as.character(fm1[["info"]][["max.grad"]])}. Since the gradient
+is small, the optimization terminated at a so-called \emph{stationary
+  point}. The \texttt{cond.H} entry of the table contains the
+\emph{condition number} of the Hessian of the negative
+log-likelihood. Since this number is positive, we know that the
+point at which the optimization terminated is not only a stationary
+point, it is also a maximum of the log-likelihood function. 
+In fact, it is also a global maximum and
+not just a local optimum because the log-likelihood function is
+concave as described in section~\ref{sec:maxim-likel-estim}. 
+
+The size of the condition number of the Hessian describes how well
+defined the model is. If this number is large, say, larger than $10^4$
+or $10^6$, the model is ill-defined. If the condition number is large,
+it means that the
+log-likelihood function is flat in some direction indicating that the
+model is over parameterized and can be simplified with only a small
+reduction in likelihood. 
+Not only does it have consequences for model interpretation, it also
+means that the likelihood function can be difficult to optimize. 
+For more detailed information about the condition number see section XX. 
+
+<<echo=FALSE, results=hide>>=
+convergence <-
+  function(object, digits = max(3, getOption("digits") - 3), ...)
+### Results: data.frame with columns:
+### Estimate
+### Std. Error
+### Gradient - gradient of the coefficients at optimizer termination 
+### Error - the signed error in the coefficients at termination
+### Rel. Error - the relative error in the coefficeints at termination
+###
+### The (signed) Error is determined as the Newton step, so this is
+### only valid close to the optimum where the likelihood function is
+### quadratic.
+###
+### The relative error equals step/Estimate.
+{ 
+  step <- with(object, solve(Hessian, gradient))
+  summ <- summary(object)
+  tab <- coef(summ)[,1:2]
+  se <- tab[,2]
+  tab <- cbind(tab, object$gradient, step, step/tab[,1]) 
+  dimnames(tab) <-
+    list(names(coef(object)), c("Estimate", "Std. Error", "Gradient",
+                                "Dist", "Rel. Dist"))
+  tab.print <- tab
+  ##tab.print[,1:2] <- format(c(tab[,1:2]), digits=digits)
+  for(i in 1:2) 
+    tab.print[,i] <- format(c(tab[,i]), digits=digits)
+  for(i in 3:5) 
+    tab.print[,i] <-
+      format(c(tab[,i]), digits=max(1, digits - 1))
+  print(summ$info[c("nobs", "logLik", "niter", "max.grad", "cond.H")],
+        row.names=FALSE, right=FALSE)
+  cat("\n")
+  print(tab.print, quote=FALSE, right=TRUE, ...)
+  e.val <- eigen(object$Hessian, symmetric=TRUE, only.values=)$values
+  cat("\nEigen values of Hessian:\n")
+  cat(format(e.val, digits=digits), "\n", fill=TRUE)
+  if(any(e.val <=0))
+    cat("\nNegative eigen values occured so model did not converge\n")
+  return(invisible(tab))  
+}
+
+@ 
+We can obtain more detailed information about the convergence
+properties of the model fit returned by \texttt{clm} with the
+\texttt{convergence} function:
+<<>>=
+convergence(fm1)
+@ 
+Some of the information from the \texttt{summary} is repeated here for
+convenience. The new thing is the table that in addition to the
+coefficients and their standard errors also contain three new
+columns. The first new column gives the gradients of the likelihood
+function with respect to the parameters at the optimum. These should
+all be small. The most important column is probably the one denoted
+\texttt{Abs. Dist} which contains the absolute distance from the
+coefficients to the true, or exact ML parameter estimates. Thus this
+column quantifies the accuracy with which the coefficients returned by
+\texttt{clm} are determined. In this case we see that the absolute
+distances are all less than $10^{-7}$, so the coefficients reported by
+\texttt{clm} are accurate to at least seven digits: more than enough
+for all practical purposes. 
+
+Naturally, the \texttt{convergence} function does not by some magic
+method know the true coefficients, but it can determine an accurate
+approximation to them. The consequence is that the \texttt{Abs. Dist}
+values are only accurate when the fit is close to the optimum anyway,
+say when all \texttt{Abs. Dist} are less than $10^{-2}$. 
+
+The \texttt{Rel. Dist} column gives the relative numerical errors in
+the coefficients, i.e., \texttt{Estimate / Abs. Dist}. 
+
+The \texttt{Dist} values are actually the values of the Newton step at
+convergence. Close to the optimum, the number of correct digits in the
+parameter estimates will approximately double at each iteration, so
+with already, say, four digits correctly determined, the Newton step
+equals the distance to the optimum to approximately four correct
+digits. 
+
+When reporting parameter estimates, the number of significant digits
+that we use should reflect the uncertainty in the parameter
+estimates. It makes little sense to report a parameter estimate with
+several digits, if the standard error is around the same size as the
+paramter estimate; this only gives a false impression of precision. 
+
+Rarely will the statistical uncertainty in coefficients be so
+small that we need more than a few digits of numerical precision in
+the coefficients. However, standard errors that reflect the
+statistical precision are evaluated at the current coefficients. Thus
+if there is numerical error in the coefficients, the standard errors
+may be inaccurate as well. Therefore we need the coefficients to be
+determined with small enough numerical error, that the standard errors
+are determined with good enough precision. 
+
+To further substantiate the determination of the precision in the
+parameter estimates, we will reconsider the model from above, but we
+will relax the termination criteria to get less precise estimate for
+the sake of illustration. The termination criteria in the Newton
+algorithm is the size of the maximum absolute gradient,
+\texttt{gradTol}. The default is to terminate if the maximum absolute
+gradient is less than $10^{-6}$. Here we are satisfied if the maximum
+absolute gradient is $10^{-2}$:
+<<>>=
+fm2 <- clm(rating ~ contact, dat=wine, gradTol=1e-2)
+convergence(fm2)
+@ 
+the maximum absolute numerical error in the coefficients is around
+2.3e-4. These numerical errors were obtained by
+<<>>=
+(approx.error <- with(fm2, solve(Hessian, gradient)))
+@ 
+so they are based on information already in the model object; no
+additional evaluations of gradient or Hessian are required. 
+To verify these numbers are indeed the numerical errors in the
+estimates (to a good approximation), we refit the model asking for
+a very high degree of accuracy:
+<<>>=
+fm3 <- clm(rating ~ contact, dat=wine, gradTol=1e-14)
+@ 
+The numerical error in the estimates from fm2 compared to those
+from fm3 are:
+<<>>=
+(true.error <- coef(fm2) - coef(fm3))
+@ 
+which are all very close to our approximate estimates of the
+numerical accuracy. 
+The absolute and relative error of our approximate error are:
+<<>>=
+true.error - approx.error
+(true.error - approx.error) / true.error
+@ 
+Thus the approximate errors are accurate to 3-4 significant digits
+while the absolute error or the approximate errors are all just
+very small.
+From the following we see that the more accurate model took two
+additional iterations:
+<<>>=
+rbind(fm2$niter, fm3$niter)
+@ 
+We can also compare the values of the log-likelihood to see how
+accurately it is determined:
+<<>>=
+(true.ll.err <- fm3$logLik - fm2$logLik)
+@ 
+so the log likelihood is determined accurately to six digits.
+If we correct the coefficients with the approximate numerical
+errors, then we can determine an approximate error in the
+value of the log-likelihood function:
+<<>>=
+env2 <- update(fm2, doFit=FALSE)
+env2$par <- coef(fm2) - approx.error
+new.logLik <- -ordinal2:::clm.nll(env2)
+(approx.ll.err <- fm2$logLik - new.logLik)
+@ 
+This approximate error is identical to the true error above to the
+printed accuracy. In fact the error in our new approximate
+log-likelihood is
+<<>>=
+fm3$logLik - new.logLik
+@ 
+so these two numbers are exactly identical in double precision:
+<<>>=
+print(fm3$logLik, digits = 15)
+print(new.logLik, digits = 15)
+@ 
+The error in the standard errors are a little smaller (in absolute
+values) compared to the errors in the coefficients. Unfortunately
+they are all a little too small:
+<<>>=
+coef(summary(fm2))[,2] - coef(summary(fm3))[,2]
+@ 
+
+\subsection{The slice method}
+\label{sec:slice-method}
 
 Cumulative link models are non-linear models and in general the
 likelihood function non-linear models is not garantied to be uni-modal
@@ -1694,6 +2165,7 @@ function in the neighborhood of the optimum. To do this we use the
 \texttt{slice} function. As the name implies, it extracts a
 (one-dimensional) slice of the likelihood function:
 <<slice1, echo=TRUE, results=hide>>=
+fm1 <- clm(rating ~ temp + contact, data=wine)
 slice.fm1 <- slice(fm1, lambda = 5)
 par(mfrow = c(2, 3))
 plot(slice.fm1)
