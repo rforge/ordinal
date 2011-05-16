@@ -537,7 +537,8 @@ clm.grad <- function(rho) { ## gradient of the negative log-likelihood
     p1 <- dfun(eta1)
     p2 <- dfun(eta2)
     wtpr <- wts/fitted
-    -crossprod((B1 * p1 - B2 * p2), wtpr)
+    dpi.psi <- B1 * p1 - B2 * p2
+    -crossprod(dpi.psi, wtpr)
 ### NOTE: It is assumed that all(fitted > 0) == TRUE and that
 ### all(is.finite(c(p1, p2))) == TRUE
   })
@@ -546,10 +547,9 @@ clm.grad <- function(rho) { ## gradient of the negative log-likelihood
 clm.hess <- function(rho) { ## hessian of the negative log-likelihood
 ### return Hessian matrix
   with(rho, {
-    dS.psi <- crossprod(B1 * gfun(eta1) * wtpr, B1) -
+    dg.psi <- crossprod(B1 * gfun(eta1) * wtpr, B1) -
       crossprod(B2 * gfun(eta2) * wtpr, B2)
-    dpi.psi <- B1 * p1 - B2 * p2
-    -dS.psi + crossprod(dpi.psi, (dpi.psi * wtpr / fitted))
+    -dg.psi + crossprod(dpi.psi, (dpi.psi * wtpr / fitted))
 ### NOTE: It is assumed that all(fitted > 0) == TRUE and that
 ### all(is.finite(c(g1, g2))) == TRUE
   })

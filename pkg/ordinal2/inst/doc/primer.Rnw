@@ -1668,15 +1668,19 @@ fm2 <- clm(rating ~ temp + contact, data=wine, threshold="equidistant")
 summary(fm2)
 @ 
 so here 
-$\hat\theta_1 = \hat a = \Sexpr{round(fm2[["alpha"]][1], 3)}$ and 
-$\hat b = \Sexpr{round(fm2[["alpha"]][2], 3)}$ in the parameterization
-of \eqref{eq:17}. We can test the assumption of equidistant thresholds
+<<echo=FALSE, results=hide>>=
+a <- round(fm2$alpha[1], 3)
+b <- round(fm2$alpha[2], 3)
+@ 
+$\hat\theta_1 = \hat a = \Sexpr{a}$ and $\hat b = \Sexpr{b}$ in the
+parameterization of \eqref{eq:17}. 
+We can test the assumption of equidistant thresholds
 against the flexible alternative with a likelihood ratio test:
 <<>>=
 anova(fm1, fm2)
 @ 
 so the $p$-value is 
-$p = \Sexpr{format.pval(anova(fm1, fm2)[2,6], digits=3)}$
+$p = \Sexpr{format.pval(anova(fm1, fm2)[2,6], digits=3)}$ 
 not providing much evidence against equidistant thresholds.  
 \end{example}
 
