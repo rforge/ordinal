@@ -14,8 +14,9 @@
 
 %%\VignetteIndexEntry{clmm tutorial}
 %%\VignetteDepends{ordinal, xtable}
-\title{A Primer on Cumulative Link Mixed Models with the \textsf{ordinal}
-  Package} 
+\title{A Tutorial on fitting Cumulative Link Mixed Models with 
+  %% \texttt{clmm} from 
+  the \textsf{ordinal} Package} 
 \author{Rune Haubo B Christensen}
 
 %% \numberwithin{equation}{section}
