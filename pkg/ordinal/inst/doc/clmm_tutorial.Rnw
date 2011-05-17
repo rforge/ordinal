@@ -495,8 +495,8 @@ exp(2*qnorm(0.95) * fm2$stDev)
 @ 
 The differences between judges can also be expressed in terms of
 the interquartile range: the odds ratio for a bitterness rating in
-category $j$ or above for a third quantile judge relative to a first
-quantile judge is 
+category $j$ or above for a third quartile judge relative to a first
+quartile judge is 
 <<>>=
 exp(2*qnorm(0.75) * fm2$stDev)
 @ 
