@@ -31,8 +31,8 @@ slice.clm <-
 
   ## generate sequence of parameters at which to compute the
   ## log-likelihood:
-  curv <- 1/diag(object$Hess) ## curvature in nll wrt. par
-  par.range <- par + sqrt(curv) %o% c(-lambda, lambda)
+  curv <- sqrt(1/diag(object$Hess)) ## curvature in nll wrt. par
+  par.range <- par + curv %o% c(-lambda, lambda)
   ## par.seq - list of length npar:
   par.seq <- sapply(parm, function(ind) {
     seq(par.range[ind, 1], par.range[ind, 2], length = grid) }, 
@@ -60,7 +60,7 @@ slice.clm <-
   if(!quad.approx) return(res)
   ## compute quadratic approx to *positive* logLik:
   Quad <- function(par, mle, curv)
-    -((mle - par)^2 / curv / 2)
+    -((mle - par)^2 / curv^2 / 2)
   for(i in seq_along(parm))
     res[[ i ]]$quad <-
       Quad(par.seq[[ i ]], par[ parm[i] ], curv[ parm[i] ])

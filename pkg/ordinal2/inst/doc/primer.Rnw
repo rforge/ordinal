@@ -12,7 +12,7 @@
 \usepackage{algorithmic}
 \usepackage[amsmath,thmmarks,standard,thref]{ntheorem}
 
-%%\VignetteIndexEntry{Primer}
+%%\VignetteIndexEntry{Analysis of ordinal data with cumulative link models}
 %%\VignetteDepends{ordinal2}
 \title{%
   Analysis of ordinal data with cumulative link models --- estimation
@@ -40,7 +40,7 @@
 \renewcommand\marginpar[1]{\oldmarginpar[\-\raggedleft\tiny #1]%
 {\tiny #1}}
 %uncomment to _HIDE_MARGINPAR_:
-%\renewcommand\marginpar[1]{}
+\renewcommand\marginpar[1]{}
 
 \newcommand{\var}{\textup{var}}
 \newcommand{\I}{\mathcal{I}}
@@ -107,12 +107,12 @@
 \bibliographystyle{chicago}
 \maketitle
 
-\begin{abstract}
-
-  In this primer cumulative link models are introduced using the
-  \textsf{ordinal2} package. This is work in progress.
-
-\end{abstract}
+%% \begin{abstract}
+%% 
+%%   In this primer cumulative link models are introduced using the
+%%   \textsf{ordinal2} package. This is work in progress.
+%% 
+%% \end{abstract}
 
 \newpage
 \tableofcontents
@@ -165,10 +165,9 @@ ordinal responses such as \emph{continuation ratio models}
   models} and \emph{ordered probit models} \citep{greene10} for the
 logit and probit link functions. Further, the cumulative link model
 with a logit link is widely known as the \emph{proportional odds
-  model} due to \citet{mccullagh80}, also with a log-log
-link\footnote{or is it the complementary log-log link?}, the
-model is known as \emph{proportional hazards model} for grouped
-survival times. 
+  model} due to \citet{mccullagh80}, also with a complementary log-log 
+link, the model is known as \emph{proportional hazards model} for
+grouped survival times. 
 
 Ordinal response variables can be analyzed with omnibus Pearson
 $\chi^2$ tests, base-line logit models or log-linear models. This
@@ -202,19 +201,20 @@ ordinal regression models.
 
 Common to the application of methods for nominal responses and linear
 models to ordinal responses is that interpretation of effects on the
-ordinal response scale is ackward. For example, linear models will
+ordinal response scale is awkward. For example, linear models will
 eventually give predictions outside the possible range and statements
 such as ``the response increase 1.2 units with each degree increase in
 temperature'' will only be approximately valid in a restricted
 range of the response variable. 
 
 In this document cumulative link models are described for modeling
-ordinal response variables and the \textsf{ordinal2} package is
-introduced. Our focus will be \ldots
+ordinal response variables. We also describe these models are fitted
+and data are analyzed with the functionality provided in the
+\textsf{ordinal2} package for \textsf{R} \citep{R11}.
 
 \begin{example}[The wine data]\label{exa:wine-data} 
   %% \pageref{exa:the-wine-data}
-  As an example of the data set with an ordinal response varible
+  As an example of the data set with an ordinal response variable
   consider the wine data from \citet{randall89} available in the
   object \texttt{wine} in package \textsf{ordinal2},
   cf. Table~\ref{tab:wineData}. 
@@ -222,12 +222,12 @@ introduced. Our focus will be \ldots
   bitterness of wine with 1 = ``least bitter'' and 5 = ``most bitter''. 
   Two treatment factors (temperature and contact)
   each have two levels. Temperature and contact between juice and
-  skins can be controlled when cruching grapes during wine
+  skins can be controlled when crushing grapes during wine
   production. Nine judges each assessed wine from two bottles from
   each of the four treatment conditions, hence there are 72
-  observations in all. In table X we have aggregated data over bottles
-  and judges for simplicity, but these variables will be considered
-  later. 
+  observations in all. In Table~\ref{tab:wineData} we have aggregated
+  data over bottles and judges for simplicity, but these variables
+  will be considered later. 
   Initially we only assume that, say, category 4 is larger than 3, but
   not that the distance between 2 and 3 is half the distance between 2
   and 4, for example.
@@ -380,13 +380,16 @@ section~\ref{sec:latent-vari-motiv}.
 
 Cumulative link models can be fitted with \texttt{clm} from package
 \textsf{ordinal2}. The function takes the following arguments:
-\begin{Verbatim} %% [fontsize=\small]
-  
-clm(formula, data, weights, start, subset, doFit = TRUE, na.action,
-  contrasts, model = TRUE, control, link = c("logit", "probit",
-  "cloglog", "loglog", "cauchit"), threshold = c("flexible",
-  "symmetric", "equidistant"), ...) 
-\end{Verbatim}
+<<echo=FALSE>>=
+str(args(clm))
+@ 
+%% \begin{Verbatim} %% [fontsize=\small]
+%%   
+%% clm(formula, data, weights, start, subset, doFit = TRUE, na.action,
+%%   contrasts, model = TRUE, control, link = c("logit", "probit",
+%%   "cloglog", "loglog", "cauchit"), threshold = c("flexible",
+%%   "symmetric", "equidistant"), ...) 
+%% \end{Verbatim}
 Most arguments are standard and well-known from \texttt{lm} and
 \texttt{glm}, so they will not be introduced. The \texttt{formula}
 argument is of the form \verb+response ~ covariates+ and specifies
@@ -415,7 +418,7 @@ summary(fm1)
 @ 
   The summary provides basic information about the model fit. There are
   two coefficient tables: one for the regression variables and one for
-  the thresholds or cutpoints. Often the thresholds are not of primary
+  the thresholds or cut-points. Often the thresholds are not of primary
   interest, but they are an integral part of the model. It is not
   relevant to test whether the thresholds are equal to zero, so no
   $p$-values are provided for this test. The condition number of the
@@ -432,7 +435,7 @@ summary(fm1)
   \texttt{drop1} and \texttt{add1} methods (equivalently
   \texttt{dropterm} or \texttt{addterm}). The Wald tests are marginal
   tests so the test of e.g., \texttt{temp} is measuring the effect of
-  temperature while \emph{controling} for the effect of contact. The
+  temperature while \emph{controlling} for the effect of contact. The
   equivalent likelihood ratio tests are provided by the
   \texttt{drop}-methods:  
 <<>>=
@@ -488,7 +491,7 @@ $\exp(\beta_\textup{treatment})$.
 
 Confidence intervals for the odds ratios are obtained by
 transforming the limits of confidence intervals for $\bm\beta$,
-which will lead to asymmetric confindence intervals for the odds
+which will lead to asymmetric confidence intervals for the odds
 ratios. Symmetric confidence intervals constructed from the standard
 error of the odds ratios will not be appropriate and should be
 avoided. 
@@ -528,7 +531,7 @@ summarized in Table~\ref{tab:linkFunctions}.
 The cumulative link model may be written as
 \begin{equation}
   \label{eq:5}
-  F^{-1}(\gamma_{ij}) = \theta_j - \bm x_i^T \bm\beta
+  \gamma_{ij} = F(\eta_{ij}), \quad \eta_{ij} = \theta_j - \bm x_i^T \bm\beta
 \end{equation}
 where $F^{-1}$ is the link function---the motivation for this
 particular notation will be given in
@@ -561,8 +564,8 @@ section~\ref{sec:latent-vari-motiv}.
   
   $^a$: the \emph{complementary log-log} link \\
   $^b$: the Gumbel distribution is also known as the extreme value
-  (type I) distribution for extreme mimina or maxima. It is also
-  sometimes refered to as the Weibull (or log-Weibull) distribution
+  (type I) distribution for extreme minima or maxima. It is also
+  sometimes referred to as the Weibull (or log-Weibull) distribution
   (\url{http://en.wikipedia.org/wiki/Gumbel_distribution}). \\ 
   $^c$: the Cauchy distribution is a $t$-distribution with one df \\
 \end{table}
@@ -571,7 +574,7 @@ The probit link is often used when the model is interpreted with
 reference to a latent variable,
 cf. section~\ref{sec:latent-vari-motiv}. When the response variable
 represent grouped duration or survival times the complementary
-log-log link is often used. This leads to the propotional hazard model
+log-log link is often used. This leads to the proportional hazard model
 for grouped responses:
 \begin{equation*}
   -\log\{1 - \gamma_{j}(\bm x_i) \} = \exp( \theta_j - \bm x_i^T 
@@ -608,7 +611,8 @@ errors remain unchanged.
 
 In addition to the standard links in Table~\ref{tab:linkFunctions},
 flexible link functions are available for \texttt{clm} in package
-\textsf{ordinal} and these are described in section XX.
+\textsf{ordinal}.
+\marginpar{and these are described in section XX}
 
 \begin{example}
   \label{exa:assessing-link-functions}
@@ -649,7 +653,7 @@ print(xtable(as.data.frame(tab)), only.contents = TRUE)
   The numbers in the body of the table are percentages of the
   population 
   summing to 100 in each row\footnote{save rounding error}, so these
-  are not the orginal observations. The uncertainty of parameter
+  are not the original observations. The uncertainty of parameter
   estimates depends on the sample size, which is unknown here, so
   we will not consider hypothesis tests. Rather the most important
   systematic component is an upward shift in the income distribution
@@ -673,7 +677,7 @@ sapply(links, function(link) {
 The cauchit link attains the highest log-likelihood closely followed
 by the complementary log-log link. 
 This indicates that a symmetric heavy tailed distribution such as
-the cauchy provides an even slightly better description of these
+the Cauchy provides an even slightly better description of these
 data than a right skew distribution.
 
 Adopting the complementary log-log link we can summarize the
@@ -768,7 +772,7 @@ Newton-Raphson algorithms (such as the one used for \texttt{clm} in
 matrix. 
 \citet{efron78} considered the choice of observed versus expected
 Fisher information and argued that the observed information contains
-relevant information thus it is prefered over the expected
+relevant information thus it is preferred over the expected
 information. 
 
 \citet{pratt81} and \citet{burridge81} showed (seemingly independent
@@ -777,9 +781,9 @@ models with the link functions considered in
 Table~\ref{tab:linkFunctions}, except for the cauchit link, is
 concave. This means that there is a unique global optimum so there is
 no risk of convergence to a local optimum. It also means that the step
-of a Newton-Raphson algorithm is quarantied to be in the direction of
+of a Newton-Raphson algorithm is guarantied to be in the direction of
 a higher likelihood although the step may be too larger to cause an
-increase in the likelihood. Succesively halfing the step whenever this
+increase in the likelihood. Successively halving the step whenever this
 happens effectively ensures convergence. 
 
 Notably the log likelihood of cumulative cauchit models is not
@@ -828,7 +832,7 @@ anova(fm1, fm2)
 @   
 The likelihood ratio statistic is small in this case and compared to a
 $\chi^2$ distribution with 1 df, the $p$-value turns out
-insignifcant. We conclude that the interaction is not supported by the
+insignificant. We conclude that the interaction is not supported by the
 data. 
 \end{example}
 
@@ -952,7 +956,7 @@ drop1(fm2, test = "Chi")
   %% is $...$ on 9 degrees of freedom. 
   An ANODE table for the wine data in Table~\ref{tab:wineData} is
   presented in Table~\ref{tab:ANODE-simple-Wine-data} where the total
-  deviance is brocken up into model deviance (due to treatments) and
+  deviance is broken up into model deviance (due to treatments) and
   residual deviance. Further, the treatment deviance is described by
   contributions from main effects and interaction.
   %% This is summarized in
@@ -1197,16 +1201,16 @@ positive direction.
 Model~\eqref{eq:clm_basic} is exactly a cumulative link model with
 a probit link. Other distributional assumptions for $S$ correspond
 to other link functions. In general assuming that the cumulative
-distribution funtion of $S$ is $F$ corresponds to assuming the link
+distribution function of $S$ is $F$ corresponds to assuming the link
 function is $F^{-1}$, cf. Table~\ref{tab:linkFunctions}. 
 
 Some expositions of the latent variable motivation for cumulative link
-models get around the identifibility problem by introducing
-resctrictions on $\alpha$ and $\sigma$, usually $\alpha = 0$ and
+models get around the identifiability problem by introducing
+restrictions on $\alpha$ and $\sigma$, usually $\alpha = 0$ and
 $\sigma = 1$ are chosen, which leads to the same definition of
 the threshold and regression parameters that we use here. However, it
 seems misleading to introduce restrictions on unidentifiable
-parameters. If observations really arize from a continuous latent
+parameters. If observations really arise from a continuous latent
 variable, $\alpha$ and $\sigma$ are real unknown parameters and it
 makes little sense to restrict them to take certain values. This
 draws focus from the appropriate \emph{relative}
@@ -1237,7 +1241,7 @@ which corresponds to the standard form for the logistic distribution.}
 
 The standard form of the logistic distribution has mean zero and
 variance $\pi^2 / 3$. The logistic distribution is symmetric and shows
-a some resemblence with a normal distribution with the same mean
+a some resemblance with a normal distribution with the same mean
 and variance in the central part of the distribution; the tails of the
 logistic distribution are a little heavier than the tails of the normal
 distribution. In Fig.~\ref{fig:logisticNormalComparison} the normal
@@ -1312,7 +1316,7 @@ covariates they will only be approximately the same.
 \end{example}
 
 Regardless of how the threshold parameters discretize the scale of the
-latent variable, the regression paramaters $\bm\beta$ have the same
+latent variable, the regression parameters $\bm\beta$ have the same
 interpretation. Thus $\bm\beta$ have the same meaning whether the
 ordinal variable is measured in, say, five or six categories. Further,
 the nature of the model interpretation will not chance if two
@@ -1475,13 +1479,13 @@ spaced.
 
 The basic cumulative link model assumed that the thresholds are
 constant for all values of $\bm x^T_i \bm\beta$, that they are ordered
-and finite but otherwise without structure. In questionaire type
+and finite but otherwise without structure. In questionnaire type
 response scales, the question is often of the form ``how much do you
 agree with \emph{statement}'' with response categories
 ranging from ``completely agree'' to ``completely disagree''
 %% , the central category being ``neither agree or disagree'' 
 in addition to a number of intermediate categories possibly with
-appropriate ancoring words. 
+appropriate anchoring words. 
 In this situation the response
 scale is meant to be perceived as being symmetric, thus, for example,
 the end categories are equally far from the central category/categories. 
@@ -1537,7 +1541,7 @@ Table~\ref{tab:symmThresholds2}.
 \subsubsection{Equidistant thresholds}
 \label{sec:equid-thresh}
 
-Ordinal data sometimes arize when the intensity of some perception is
+Ordinal data sometimes arise when the intensity of some perception is
 rated on an ordinal response scale. An example of such a scale is the
 ratings of the bitterness of wine described in
 example~\ref{exa:wine-data}. In such cases it is natural to
@@ -1561,7 +1565,7 @@ distance between adjacent thresholds.
 fm1 <- clm(rating ~ temp + contact, data=wine)
 summary(fm1)
 @ 
-The succesive distances between the thresholds in this model are
+The successive distances between the thresholds in this model are
 <<>>=
 diff(fm1$alpha)
 @ 
@@ -1594,38 +1598,117 @@ not providing much evidence against equidistant thresholds.
 
 \section{Assessing the likelihood and model convergence}
 \label{sec:assess-likel-model}
-\marginpar{Write section example based}
+
+%% Write about the condition number of the Hessian
 
 %% \subsection{The slice method}
 %% \label{sec:slice-method}
 
 Cumulative link models are non-linear models and in general the
-likelihood function non-linear models is not garantied to be uni-modal
-or nice and bell-shaped. In cumulative link models, the threshold
-parameters are even restricted to be ordered and therefore naturally
-bounded. It can therefore be interesting to visualize the likelihood
+likelihood function of non-linear models is not guaranteed to be well
+behaved or even uni-modal. However, as mentioned in
+section~\ref{sec:maxim-likel-estim}
+\citet{pratt81} and \citet{burridge81} showed that the log-likelihood
+function of cumulative link 
+models with the link functions considered in
+Table~\ref{tab:linkFunctions}, except for the cauchit link, is
+concave. This means that there is a unique global optimum so there is
+no risk of convergence to a local optimum. 
+There is no such guarantee in more general models. 
+
+There are no closed form expressions for the ML estimates of the
+parameters in cumulative link models. This means that iterative
+methods have to be used to fit the models. There is no guarantee that
+the iterative method converges to the optimum. In complicated models
+the iterative method may terminate at a local optimum or just far from
+the optimum resulting in inaccurate parameter estimates. We may hope
+that the optimization process warns about non-convergence, but that
+can also fail. To be sure the likelihood function is well behaved and
+that an unequivocal optimum has been reached we have to inspect the
+likelihood function in a neighborhood around the optimum as reported
+by the optimization. 
+
+As special feature for cumulative link models, the threshold
+parameters are restricted to be ordered and therefore naturally 
+bounded. This may cause the log-likelihood function to be
+irregular for one or more parameters. 
+This also motivates visualizing the  likelihood
 function in the neighborhood of the optimum. To do this we use the
 \texttt{slice} function. As the name implies, it extracts a
-(one-dimensional) slice of the likelihood function:
+(one-dimensional) slice of the likelihood function.
+
+We use the likelihood slices for two purposes: 
+\begin{enumerate}
+\item To visualize and inspect the likelihood function in a
+  neighborhood around the optimum. We choose a rather large
+  neighborhood and look at how well-behaved the likelihood function
+  is, how close to a quadratic function it is, and if there is only
+  one optimum. 
+\item To verify that the optimization converged and that the parameter
+  estimates are accurately determined. For this we choose a rather
+  narrow neighborhood around the optimum. 
+\end{enumerate}
+
+The log-likelihood slice is defined as
+\begin{equation}
+  \label{eq:slice}
+  \ell_{\textup{slice}}(\alpha_a; \bm y) = \ell(\alpha_a,
+  \hat{\bm\alpha}_{-a}; \bm y)~,
+\end{equation}
+where $\bm\alpha$ denotes the joint parameter vector.
+Thus the slice is the log-likelihood function regarded as a function of the
+$a$th parameter while the remaining parameters are fixed at their ML
+estimates. 
+
+The Hessian at the optimum measures the curvature in the
+log-likelihood function in the parameter space. To scale the range of
+the parameters at which the likelihood is sliced, we consider the
+following measures of curvature:
+\begin{equation}
+  \label{eq:18}
+  \bm \zeta = \sqrt{\textup{diag}(-\bm H)}
+\end{equation}
+Here $\bm \zeta$ is a $(q+p)$-vector of curvature units for the $q$
+threshold parameters $\bm\theta$ and the $p$ regression parameters
+$\bm\beta$. We can understand $\bm\zeta$ as a vector of standard
+errors which are not controlled for the dependency of the other
+parameters. Indeed, if the parameters are completely uncorrelated,
+$\bm H$ is diagonal and $\bm\zeta$ coincide with standard errors,
+cf. \eqref{eq:8}, however, this is not possible  in cumulative link
+models. 
+
+The range of the parameters at which the log-likelihood is
+sliced is then a simple multiple ($\lambda$) of the curvature units in
+each direction: $\lambda \bm\zeta$. 
+Working in curvature units is
+a way to standardize the parameter range even if some parameters are
+much better determined (much less curvature in the log-likelihood)
+than others. 
+
+A well-behave log-likelihood function will be approximately quadratic
+in shape in a neighborhood around the optimum. Close enough to the
+optimum, the log-likelihood function will be virtually
+indistinguishable from a quadratic approximation if all parameters are
+identified. For the $a$th parameter the quadratic approximation to the
+log-likelihood function is given by
+\begin{equation*}
+  - \frac{(\hat\alpha_{a} - \alpha_{a})^2}{2 \zeta_{a}^2}.
+\end{equation*}
+
+\begin{example}
+  Consider again a cumulative link model for the wine data. In the
+  following we ask for a slice of the log-likelihood function for each
+  of the parameters and plot these. By setting $\lambda = 5$ we ask
+  for the slice in a rather wide neighborhood around the optimum:
 <<slice1, echo=TRUE, results=hide>>=
 fm1 <- clm(rating ~ temp + contact, data=wine)
 slice.fm1 <- slice(fm1, lambda = 5)
 par(mfrow = c(2, 3))
 plot(slice.fm1)
 @ 
-The result is shown in Fig.~\ref{fig:slice1}. \texttt{lambda} controls
-the range of 
-parameter values for which the slice is computed. The square root of
-the diagonal elements of the Hessian at the optimum are measures of
-curvature in the likelihood functions for each of the parameters, and
-\texttt{lambda} indicates how many of these curvature units away from
-the optimum the slice is to be computed. Working in curvature units is
-a way to standardize the parameter range even if some parameters are
-much better determined (much less curvature in the log-likelihood)
-than others. Here we wanted to assess the shape of the log-likelihood
-function, so we chose a relatively large value for \texttt{lambda}. By
-default the quadratic approximation is included for reference in the
-plot. 
+The result is shown in Fig.~\ref{fig:slice1}.  
+By default the quadratic approximation is included for reference in
+the plot. 
 
 \setkeys{Gin}{width=.32\textwidth}
 \begin{figure}
@@ -1659,21 +1742,26 @@ plot(slice.fm1, parm = 6)
 For this model we see that the log-likelihood function is nicely
 quadratic for the regression parameters while it is less so for the
 threshold parameters and particularly bad for the end
-thresholds. There also appears to be only one optimum. 
+thresholds. The log-likelihood is \emph{relative} as indicated by the
+label on the vertical axis since the values are relative to the
+maximum log-likelihood value.
 
 From Fig.~\ref{fig:slice1} it seems that the parameter estimates as
 indicated by the vertical bars are close to the optimum indicating
 successful model convergence. To investigate more closely we slice the
-likelihood at a much smaller scale:
+likelihood at a much smaller scale using $\lambda = 10^{-5}$:
 <<slice2, echo=TRUE, results=hide>>=
 slice2.fm1 <- slice(fm1, lambda = 1e-5)
 par(mfrow = c(2, 3))
 plot(slice2.fm1)
 @ 
 The resulting figure is shown in Fig.~\ref{fig:slice2}. Observe that
-1) the model has converged and all parameters estimates are correct to
-at least six decimals and 2) the quadratic approximation is
-indistinguishable from the log-likelihood at this scale. 
+1) the model has converged, 2) from inspection of the horizontal axis
+all parameters estimates are correct to at least six decimals, 3)
+the quadratic approximation is indistinguishable from the
+log-likelihood at this scale and 4) from the vertical axis the
+log-likelihood value is determined accurately to at least 12 digits.
+\end{example}
 
 \setkeys{Gin}{width=.32\textwidth}
 \begin{figure}
@@ -1704,6 +1792,10 @@ plot(slice2.fm1, parm = 6)
 \label{fig:slice2}
 \end{figure}
 
+\begin{example}
+  Example with confidence contours.
+\end{example}
+
 Unfortunately there is no general way to infer confidence intervals
 from the likelihood slices---for that we have to use the
 computationally more intensive profile likelihoods. 
@@ -1716,7 +1808,7 @@ is only evaluated---not optimized, at a range of parameter values.
 \section{Confidence intervals and profile likelihood}
 \label{sec:conf-interv-prof}
 
-\marginpar{write section with examples}
+%% \marginpar{write section with examples}
 
 Confidence intervals are convenient for summarizing the uncertainty
 about estimated parameters. The classical symmetric
@@ -1725,10 +1817,7 @@ $\hat\beta \pm z_{1 - \alpha/2}\hat{\textup{se}}(\hat\beta)$ are based
 on the Wald statistic\footnote{where $z_{1 - \alpha/2}$ is
   the $(1 - \alpha/2)$-quantile of the standard normal CDF.}, 
 $w(\beta) = (\hat\beta - \beta) / \hat{\textup{se}}(\hat\beta)$ and
-available by:  
-<<CIWald, echo=TRUE, results=verb>>=
-confint(fm1, type = "Wald")
-@ 
+available by \texttt{confint(fm1, type = "Wald")}.  
 A similar result could be obtained by \texttt{confint.default(fm1)}.
 However, outside linear models asymmetric confidence intervals often
 better reflect the uncertainty in the parameter estimates.
@@ -1748,8 +1837,8 @@ optimized over a range of values of $\beta_a$ around the ML estimate,
 $\hat\beta_a$, further, these points are interpolated by a spline to
 provide an even smoother function. 
 
-The likelihood root statistic [refs] is defined as:
-\marginpar{should the minus be there?}
+The likelihood root statistic \citep[see e.g.,][]{pawitan01,
+  brazzale07} is defined as: 
 \begin{equation*}
   r(\beta_a) = \textup{sign}(\hat\beta_a - \beta_a) \sqrt{-2 [
     \ell(\hat{\bm\theta}, \hat{\bm\beta}; \bm y) - \ell_p(\beta_a; \bm y)]} 
@@ -1757,30 +1846,73 @@ The likelihood root statistic [refs] is defined as:
 and just like the Wald statistic its reference distribution is the
 standard normal. Confidence intervals based on the likelihood root
 statistic are defined as those values of $\beta_a$ for which
-$r(\beta_a)$ is in between, say, $-1.96$ and $1.96$ for 95\%
-confidence intervals. Formally the confidence intervals are defined as  
+$r(\beta_a)$ is in between specified bounds, e.g., $-1.96$ and $1.96$
+for 95\% confidence intervals. 
+Formally the confidence intervals are defined as  
 \begin{equation*}
-  CI:~\left\{ \beta_a; |r(\beta_a)| < z_{1 - \alpha/2} \right\} ~.
+  CI:~\left\{ \beta_a; |r(\beta_a)| < z_{1 - \alpha/2} \right\} .
 \end{equation*}
-To fix ideas the likelihood root statistic\footnote{actually we
+
+\begin{example}
+  Consider again a model for the wine data. The profile likelihood
+  confidence intervals are obtained with
+<<>>=
+fm1 <- clm(rating ~ temp + contact, data=wine)
+confint(fm1)
+@   
+where we would have appended \texttt{type = "profile"} since this is
+the default. Confidence intervals with other confidence levels are
+obtained using the \texttt{level} argument. 
+The equivalent confidence intervals based on the Wald statistic are 
+<<>>=
+confint(fm1, type = "Wald")
+@ 
+In this case the Wald bounds are a little too low compared to the
+profile likelihood confidence bounds.
+\end{example}
+
+Visualization of the likelihood root statistic can be helpful in
+diagnosing non-linearity in the parameterization of the model. The
+linear scale is particularly suited for this rather than other
+scales, such as the quadratic scale at which the log-likelihood lives.
+
+The \texttt{plot} method for \texttt{profile} objects that can
+produce a range of different plots on different scales. The
+\texttt{plot} method takes the following arguments:
+<<echo=FALSE>>=
+str(args(ordinal2:::plot.profile.clm))
+@ 
+If \texttt{root = TRUE} an approximately linear plot of $\beta_a$
+versus $-r(\beta_a)$ is produced\footnote{actually we 
   reversed the sign of the statistic in the display since a line from
   lower-left to upper-right looks better than a line from upper-left
-  to lower-right.}
-is shown for the
-\texttt{tempwarm} parameter in the model for the wine data given
-above in Fig.~\ref{fig:lrootStatistic}. 
-The figure is made with the following code:
+  to lower-right.}. If \texttt{approx = TRUE} (the default when
+\texttt{root = TRUE}) the Wald
+statistic is also included on the square root scale,
+$-\sqrt{w(\beta_a)}$. This is the tangient line to $-r(\beta_a)$ at
+$\hat\beta_a$ and provides a reference against which to measure
+curvature in $r(\beta_a)$. Horizontal lines at $\pm 1.96$
+and $\pm 2.58$ indicate 95\% and 99\% confidence intervals. 
+
+When \texttt{root = FALSE}, the \texttt{Log} argument controls whether
+the likelihood should be plotted on the log scale, and similarly the
+\texttt{relative} argument controls whether the absolute or relative
+(log-) likelihood should be plotted. 
+At the default settings, the \texttt{plot} method produce a plot
+
+\begin{example}
+  Consider the model from the previous example. The likelihood root
+  statistic can be obtained with 
 <<rootStatistic, echo=TRUE, results=verb, fig=TRUE, include=FALSE>>=
 pr1 <- profile(fm1, which.beta="tempwarm")
 plot(pr1, root=TRUE)
 @ 
-The horizotal lines indicate 95\% and 99\% confidence intervals and
-the dashed line is the Wald statistic. Incidently, and as is clear
-from the figure, the Wald statistic is also the tangient line to the
-likelihood root statistic in the ML estimate. As indicated by the
-figure, the profile likelihood confidence limits for
-\texttt{tempwarm} are larger than the Wald counterparts and the
-discrepancy increases with the confidence level.
+The resulting figure is shown in Fig.~\ref{fig:lrootStatistic}. A
+slight skewness in the profile likelihood for \texttt{tempwarm}
+translates into curvature in the likelihood root statistic. The Wald
+and profile likelihood confidence intervals are given as intersections
+with the horizontal lines. 
+\end{example}
 
 \setkeys{Gin}{width=.5\textwidth}
 \begin{figure}
@@ -1789,35 +1921,39 @@ discrepancy increases with the confidence level.
 <<rootStatistic>>
 @ 
   \caption{Likelihood root statistic (solid) and Wald statistic (dashed)
-    for the \texttt{tempwarm} parameter in the model for the wine data.}
+    for the \texttt{tempwarm} parameter in the model for the wine
+    data. Horizontal lines indicate 95\% and 99\% confidence bounds
+    for both statistics.}
 \label{fig:lrootStatistic}
 \end{figure}
 
-The profile likelihood confidence intervals are provided by default
-application of \texttt{confint}:
-<<profileCI, echo=TRUE, results=verb>>=
-confint(fm1)
-@ 
-
-The visualization of the likelihood root statistic can be helpful in
-diagnozing non-linearity in the parameterization of the model. The
-linear scale is particularly suited for this rather than other scales,
-such as the quadratic scale at which the log-likelihood lives. In
-summarizing the results of a models fit, I find the relative
-likelihood scale, $\exp(-r(\beta_a)^2 / 2)$ informative. These
-relative profile likelihoods are obtained with 
-<<profileLikelihood, echo=TRUE>>=
-pr1 <- profile(fm1, alpha=1e-4)
-plot(pr1)
-@ 
-and provided in Fig.~\ref{fig:ProfileLikelihood}. The evidence about
-the parameters is directly visible; the ML estimate has maximum
-support, 1 and values away from here are less supported by the
+In summarizing the results of a models fit, I find the relative
+likelihood scale, 
+$\exp(-r(\beta_a)^2 / 2) = \exp \{\ell(\hat{\bm\theta}, \hat{\bm\beta};
+\bm y) - \ell_p(\beta_a; \bm y) \}$ informative. 
+The evidence about
+the parameters is directly visible on this scale
+(cf. Fig.~\ref{fig:ProfileLikelihood}); 
+the ML estimate has maximum
+support, and values away from here are less supported by the
 data, 95\% and 99\% confidence intervals are readily read of the plots
 as intersections with the horizontal lines. Most importantly the plots
 emphasize that a range of parameter values are actually quite well
 supported by the data---something which is easy to forget when
-focus is on the precise numbers of the ML estimates. 
+focus is on the exact numbers representing the ML estimates. 
+
+\begin{example}
+  The relative profile likelihoods are obtained with 
+<<profileLikelihood, echo=TRUE>>=
+pr1 <- profile(fm1, alpha=1e-4)
+plot(pr1)
+@ 
+and provided in Fig.~\ref{fig:ProfileLikelihood}. From the relative
+profile likelihood for \texttt{tempwarm} we see that parameter values
+between 1 and 4 are reasonably well supported by the data, and values
+outside this range has little likelihood. Values between 2 and 3 are
+very well supported by the data and all have high likelihood. 
+\end{example}
 
 \setkeys{Gin}{width=.32\textwidth}
 \begin{figure}
@@ -1829,7 +1965,8 @@ plot(pr1, parm=1)
 plot(pr1, parm=2)
 @   
   \caption{Relative profile likelihoods for the regression parameters
-    in the Wine study.} 
+    in the Wine study. Horizontal lines indicate 95\% and 99\%
+    confidence bounds.} 
   \label{fig:ProfileLikelihood}
 \end{figure}
 
