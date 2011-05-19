@@ -26,9 +26,9 @@
 
 \method{plot}{profile.clm}(x, parm = seq_len(nbeta), level = c(0.95, 0.99),
         Log = FALSE, relative = TRUE, root = FALSE, fig = TRUE,
-        approx = root,
+        approx = root, n = 1e3,
         ask = prod(par("mfcol")) < length(parm) && dev.interactive(),
-        n = 1e3, ..., ylim = NULL)
+        ..., ylim = NULL)
 }
 \arguments{
   \item{object, fitted, x}{

@@ -14,7 +14,9 @@ print.clmm <-
 
   cat("\nRandom effects:\n")
   print(x$varMat, digits=digits, ...)
-  
+  nlev.char <- paste(names(x$nlev), " ", x$nlev, sep="", collapse=",  ")
+  cat("Number of groups: ", nlev.char, "\n")
+
   if(length(x$beta)) {
     cat("\nCoefficients:\n")
     print(x$beta, digits=digits, ...)
@@ -58,9 +60,10 @@ summary.clmm <- function(object, correlation = FALSE, ...)
                 abs(max(values) / min(values)))
     coef[, 3] <- coef[, 1]/coef[, 2]
     coef[, 4] <- 2 * pnorm(abs(coef[, 3]), lower.tail=FALSE)
-    if(correlation)
-        object$correlation <-
-          (vc / sd) / rep(sd, rep(object$edf, object$edf))
+    if(correlation) ## {
+      ## sd <- sqrt(diag(vc))
+      object$correlation <- cov2cor(vc)
+    ## (vc / sd) / rep(sd, rep(object$edf, object$edf))
   }
   object$info$cond.H <- formatC(object$condHess, digits=1, format="e")
   object$coefficients <- coef
@@ -85,6 +88,8 @@ print.summary.clmm <-
 
   cat("\nRandom effects:\n")
   print(x$varMat, digits=digits, ...)
+  nlev.char <- paste(names(x$nlev), " ", x$nlev, sep="", collapse=",  ")
+  cat("Number of groups: ", nlev.char, "\n")
   
   nbeta <- length(x$beta)
   nalpha <- length(x$alpha)
