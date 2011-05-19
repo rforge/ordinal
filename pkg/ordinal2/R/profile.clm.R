@@ -295,7 +295,9 @@ confint.profile.clm <-
 plot.profile.clm <-
     function(x, parm = seq_len(nbeta), level = c(0.95, 0.99),
              Log = FALSE, relative = TRUE, root = FALSE, fig = TRUE,
-             approx = root, n = 1e3, ..., ylim = NULL)
+             approx = root, n = 1e3,
+             ask = prod(par("mfcol")) < length(parm) && dev.interactive(),
+             ..., ylim = NULL)
 {
   ## match and test arguments:
   stopifnot(is.numeric(level) && all(level > 0) &&
@@ -321,6 +323,11 @@ plot.profile.clm <-
   spline.list <- vector("list", length(parm))
   names(spline.list) <- which.names
   if(approx) std.err <- sqrt(diag(vcov(of)))[which.names]
+  ## aks before "over writing" the plot?
+  if(ask) {
+    oask <- devAskNewPage(TRUE)
+    on.exit(devAskNewPage(oask))
+  }
   ## for each pm make the appropriate plot:
   for(pm in beta.names[parm]) {
     ## confidence limits:
@@ -353,11 +360,17 @@ plot.profile.clm <-
         ylab <- "Profile log-likelihood"
         lim <- ML + log(lim)
       }
-      if(!relative && !Log) 
-        stop("Not supported: at least one of 'Log' and 'relative' ",
-           "have to be TRUE")
+      if(!relative && !Log) {
+        sp$y <- exp(sp$y + ML)
+        if(approx) y.approx <- exp(y.approx + ML)
+        ylab <- "Profile likelihood"
+        lim <- exp(ML + log(lim))
+        ## stop("Not supported: at least one of 'Log' and 'relative' ",
+        ##      "have to be TRUE")
+      }
     }
     spline.list[[ pm ]] <- sp
+
     if(fig) { ## do the plotting:
       plot(sp$x, sp$y, type = "l", ylim = ylim,
            xlab = pm, ylab = ylab, ...)
