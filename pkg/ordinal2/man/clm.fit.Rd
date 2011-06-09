@@ -2,7 +2,7 @@
 \alias{clm.fit}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-  fit cumulative link functions
+  Fit Cumulative Link Models
 %%  ~~function to do ... ~~
 }
 \description{

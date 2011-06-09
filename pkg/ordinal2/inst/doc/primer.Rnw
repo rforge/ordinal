@@ -129,6 +129,7 @@
 ## Load common packages, functions and set settings:
 ## library(sensR)
 library(ordinal2)
+data(wine)
 library(xtable)
 ## 
 RUN <- FALSE    #redo computations and write .RData files
@@ -240,7 +241,7 @@ and data are analyzed with the functionality provided in the
       & & \multicolumn{5}{c}{Least---Most bitter} \\
       \cline{3-7}
 <<echo=FALSE, results=tex>>=
-data(wine)
+## data(wine)
 tab <- with(wine, table(temp:contact, rating))
 mat <- cbind(rep(c("cold", "warm"), each = 2),
              rep(c("no", "yes"), 2),
@@ -289,31 +290,6 @@ so that the cumulative logits are defined for all but the last
 category.\footnote{since for $j = J$ the denominator would be 
   $1 - P(Y_i \leq J) = 1 - 1 = 0$ and thus the fraction is not
   defined.}  
-
-\begin{example}
-  \label{exa:binomial-logits}
-  For fixed $j$ the cumulative logit model \eqref{eq:3} is just
-  a logistic regression model where the binomial response is divided
-  into those observations falling in category $j$ or less, and those
-  falling in a higher category than $j$. This is a valid analysis
-  approach, but it does not use all the information in the data and
-  the (arbitrary) choice of $j$ also needs to be made. To improve on
-  this we could make all the ordinary logistic regressions for $j = 1,
-  \ldots, J-1$, but it is not easy to draw inference from a collection
-  of models and it would be nice if a plausible data generating
-  mechanism could be summarized in a single model. This is also likely
-  to increase the power of hypothesis tests for the parameters. The
-  cumulative logit model is exactly the model that combines all these
-  ordinary logistic regressions into one. If the cumulative model is
-  correct, the regression parameter estimates from the individual
-  logistic regression models will be similar and approximately
-  identical to the regression parameter estimates from the cumulative
-  probit model. Thus the cumulative link model saves the estimation of
-  $J -2$ sets of $\bm\beta$---this is where the power gain comes
-  from. Further, we also expect the intercept parameter estimates from
-  the logistic regression models to be approximately the same as
-  estimates of $\{ \theta_j \}$ from the cumulative link model. 
-\end{example}
 
 A cumulative link model with a logit link, or simply \emph{cumulative
   logit model} is a regression model for cumulative logits:
@@ -373,7 +349,134 @@ regression or ANOVA model.
 The second reason is related to the latent variable interpretation of
 cumulative link models that we will consider in
 section~\ref{sec:latent-vari-motiv}. 
+ 
+<<echo=FALSE, results=hide>>=
+wine$rate <- as.numeric(wine$rating)
 
+## The cumulative link model can be understood as combining the
+## information from 1,...,J-1 binomial GLMs:
+## Consider the estimates from logistic regression models and compare
+## with estimates from the glm:
+
+## coefficient estimates:
+cf <- sapply(2:5, function(j) coef(glm(rate < j ~ contact, data=wine,
+  family=binomial)))
+round(cf, 3)
+mean(cf[2,]) ## -1.238937
+## standard errors:
+ses <- sapply(2:5, function(j)
+              coef(summary(glm(rate < j ~ contact, data=wine,
+                               family=binomial)))[,2])
+fm1 <- clm(rating ~ contact, data=wine)
+@  
+\begin{table}
+  \centering
+  \caption{Estimates from ordinary logistic regression models (OLR)
+    and a cumulative logit model (CLM) fitted to the wine data
+    (cf. Table~\ref{tab:wineData}).}
+  \label{tab:OrdinalAndOrdinaryRegressions}
+  \begin{tabular}{lrrrr}
+    \hline
+    & \multicolumn{2}{c}{OLR} & \multicolumn{2}{c}{CLM} \\
+    \cline{2-3}
+    \cline{4-5}
+    $j$ & Intercept & contact & $\theta_j$ & contact \\
+<<echo=FALSE, results=tex>>=
+## Table of coefficients comparing GLM and CLM
+## j, GLM.intercept, GLM.contact, CLM.intercept, CLM.contact
+dig <- 3
+cf.se <- paste(format(round(cf[2,], dig-1), digits=dig), "(",
+               format(round(ses[2,], dig-1), digits=dig), ")", sep="")  
+mat <- cbind(1:4, format(round(cf[1,], dig-1), digits=dig), cf.se,
+             format(round(coef(fm1)[1:4], dig-1), digits=dig), 
+             c(paste(round(coef(fm1)[5], dig-1), "(",
+                     round(coef(summary(fm1))[5,2], dig-1), ")",
+                     sep=""), rep("", 3)))
+## mat
+xtab <- xtable(mat)
+print(xtab, only.contents=TRUE, include.rownames=FALSE,
+      include.colnames=FALSE) 
+#      sanitize.text.function = function(x) x)
+@ 
+  \end{tabular}
+\end{table}
+
+\begin{example}
+  \label{exa:binomial-logits}
+  We will consider a cumulative logit model for the wine data
+  including an effect of contact. The response variable is the
+  bitterness ratings, thus each $y_i$ takes a value from 1 to 5
+  representing the degree of bitterness for the $i$th sample.
+  We may write the cumulative logit model as:
+  \begin{equation*}
+    %% \label{eq:11}
+    \textup{logit}(\gamma_{ij}) = \theta_j 
+    % - \beta_1(\mathtt{temp}_i)
+    - \beta_2(\mathtt{contact}_i), \quad j=1,\ldots,4, \quad
+    i=1,\ldots,72.
+  \end{equation*}
+  The parameter estimates are given in the last two columns of
+  Table~\ref{tab:OrdinalAndOrdinaryRegressions}. 
+  %% If we didn't know of cumulative link models we could have approached
+  %% the data differently. 
+  If we consider the cumulative logit model~\eqref{eq:3} for a fixed
+  $j$, e.g., for $j=1$, then the model is just a ordinary logistic
+  regression model where the binomial response is divided
+  into those observations falling in category $j$ or less 
+  ($Y_i \leq j$), and those falling in a higher category than $j$
+  ($Y_i > j$). An initial analysis might 
+  indeed start by fitting such an ordinary logistic regression models
+  for a dichotomized response. If we proceed in this vein, we could
+  fit the $J-1 = 4$ ordinary logistic regression model by fixing $j$
+  at 1, 2, 3, and 4 in turn. The estimates of those four ordinary
+  logistic regression models are given in 
+  Table~\ref{tab:OrdinalAndOrdinaryRegressions} under the OLR heading. 
+  %% There are several
+  %% problems with this approach and one of them is that the regression
+  %% parameter for \texttt{contact} is estimated four times, while we are
+  %% only interested in estimating it once. 
+  The cumulative logit model can be seen as the model that combines
+  these four ordinary logistic regression models into a single model
+  and therefore makes better use of the information in the data. A part
+  from a sign difference the estimate of the effect of
+  \texttt{contact} from the cumulative logit model is about the
+  average of the \texttt{contact} effect estimates from the ordinary
+  logistic regression models. Also observe that the standard error of
+  the \texttt{contact} effect is smaller in the cumulative logit model 
+  than in any of the ordinary logistic regression models reflecting
+  that the effect of \texttt{contact} is more accurately determined in
+  the cumulative logit model. 
+  The intercepts from the ordinary logistic regression models are also 
+  seen to correspond to the threshold parameters in the cumulative
+  logit model.
+  
+  The four ordinary logistic regression models can be combined in a
+  single ordinary logistic regression model providing an even better
+  approximation to the cumulative link model. This is considered
+  further in Appendix~\ref{sec:an-approximate-ml}.
+\end{example}
+  %% For fixed $j$ the cumulative logit model \eqref{eq:3} is just
+  %% a logistic regression model where the binomial response is divided
+  %% into those observations falling in category $j$ or less, and those
+  %% falling in a higher category than $j$. This is a valid analysis
+  %% approach, but it does not use all the information in the data and
+  %% the (arbitrary) choice of $j$ also needs to be made. To improve on
+  %% this we could make all the ordinary logistic regressions for $j = 1,
+  %% \ldots, J-1$, but it is not easy to draw inference from a collection
+  %% of models and it would be nice if a plausible data generating
+  %% mechanism could be summarized in a single model. This is also likely
+  %% to increase the power of hypothesis tests for the parameters. The
+  %% cumulative logit model is exactly the model that combines all these
+  %% ordinary logistic regressions into one. If the cumulative model is
+  %% correct, the regression parameter estimates from the individual
+  %% logistic regression models will be similar and approximately
+  %% identical to the regression parameter estimates from the cumulative
+  %% probit model. Thus the cumulative link model saves the estimation of
+  %% $J -2$ sets of $\bm\beta$---this is where the power gain comes
+  %% from. Further, we also expect the intercept parameter estimates from
+  %% the logistic regression models to be approximately the same as
+  %% estimates of $\{ \theta_j \}$ from the cumulative link model. 
+  
 \subsection{Fitting cumulative link models with \texttt{clm} from
   package \textsf{ordinal2}} 
 \label{sec:fitt-cumul-link}
@@ -1959,10 +2062,10 @@ very well supported by the data and all have high likelihood.
 \begin{figure}
   \centering
 <<prof1, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(pr1, parm=1)
+plot(pr1, which.par=1)
 @   
 <<prof2, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
-plot(pr1, parm=2)
+plot(pr1, which.par=2)
 @   
   \caption{Relative profile likelihoods for the regression parameters
     in the Wine study. Horizontal lines indicate 95\% and 99\%
@@ -1976,6 +2079,90 @@ plot(pr1, parm=2)
 %% \citet{thompson81} showed that cumulative logit models can be fitted
 %% by application of composite link functions.
 
+\appendix
+
+\section{An approximate ML estimation method for CLMs}
+\label{sec:an-approximate-ml}
+
+The approach with multiple ordinary logistic regression models
+considered in example~\ref{exa:binomial-logits} and summarized in
+Table~\ref{tab:OrdinalAndOrdinaryRegressions} can be improved on by
+constructing a single ordinary logistic regression model that
+estimates the regression parameters only once while also estimating
+all the threshold parameters. This approach estimates the
+same parameters as the cumulative logit model, but it does not yield
+ML estimates of the parameters although generally the estimates are
+quite close. A larger difference is typically seen in the standard
+errors which are generally too small.
+This approach is further described by \citet{winship84}.
+
+The basic idea is to form a binary response: 
+$\bm y^* = [I(\bm y \leq 1), \ldots, I(\bm y \leq j), \ldots, I(\bm y
+\leq J-1)]$ of lenght $n(J-1)$, where originally we had $n$
+observations falling in $J$ categories. The original design matrix,
+$\bm X$ is stacked $J-1$ times and indicator variables for $j=1,
+\ldots, J-1$ are included to give estimates for the thresholds. 
+
+\begin{example}
+  We now continue example~\ref{exa:binomial-logits} by estimating the
+  parameters with the approach described above.
+  First we form the data set to which we will fit the model:
+<<>>=
+tab <- with(wine, table(contact, rating))
+dat <- data.frame(freq =c(tab),
+                  contact=rep(c("no", "yes"), 5),
+                  rating = factor(rep(1:5, each=2), ordered=TRUE))
+dat
+@  
+The cumulative link model would be fitted with
+<<echo=TRUE, results=hide, eval=FALSE>>=
+fm1 <- clm(rating ~ contact, weights=freq)
+@ 
+Then we generate the new response and new data set:
+<<>>=
+thresholds <- 1:4
+cum.rate <- as.vector(sapply(thresholds, function(x) dat$rating <= x))
+rating.factor <- gl(n=length(thresholds), k=nrow(dat), 
+                    length=nrow(dat) * length(thresholds))
+thres.X <- model.matrix(~ rating.factor - 1)
+colnames(thres.X) <- paste("t", thresholds, sep="")
+old.X <- -model.matrix(~contact, dat)[, -1, drop=FALSE]
+new.X <- kronecker(matrix(rep(1, length(thresholds)), nc = 1), old.X)
+weights <- kronecker(matrix(rep(1, length(thresholds)), nc = 1), dat$freq)
+new.X <- cbind(thres.X, new.X)
+colnames(new.X)[-seq(length(thresholds))] <- colnames(old.X)
+p.df <- cbind(cum.rate = 1*cum.rate, as.data.frame(new.X), weights)
+p.df
+@ 
+where the first column is the new binary response variable, the next
+four columns are indicator variables for the thresholds, the following
+column is the indicator variable for \texttt{contact} and the last
+column holds the weights. Observe that while the original data set had
+10 rows, the new data set has 40 rows.
+We fit the ordinary logistic regression model for these data with 
+<<>>=
+glm1 <- glm(cum.rate ~ t1+t2 +t3 +t4 - 1 + contactyes,
+            weights=weights, family=binomial, data=p.df)
+summary(glm1)
+@ 
+Notice that we suppressed the intercept since the thresholds play the
+role as intercepts. In comparing these estimates with the estimates
+from the genuine cumulative logit model presented in the last two
+columns of Table~\ref{tab:OrdinalAndOrdinaryRegressions} we see that
+these approximate ML estimates are remarkably close to the true ML
+estimates. Observe however that the standard error of the
+\texttt{contact} effect is much smaller; this is due to the fact that
+the model was fitted to $n(J-1)$ observations while originally we only
+had $n$ of those. The weights could possibly be modified to adjust for
+this, but we will not persue this any further. 
+
+In lack of efficient
+software that yields ML estimates of the cumulative logit model, this
+approach could possibly be justified. This might have been the case
+some 20 years ago. However, in the present
+situation this approximate approach is only cumbersome for practical
+applications.  
+\end{example}
 
 
 \bibliography{ordinal}

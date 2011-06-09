@@ -2,6 +2,10 @@ print.clm <-
   function(x, digits = max(3, getOption("digits") - 3), ...)
 {
   cat("formula:", deparse(x$call$formula), fill=TRUE)
+  if(!is.null(x$call$scale))
+    cat("scale:  ", deparse(x$call$scale), fill=TRUE)
+  if(!is.null(x$call$nominal))
+    cat("nominal:", deparse(x$call$nominal), fill=TRUE)
   if(!is.null(data.name <- x$call$data))
     cat("data:   ", deparse(data.name), fill=TRUE)
   if(!is.null(x$call$subset))
@@ -11,14 +15,28 @@ print.clm <-
   print(x$info, row.names=FALSE, right=FALSE)
 
   if(length(x$beta)) {
-    cat("\nCoefficients:\n")
-    print(x$beta, digits=digits, ...)
-  } else {
-    cat("\nNo Coefficients\n")
+    if(sum(x$aliased$beta) > 0) 
+      cat("\nCoefficients: (", sum(x$aliased$beta),
+          " not defined because of singularities)\n", sep = "") 
+    ## else cat("\nCoefficients:\n")
+    print.default(format(x$beta, digits = digits), 
+                  quote = FALSE)
+  }
+    if(length(x$zeta)) {
+    if(sum(x$aliased$zeta) > 0) 
+      cat("\nlog-scale coefficients: (", sum(x$aliased$zeta),
+          " not defined because of singularities)\n", sep = "") 
+    else cat("\nlog-scale coefficients:\n")
+    print.default(format(x$zeta, digits = digits), 
+                  quote = FALSE)
   }
   if(length(x$alpha) > 0) {
-    cat("\nThresholds:\n")
-    print(x$alpha, digits=digits, ...)
+    if(sum(x$aliased$alpha) > 0) 
+      cat("\nThreshold coefficients: (", sum(x$aliased$alpha),
+          " not defined because of singularities)\n", sep = "") 
+    else cat("\nThreshold coefficients:\n")
+    print.default(format(x$alpha, digits = digits), 
+                  quote = FALSE)
   }
 
   if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
@@ -39,7 +57,7 @@ vcov.clm <- function(object, ...)
     VCOV[His.na] <- NaN
   }
   else
-    VCOV <- MASS::ginv(H)
+    VCOV <- solve(H) ## MASS::ginv(H)
   return(structure(VCOV, dimnames = dn))
 }
 
@@ -47,32 +65,35 @@ summary.clm <- function(object, correlation = FALSE, ...)
 {
   if(is.null(object$Hessian))
     stop("Model needs to be fitted with Hess = TRUE")
-  coef <- matrix(0, object$edf, 4,
-                 dimnames = list(names(object$coefficients),
-                   c("Estimate", "Std. Error", "z value", "Pr(>|z|)")))
-  coef[, 1] <- object$coefficients
-  vc <- try(vcov(object), silent = TRUE)
-  if(class(vc) == "try-error") {
+  coefs <- matrix(NA, length(object$coefficients), 4,
+                  dimnames = list(names(object$coefficients),
+                    c("Estimate", "Std. Error", "z value", "Pr(>|z|)")))
+  coefs[, 1] <- object$coefficients
+  cov <- try(vcov(object), silent = TRUE)
+  if(class(cov) == "try-error") {
     warning("Variance-covariance matrix of the parameters is not defined")
-    coef[, 2:4] <- NaN
+    coefs[, 2:4] <- NaN
     if(correlation) warning("Correlation matrix is unavailable")
     object$condHess <- NaN
   }
   else {
-    coef[, 2] <- sd <- sqrt(diag(vc))
+    alias <- unlist(object$aliased)
+    coefs[!alias, 2] <- sd <- sqrt(diag(cov))
     ## Cond is Inf if Hessian contains NaNs:
     object$condHess <-
       if(any(is.na(object$Hessian))) Inf
-      else with(eigen(object$Hessian, only.values = TRUE),
+      else with(eigen(object$Hessian, symmetric=TRUE, only.values = TRUE),
                 abs(max(values) / min(values)))
-    coef[, 3] <- coef[, 1]/coef[, 2]
-    coef[, 4] <- 2 * pnorm(abs(coef[, 3]), lower.tail=FALSE)
+    coefs[!alias, 3] <- coefs[!alias, 1]/coefs[!alias, 2]
+    coefs[!alias, 4] <- 2 * pnorm(abs(coefs[!alias, 3]),
+                                  lower.tail=FALSE) 
     if(correlation)
       object$correlation <-
-        (vc / sd) / rep(sd, rep(object$edf, object$edf))
+        (cov / sd) / rep(sd, rep(object$edf, object$edf))
+    object$cov <- cov
   }
   object$info$cond.H <- formatC(object$condHess, digits=1, format="e")
-  object$coefficients <- coef
+  object$coefficients <- coefs
   class(object) <- "summary.clm"
   return(object)
 }
@@ -82,6 +103,10 @@ print.summary.clm <-
            signif.stars = getOption("show.signif.stars"), ...)
 {
   cat("formula:", deparse(x$call$formula), fill=TRUE)
+  if(!is.null(x$call$scale))
+    cat("scale:  ", deparse(x$call$scale), fill=TRUE)
+  if(!is.null(x$call$nominal))
+    cat("nominal:", deparse(x$call$nominal), fill=TRUE)
   if(!is.null(data.name <- x$call$data))
     cat("data:   ", deparse(data.name), fill=TRUE)
   if(!is.null(x$call$subset))
@@ -90,18 +115,32 @@ print.summary.clm <-
 
   print(x$info, row.names=FALSE, right=FALSE)
   
-  nbeta <- length(x$beta)
   nalpha <- length(x$alpha)
+  nbeta <- length(x$beta)
+  nzeta <- length(x$zeta)
   if(nbeta > 0) {
-    cat("\nCoefficients:\n")
+    if(sum(x$aliased$beta) > 0) 
+      cat("\nCoefficients: (", sum(x$aliased$beta),
+          " not defined because of singularities)\n", sep = "") 
+    else cat("\nCoefficients:\n")
     printCoefmat(x$coefficients[nalpha + 1:nbeta, , drop=FALSE],
                  digits=digits, signif.stars=signif.stars,
                  has.Pvalue=TRUE, ...) 
-  } else {
-    cat("\nNo Coefficients\n")
+  } ## else  cat("\nNo Coefficients\n")
+  if(nzeta > 0) {
+    if(sum(x$aliased$zeta) > 0) 
+      cat("\nlog-scale coefficients: (", sum(x$aliased$zeta),
+          " not defined because of singularities)\n", sep = "") 
+    else cat("\nlog-scale coefficients:\n")
+    printCoefmat(x$coefficients[nalpha + nbeta + 1:nzeta, , drop=FALSE],
+                 digits=digits, signif.stars=signif.stars,
+                 has.Pvalue=TRUE, ...) 
   }
   if(nalpha > 0) { ## always true
-    cat("\nThreshold coefficients:\n")
+    if(sum(x$aliased$alpha) > 0) 
+      cat("\nThreshold coefficients: (", sum(x$aliased$alpha),
+          " not defined because of singularities)\n", sep = "") 
+    else cat("\nThreshold coefficients:\n")
     printCoefmat(x$coefficients[seq_len(nalpha), -4, drop=FALSE],
                  digits=digits, has.Pvalue=FALSE, signif.stars=FALSE,
                  ...) 
@@ -128,52 +167,6 @@ extractAIC.clm <- function(fit, scale = 0, k = 2, ...) {
 
 ### NOTE: AIC.clm implicitly defined via logLik.clm
 
-## anova.clm <- function (object, ..., test = c("Chisq", "none"))
-## ### make more appropriate printing of model formulae, potential
-## ### threshold structures and link functions.
-## {
-##   test <- match.arg(test)
-##   dots <- list(...)
-##   if (length(dots) == 0)
-##     stop('anova is not implemented for a single "clm" object')
-##   mlist <- list(object, ...)
-##   nt <- length(mlist)
-##   dflis <- sapply(mlist, function(x) x$df.residual)
-##   s <- order(dflis, decreasing = TRUE)
-##   mlist <- mlist[s]
-##   if (any(!sapply(mlist, inherits, "clm")))
-##     stop('not all objects are of class "clm"')
-##   ns <- sapply(mlist, function(x) length(x$fitted.values))
-##   if(any(ns != ns[1]))
-##     stop("models were not all fitted to the same dataset")
-##   rsp <- unique(sapply(mlist, function(x) {
-##                        tmp <- attr(x$model, "terms")
-##                        class(tmp) <- "formula"
-##                        paste(tmp[2]) } ))
-##   mds <- sapply(mlist, function(x) {
-##       tmp1 <- attr(x$model, "terms")
-##       class(tmp1) <- "formula"
-##       paste(tmp1[3]) })
-## ### FIXME: Extract formulae from the matched call instead to get the
-## ### random effects included as well?
-##   dfs <- dflis[s]
-##   lls <- sapply(mlist, function(x) -2*x$logLik)
-##   tss <- c("", paste(1:(nt - 1), 2:nt, sep = " vs "))
-##   df <- c(NA, -diff(dfs))
-##   x2 <- c(NA, -diff(lls))
-##   pr <- c(NA, 1 - pchisq(x2[-1], df[-1]))
-##   out <- data.frame(Model = mds, Resid.df = dfs, '-2logLik' = lls,
-##                     Test = tss, Df = df, LRtest = x2, Prob = pr)
-##   names(out) <- c("Model", "Resid. df", "-2logLik", "Test",
-##                   "   Df", "LR stat.", "Pr(Chi)")
-##   if (test == "none") out <- out[, 1:6]
-##   class(out) <- c("Anova", "data.frame")
-##   attr(out, "heading") <-
-##     c("Likelihood ratio tests of cumulative link models\n",
-##       paste("Response:", rsp))
-##   out
-## }
-
 anova.clm <- function(object, ...)
 ### requires that clm objects have components:
 ###  edf: no. parameters used
@@ -183,34 +176,60 @@ anova.clm <- function(object, ...)
 ###  logLik
 ###  
 {
+  mc <- match.call()
   dots <- list(...)
   if (length(dots) == 0)
     stop('anova is not implemented for a single "clm" object')
   mlist <- list(object, ...)
-  if(!all(sapply(mlist, class) %in% c("clm", "clmm")))
+  if(!all(sapply(mlist, function(model)
+                 inherits(model, c("clm", "clmm")))))
     stop("only 'clm' and 'clmm' objects are allowed")
+  nfitted <- sapply(mlist, function(x) length(x$fitted.values))
+  if(any(nfitted != nfitted[1L])) 
+    stop("models were not all fitted to the same dataset")
+### FIXME: consider comparing y returned by the models for a better
+### check? 
   no.par <- sapply(mlist, function(x) x$edf)
   ## order list with increasing no. par:
   ord <- order(no.par, decreasing=FALSE)
   mlist <- mlist[ord]
   no.par <- no.par[ord]
   no.tests <- length(mlist)
+  ## extract formulas, links, thresholds, scale formulas, nominal
+  ## formulas:
   forms <- sapply(mlist, function(x) deparse(x$call$formula))
   links <- sapply(mlist, function(x) x$link)
   thres <- sapply(mlist, function(x) x$threshold)
-  models <- data.frame(forms, links, thres)
-  models.names <- c('formula:', "link:", "threshold:")
+  nominal <- sapply(mlist, function(x) deparse(x$call$nominal))
+  scale <- sapply(mlist, function(x) deparse(x$call$scale))
+  models <- data.frame(forms)
+  models.names <- 'formula:'
+  if(any(!nominal %in% c("~1", "NULL"))) {
+    nominal[nominal == "NULL"] <- "~1"
+    models$nominal <- nominal
+    models.names <- c(models.names, "nominal:")
+  }
+  if(any(!scale %in% c("~1", "NULL"))) {
+    scale[scale == "NULL"] <- "~1"
+    models$scale <- scale
+    models.names <- c(models.names, "scale:")
+  }
+  models.names <- c(models.names, "link:", "threshold:")
+  models <- cbind(models, data.frame(links, thres))
+  ## extract AIC, logLik, statistics, df, p-values:
   AIC <- sapply(mlist, function(x) -2*x$logLik + 2*x$edf)
   logLiks <- sapply(mlist, function(x) x$logLik)
   statistic <- c(NA, 2*diff(sapply(mlist, function(x) x$logLik)))
   df <- c(NA, diff(no.par))
   pval <- c(NA, pchisq(statistic[-1], df[-1], lower.tail=FALSE))
-  pval[!is.na(df) & df==0] <- NA 
+  pval[!is.na(df) & df==0] <- NA
+  ## collect results in data.frames:
   tab <- data.frame(no.par, AIC, logLiks, statistic, df, pval) 
   tab.names <- c("no.par", "AIC", "logLik", "LR.stat", "df",
                  "Pr(>Chisq)")
+  mnames <- sapply(as.list(mc), deparse)[-1]
   colnames(tab) <- tab.names
-  rownames(tab) <- rownames(models) <- 1:no.tests
+  rownames(tab) <- rownames(models) <- mnames[ord]
   colnames(models) <- models.names
   attr(tab, "models") <- models
   attr(tab, "heading") <-
@@ -227,9 +246,59 @@ print.anova.clm <-
     cat(heading, "\n")
   models <- attr(x, "models")
   print(models, right=FALSE)
+  cat("\n")
   printCoefmat(x, digits=digits, signif.stars=signif.stars,
                tst.ind=4, cs.ind=NULL, # zap.ind=2, #c(1,5),
                P.values=TRUE, has.Pvalue=TRUE, na.print="", ...)
   return(invisible(x))
 }
+
+model.matrix.clm <- function(object, type = c("design", "B"), ...)
+### returns a list of model matrices for the X, NOM and S formulas or
+### the B matrices (including S if present) actually used for the
+### fitting
+### Aliased columns are retained in the former but dropped in the
+### latter. 
+{
+  type <- match.arg(type)
+  if(type == "design") {
+    mf <- update(object, method="model.frame")
+    keep <- c("X", "NOM", "S")
+    select <- match(keep, names(mf), nomatch=0)
+    return(mf[select])
+  } else {
+    env <- update(object, doFit=FALSE)
+    ans <- list(B1 = env$B1, B2 = env$B2)
+    ans$S <- env$S ## may not exist
+    return(ans)
+  }
+}
+
+model.frame.clm <- function(formula, ...) {
+### returns a model frame with *all* variables used for fitting. 
+  if(is.null(mod <- formula$model))
+    update(formula, method="model.frame")$mf
+  else
+    mod
+}
+
+coef.clm <- function(object, na.rm = FALSE, ...) {
+  if(na.rm) {
+    coefs <- object$coefficients
+    coefs[!is.na(coefs)]
+  }
+  else 
+    object$coefficients
+}
+
+coef.summary.clm <- function(object, na.rm = FALSE, ...) {
+  if(na.rm) {
+    coefs <- object$coefficients
+    coefs[!is.na(coefs[,1]), , drop=FALSE]
+  }
+  else
+    object$coefficients
+}
+  
+nobs.clm <- function(object, ...) object$nobs
 

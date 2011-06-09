@@ -1,5 +1,5 @@
 
-R version 2.12.2 (2011-02-25)
+R version 2.13.0 (2011-04-13)
 Copyright (C) 2011 The R Foundation for Statistical Computing
 ISBN 3-900051-07-0
 Platform: i386-pc-mingw32/i386 (32-bit)
@@ -38,7 +38,7 @@ formula: rating ~ contact + temp
 data:    wine
 
  link  threshold nobs logLik AIC    niter max.grad cond.H 
- logit flexible  72   -86.49 184.98 7(0)  4.01e-12 2.7e+01
+ logit flexible  72   -86.49 184.98 6(0)  4.01e-12 2.7e+01
 
 Coefficients:
            Estimate Std. Error z value Pr(>|z|)    
@@ -115,7 +115,7 @@ formula: rating ~ contact
 data:    wine
 
  link  threshold nobs logLik AIC    niter max.grad cond.H 
- logit flexible  72   -99.96 209.91 6(0)  1.67e-07 1.7e+01
+ logit flexible  72   -99.96 209.91 5(0)  1.67e-07 1.7e+01
 
 Coefficients:
            Estimate Std. Error z value Pr(>|z|)   
@@ -136,51 +136,59 @@ contactyes 0.3403978 2.110952
 > 
 > ## confint.clm:
 > confint(fm1)
-Waiting for profiling to be done...
                2.5 %   97.5 %
 contactyes 0.6157925 2.492404
 tempwarm   1.5097627 3.595225
 > confint(fm1, 2)
-Waiting for profiling to be done...
-            2.5 %   97.5 %
-tempwarm 1.509763 3.595225
-> confint(fm1, 1)
-Waiting for profiling to be done...
+argument 'parm' ignored
                2.5 %   97.5 %
 contactyes 0.6157925 2.492404
+tempwarm   1.5097627 3.595225
+> confint(fm1, 1)
+argument 'parm' ignored
+               2.5 %   97.5 %
+contactyes 0.6157925 2.492404
+tempwarm   1.5097627 3.595225
 > confint(fm1, "tempwarm")
-Waiting for profiling to be done...
-            2.5 %   97.5 %
-tempwarm 1.509763 3.595225
+argument 'parm' ignored
+               2.5 %   97.5 %
+contactyes 0.6157925 2.492404
+tempwarm   1.5097627 3.595225
 > confint(fm1, type = "profile")
-Waiting for profiling to be done...
                2.5 %   97.5 %
 contactyes 0.6157925 2.492404
 tempwarm   1.5097627 3.595225
 > confint(fm1, type = "Wald")
-               2.5 %   97.5 %
-contactyes 0.5936345 2.461961
-tempwarm   1.4669081 3.539296
+                2.5 %    97.5 %
+1|2        -2.3578848 -0.330882
+2|3         0.3925794  2.109038
+3|4         2.2952980  4.638476
+4|5         3.5738541  6.438954
+contactyes  0.5936345  2.461961
+tempwarm    1.4669081  3.539296
 > confint(fm1, 2, type = "Wald")
-            2.5 %   97.5 %
-tempwarm 1.466908 3.539296
+argument 'parm' ignored
+                2.5 %    97.5 %
+1|2        -2.3578848 -0.330882
+2|3         0.3925794  2.109038
+3|4         2.2952980  4.638476
+4|5         3.5738541  6.438954
+contactyes  0.5936345  2.461961
+tempwarm    1.4669081  3.539296
 > confint(fm1, level = 0.5)
-Waiting for profiling to be done...
                25 %     75 %
 contactyes 1.209254 1.852544
 tempwarm   2.152051 2.865757
 > confint(fm1, level = 1 - 1e-6)
-Waiting for profiling to be done...
                   0 %    100 %
 contactyes -0.7003630 4.091731
 tempwarm    0.1351282 5.520007
 > confint(fm1, level = 1 - 1e-10) ## extreme, but it works
-Waiting for profiling to be done...
                   0 %    100 %
 contactyes -1.4045009 5.059182
 tempwarm   -0.5753928 6.774556
 > confint(fm1, trace = 1)
-Waiting for profiling to be done...
+Wait for profiling to be done...
 
 Parameter: contactyes down
 
@@ -194,14 +202,14 @@ contactyes 0.6157925 2.492404
 tempwarm   1.5097627 3.595225
 > 
 > ## plot.profile:
-> pr1 <- profile(fm1, which=1:2, alpha = 1e-3)
+> pr1 <- profile(fm1, which.beta=1:2, alpha = 1e-3)
 > par(mfrow = c(1,2))
 > plot(pr1)
 > plot(pr1, 1)
 > plot(pr1, "contactyes")
 > plot(pr1, level = .97)
 > plot(pr1, Log = TRUE)
-> try(plot(pr1, relative = FALSE), silent = TRUE) ## error
+> plot(pr1, relative = FALSE)
 > plot(pr1, root = TRUE)
 > plot(pr1, approx = TRUE)
 > plot(pr1, n=10)

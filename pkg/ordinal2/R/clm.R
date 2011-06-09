@@ -1,314 +1,202 @@
-### Make small self-contained functions.
-### Keep code in only one place - no code should be dublicated.
-### This probably means that all (most) functions should be globally
-### visible and not hidden inside functions.
-
-### Rule: a function taking an environment as argument will update
-### some of the elements of the environment, but not introduce new
-### ones (without removing them again). New values are returned from
-### the function instead.
-
-### FILES:
-### Main fcts:
-### links
-### start
-### threshold(?)
-
-##  start.type = 1L: only thresholds
-##  2L: thresholds and beta = 0
-##  3l: thresholds and beta via glm.fit
-### Need y in rho to set starting values via binomial glm.
-## Simple starting values are enough for the standard link functions. 
-
-
-### -------- Notes ------------
-### - change 'scale' to 'log scale' in print and summary
-### - drop observations with zero or negative weights - at least give
-###   a warning. Also re-evaluate the no. levels of the response
-### - alter print.summary.clmm to display data information as in
-###   print.lmer. OK
-### - implement fixef() and ranef()
-### - use ginv in NR alg to accomodate non-identifiability?
-### - be more particular about method dispatch and class inheritance
-###   to avoid e.g. clm.dropterm being called by a clmm object.
-### - test rank of B1 / B2 when some threshold parameters are
-###   undefined? Is this enough of to ensure identifiability (by
-###   dropping some coef)? drop.coef on X is enough. OK
-### - format cond(Hess) in scientific format - it is the order of
-###   magnitude that is relevant. OK
-
-clm <-
-  function(formula, data, weights, start, subset, doFit = TRUE,
-           na.action, contrasts, model = TRUE, control,
-           link = c("logit", "probit", "cloglog", "loglog", "cauchit"), 
-           threshold = c("flexible", "symmetric", "equidistant"), ...)
-{
-  ## Initial argument matching and testing:
-  mc <- match.call(expand.dots = FALSE)
-  link <- match.arg(link)
-  threshold <- match.arg(threshold)
-  ## check for presence of formula:
-  if(missing(formula)) stop("Model needs a formula")
-  if(missing(contrasts)) contrasts <- NULL
-  
-  ## set control parameters:
-  if(missing(control)) control <- clm.control(...)
-  if(!setequal(names(control), c("method", "trace", "maxIter",
-                                 "gradTol", "maxLineIter")))
-    stop("specify 'control' via clm.control()")
-
-  ## make data a data.frame:
-  ##    if(missing(data)) mc$data <- environment(formula)
-  ##    if(is.matrix(eval.parent(mc$data)))
-  ##      mc$data <- as.data.frame(mc$data)
-  
-  ## Compute: y, X, wts, off, mf:
-  frames <- clm.model.frame(mc, contrasts)
-  if(control$method == "model.frame") return(frames)
-
-  ## Test rank deficiency and possibly drop some parameters:
-  ## X is guarantied to have an intercept at this point.
-  frames$X <- drop.coef(frames$X)
-  
-  ## Compute the transpose of the Jacobian for the threshold function,
-  ## tJac and the names of the threshold parameters, alpha.names:
-  ths <- makeThresholds(frames$y, threshold)
-
-  ## set envir rho with variables: B1, B2, o1, o2, wts, fitted:
-  rho <- with(frames,
-              clm.newRho(parent.frame(), y=y, X=X, weights=wts,
-                         offset=off, tJac=ths$tJac) )
-
-  ## set starting values for the parameters:
-  if(missing(start)) 
-    start <- clm.start(frames$y, frames$X, has.intercept = TRUE,
-                       threshold = threshold)
-  stopifnot(is.numeric(start) && 
-            length(start) == (ths$nalpha + ncol(frames$X) - 1) )
-  rho$par <- start
-  ## start cauchit models at the probit estimates:
-  if(link == "cauchit" && is.null(match.call()$start)) {
-    setLinks(rho, link="probit")
-    fit <- try(clm.fit.env(rho), silent=TRUE) ## standard control values
-    if(class(fit) == "try-error") 
-      stop("Failed to find suitable starting values: please supply some")
-    rho$par <- fit$par
-  }
-  
-  ## Set pfun, dfun and gfun in rho:
-  setLinks(rho, link)
-
-  ## possibly return the environment rho without fitting:
-  if(!doFit) return(rho)
-
-  ## fit the clm:
-  control$method <- NULL
-  fit <- clm.fit.env(rho, control)
-### FIXME: add arg non.conv = c("error", "warn", "message") to allow
-### non-converged fits to be returned?
-
-  ## Modify and return results:
-  res <- clm.finalize(fit, weights = frames$wts,
-                      alpha.names = ths$alpha.names,
-                      beta.names = colnames(frames$X)[-1])
-  res$link <- link
-  res$start <- start
-  res$threshold <- threshold
-  res$call <- match.call()
-  res$contrasts <- contrasts
-  res$na.action <- attr(frames$mf, "na.action")
-  res$terms <- frames$terms
-  res$tJac <- ths$tJac
-  res$info <- with(res, {
-    data.frame("link" = link,
-               "threshold" = threshold,
-               "nobs" = nobs, 
-               "logLik" = formatC(logLik, digits=2, format="f"),
-               "AIC" = formatC(-2*logLik + 2*edf, digits=2,
-                 format="f"),
-               "niter" = paste(niter[1], "(", niter[2], ")", sep=""),
-               "max.grad" = formatC(maxGradient, digits=2,
-                 format="e") 
-               ## BIC is not part of output since it is not clear what
-               ## the no. observations are. 
-               )
-  })
-  ## add model.frame to results list?
-  if(model) res$model <- frames$mf
-  
-  return(res)
-}
-
-clm.finalize <- function(fit, weights, alpha.names, beta.names)
-{   
-  nalpha <- length(alpha.names)
-  nbeta <- length(beta.names)
-  stopifnot(length(fit$par) == nalpha + nbeta)
-  
-  fit <- within(fit, {
-    alpha <- par[1:nalpha]
-    names(alpha) <- alpha.names
-    beta <- if(nbeta > 0) par[nalpha + 1:nbeta]
-    else numeric(0)
-    names(beta) <- beta.names
-    coefficients <- c(alpha, beta)
-    
-    names(gradient) <- names(coefficients)
-    dimnames(Hessian) <- list(names(coefficients),
-                              names(coefficients))
-    edf <- length(coefficients) ## estimated degrees of freedom
-    nobs <- sum(weights)
-    n <- length(weights)
-    fitted.values <- fitted
-    df.residual = nobs - edf
-    logLik <- -nll
-    rm(list = c("par"))
-  })
-  class(fit) <- "clm"
-  return(fit)
-}
-
-clm.model.frame <- function(mc, contrasts) {
-### mc - the matched call
-### contrasts - contrasts for the fixed model terms
-
-  ## Extract model.frame(mf):
-  m <- match(c("formula", "data", "subset", "weights", "na.action",
-               "offset"), names(mc), 0)
-  mf <- mc[c(1, m)]
-  mf$drop.unused.levels <- TRUE
-  mf[[1]] <- as.name("model.frame")
-  mf <- eval(mf, envir = parent.frame(2))
-
-  ## Extract model response:
-  y <- model.response(mf, "any")
-### FIXME: why "any"?
-  if(!is.factor(y))
-    stop("response needs to be a factor")
-
-  ## Extract X:
-  terms <- attr(mf, "terms")
-  X <- model.matrix(terms, mf, contrasts)
-  n <- nrow(X)
-  ## Test for intercept in X:
-  Xint <- match("(Intercept)", colnames(X), nomatch = 0)
-  if(Xint <= 0) {
-    X <- cbind("(Intercept)" = rep(1, n), X)
-    warning("an intercept is needed and assumed")
-  } ## intercept in X is guarantied.
-
-  ## Extract the weights and offset:
-  if(is.null(wts <- model.weights(mf))) wts <- rep(1, n)
-  if(is.null(off <- model.offset(mf))) off <- rep(0, n)
-  
-  ## check weights and offset:
-  if (any(wts <= 0))
-    stop(gettextf("non-positive weights are not allowed"))
-### FIXME: Wouldn't it be usefull to just remove any observations with
-### zero weights?
-  if(length(wts) && length(wts) != NROW(y))
-    stop(gettextf("number of weights is %d should equal %d
-(number of observations)", length(wts), NROW(y)))
-  if(length(off) && length(off) != NROW(y))
-    stop(gettextf("number of offsets is %d should equal %d
-(number of observations)", length(off), NROW(y)))
-  
-  ## return list of results:
-  res <- list(y = y, X = X, wts = as.double(wts),
-              off = as.double(off), mf = mf, terms = terms)
-  ## Note: X is with dimnames and an intercept is guarantied.
-  return(res)
-}
-
-setLinks <- function(rho, link) {
-### The Aranda-Ordaz and log-gamma links are not supported in this
-### version of clm.
-  rho$pfun <- switch(link,
-                     logit = plogis,
-                     probit = pnorm,
-                     cloglog = function(x) pgumbel(x, max=FALSE),
-                     cauchit = pcauchy,
-                     loglog = pgumbel,
-                     "Aranda-Ordaz" = function(x, lambda) pAO(x, lambda),
-                     "log-gamma" = function(x, lambda) plgamma(x, lambda))
-  rho$dfun <- switch(link,
-                     logit = dlogis,
-                     probit = dnorm,
-                     cloglog = function(x) dgumbel(x, max=FALSE),
-                     cauchit = dcauchy,
-                     loglog = dgumbel,
-                     "Aranda-Ordaz" = function(x, lambda) dAO(x, lambda),
-                     "log-gamma" = function(x, lambda) dlgamma(x, lambda))
-  rho$gfun <- switch(link,
-                     logit = glogis,
-                     probit = gnorm, 
-                     cloglog = function(x) ggumbel(x, max=FALSE),
-                     loglog = ggumbel,
-                     cauchit = gcauchy,
-                     "Aranda-Ordaz" = function(x, lambda) gAO(x, lambda), ## shouldn't happen
-                     "log-gamma" = function(x, lambda) glgamma(x, lambda)
-                     )
-  rho$link <- link
-}
-
-start.threshold <-
-  function(y, threshold = c("flexible", "symmetric", "equidistant")) 
-### args:
-### y - model response, a factor with at least two levels
-### threshold - threshold structure, character.
-{
-  ## match and test arguments:
-  threshold <- match.arg(threshold)
-  stopifnot(is.factor(y) && nlevels(y) >= 2)
-  ntheta <- nlevels(y) - 1L
-  if(threshold %in% c("symmetric", "equidistant") && nlevels(y) < 3)
-    stop(gettextf("symmetric and equidistant thresholds are only
-meaningful for responses with 3 or more levels"))
-  
-  ## default starting values:
-  start <- qlogis((1:ntheta) / (ntheta + 1) ) # just a guess
-  
-  ## adjusting for threshold functions:
-  if(threshold == "symmetric" && ntheta %% 2) { ## ntheta odd >= 3
-    nalpha <- (ntheta + 1) / 2
-    start <- c(start[nalpha], diff(start[nalpha:ntheta])) ## works for
-    ## ntheta >= 1
-  }
-  if(threshold == "symmetric" && !ntheta %% 2) {## ntheta even >= 4
-    nalpha <- (ntheta + 2) / 2
-    start <- c(start[c(nalpha - 1, nalpha)],
-               diff(start[nalpha:ntheta])) ## works for ntheta >= 2
-  }
-  if(threshold == "equidistant")
-    start <- c(start[1], mean(diff(start)))
-
-  ## return starting values for the threshold parameters:
-  return(as.vector(start))
-}
-
-start.beta <- function(X, has.intercept = TRUE)
-  return(rep(0, NCOL(X) - has.intercept))
-
-clm.start <- function(y, threshold, X, has.intercept = TRUE)
-  return(c(start.threshold(y, threshold),
-           start.beta(X, has.intercept)))  
-
-### Parameters in rho needed to optimize a clm:
-### Initial:
-### B1, B2, nxi, p, par(initial), o1, o2, wts, pfun, dfun, gfun,
-### control 
-
-### Generated during fitting:
-### eta1, eta2, pr, wtpr, p1, p2, dS.psi, dpi.psi
-
-### Variables needed to set starting values for a clm:
-### Thresholds: ntheta/nlev.y/y, threshold
-### Regression par: y, X, wts, off, link, OR regParStart <- rep(0, p)
-
+## clm <-
+##   function(formula, data, weights, start, subset, doFit = TRUE,
+##            na.action, contrasts, model = TRUE, control,
+##            link = c("logit", "probit", "cloglog", "loglog", "cauchit"), 
+##            threshold = c("flexible", "symmetric", "equidistant"), ...)
+## {
+##   ## Initial argument matching and testing:
+##   mc <- match.call(expand.dots = FALSE)
+##   link <- match.arg(link)
+##   threshold <- match.arg(threshold)
+##   ## check for presence of formula:
+##   if(missing(formula)) stop("Model needs a formula")
+##   if(missing(contrasts)) contrasts <- NULL
+##   
+##   ## set control parameters:
+##   if(missing(control)) control <- clm.control(...)
+##   if(!setequal(names(control), c("method", "trace", "maxIter",
+##                                  "gradTol", "maxLineIter")))
+##     stop("specify 'control' via clm.control()")
+## 
+##   ## make data a data.frame:
+##   ##    if(missing(data)) mc$data <- environment(formula)
+##   ##    if(is.matrix(eval.parent(mc$data)))
+##   ##      mc$data <- as.data.frame(mc$data)
+##   
+##   ## Compute: y, X, wts, off, mf:
+##   frames <- clm.model.frame(mc, contrasts)
+##   if(control$method == "model.frame") return(frames)
+## 
+##   ## Test rank deficiency and possibly drop some parameters:
+##   ## X is guarantied to have an intercept at this point.
+##   frames$X <- drop.coef(frames$X)
+##   
+##   ## Compute the transpose of the Jacobian for the threshold function,
+##   ## tJac and the names of the threshold parameters, alpha.names:
+##   ths <- makeThresholds(frames$y, threshold)
+## 
+##   ## set envir rho with variables: B1, B2, o1, o2, wts, fitted:
+##   rho <- with(frames,
+##               clm.newRho(parent.frame(), y=y, X=X, weights=wts,
+##                          offset=off, tJac=ths$tJac) )
+## 
+##   ## set starting values for the parameters:
+##   if(missing(start)) 
+##     start <- clm.start(frames$y, frames$X, has.intercept = TRUE,
+##                        threshold = threshold)
+##   stopifnot(is.numeric(start) && 
+##             length(start) == (ths$nalpha + ncol(frames$X) - 1) )
+##   rho$par <- start
+##   ## start cauchit models at the probit estimates:
+##   if(link == "cauchit" && is.null(match.call()$start)) {
+##     setLinks(rho, link="probit")
+##     fit <- try(clm.fit.env(rho), silent=TRUE) ## standard control values
+##     if(class(fit) == "try-error") 
+##       stop("Failed to find suitable starting values: please supply some")
+##     rho$par <- fit$par
+##   }
+##   
+##   ## Set pfun, dfun and gfun in rho:
+##   setLinks(rho, link)
+## 
+##   ## possibly return the environment rho without fitting:
+##   if(!doFit) return(rho)
+## 
+##   ## fit the clm:
+##   control$method <- NULL
+##   fit <- clm.fit.env(rho, control)
+## ### FIXME: add arg non.conv = c("error", "warn", "message") to allow
+## ### non-converged fits to be returned?
+## 
+##   ## Modify and return results:
+##   res <- clm.finalize(fit, weights = frames$wts,
+##                       alpha.names = ths$alpha.names,
+##                       beta.names = colnames(frames$X)[-1])
+##   res$link <- link
+##   res$start <- start
+##   res$threshold <- threshold
+##   res$call <- match.call()
+##   res$contrasts <- contrasts
+##   res$na.action <- attr(frames$mf, "na.action")
+##   res$terms <- frames$terms
+##   res$tJac <- ths$tJac
+##   res$info <- with(res, {
+##     data.frame("link" = link,
+##                "threshold" = threshold,
+##                "nobs" = nobs, 
+##                "logLik" = formatC(logLik, digits=2, format="f"),
+##                "AIC" = formatC(-2*logLik + 2*edf, digits=2,
+##                  format="f"),
+##                "niter" = paste(niter[1], "(", niter[2], ")", sep=""),
+##                "max.grad" = formatC(maxGradient, digits=2,
+##                  format="e") 
+##                ## BIC is not part of output since it is not clear what
+##                ## the no. observations are. 
+##                )
+##   })
+##   ## add model.frame to results list?
+##   if(model) res$model <- frames$mf
+##   
+##   return(res)
+## }
+## 
+## clm.finalize <- function(fit, weights, alpha.names, beta.names,
+##                          zeta.names=NULL)
+## {   
+##   nalpha <- length(alpha.names)
+##   nbeta <- length(beta.names)
+##   nzeta <- if(!is.null(zeta.names)) length(zeta.names) else 0L
+##   stopifnot(length(fit$par) == nalpha + nbeta + nzeta)
+##   
+##   fit <- within(fit, {
+##     alpha <- par[1:nalpha]
+##     names(alpha) <- alpha.names
+##     beta <- if(nbeta > 0) par[nalpha + 1:nbeta] else numeric(0)
+##     zeta <- if(nzeta > 0) par[nalpha + nbeta + 1:nzeta]
+##     else numeric(0) 
+##     names(beta) <- beta.names
+##     names(zeta) <- zeta.names
+##     coefficients <- c(alpha, beta, zeta)
+##     
+##     names(gradient) <- names(coefficients)
+##     dimnames(Hessian) <- list(names(coefficients),
+##                               names(coefficients))
+##     edf <- length(coefficients) ## estimated degrees of freedom
+##     nobs <- sum(weights)
+##     n <- length(weights)
+##     fitted.values <- fitted
+##     df.residual = nobs - edf
+##     rm(list = c("par"))
+##   })
+##   class(fit) <- "clm"
+##   return(fit)
+## }
+## 
+## clm.model.frame <- function(mc, contrasts) {
+## ### mc - the matched call
+## ### contrasts - contrasts for the fixed model terms
+## 
+##   ## Extract model.frame(mf):
+##   m <- match(c("formula", "data", "subset", "weights", "na.action",
+##                "offset"), names(mc), 0)
+##   mf <- mc[c(1, m)]
+##   mf$drop.unused.levels <- TRUE
+##   mf[[1]] <- as.name("model.frame")
+##   mf <- eval(mf, envir = parent.frame(2))
+## 
+##   ## Extract model response:
+##   y <- model.response(mf, "any") ## any storage mode
+##   if(!is.factor(y))
+##     stop("response needs to be a factor")
+## 
+##   ## Extract X:
+##   terms <- attr(mf, "terms")
+##   X <- model.matrix(terms, mf, contrasts)
+##   n <- nrow(X)
+##   ## Test for intercept in X:
+##   Xint <- match("(Intercept)", colnames(X), nomatch = 0)
+##   if(Xint <= 0) {
+##     X <- cbind("(Intercept)" = rep(1, n), X)
+##     warning("an intercept is needed and assumed")
+##   } ## intercept in X is guarantied.
+## 
+##   ## Extract the weights and offset:
+##   if(is.null(wts <- model.weights(mf))) wts <- rep(1, n)
+##   if(is.null(off <- model.offset(mf))) off <- rep(0, n)
+##   
+##   ## check weights and offset:
+##   if (any(wts <= 0))
+##     stop(gettextf("non-positive weights are not allowed"))
+## ### FIXME: Wouldn't it be usefull to just remove any observations with
+## ### zero weights?
+##   if(length(wts) && length(wts) != NROW(y))
+##     stop(gettextf("number of weights is %d should equal %d
+## (number of observations)", length(wts), NROW(y)))
+##   if(length(off) && length(off) != NROW(y))
+##     stop(gettextf("number of offsets is %d should equal %d
+## (number of observations)", length(off), NROW(y)))
+##   
+##   ## return list of results:
+##   res <- list(y = y, X = X, wts = as.double(wts),
+##               off = as.double(off), mf = mf, terms = terms)
+##   ## Note: X is with dimnames and an intercept is guarantied.
+##   return(res)
+## }
+## ### Parameters in rho needed to optimize a clm:
+## ### Initial:
+## ### B1, B2, nxi, p, par(initial), o1, o2, wts, pfun, dfun, gfun,
+## ### control 
+## 
+## ### Generated during fitting:
+## ### eta1, eta2, pr, wtpr, p1, p2, dS.psi, dpi.psi
+## 
+## ### Variables needed to set starting values for a clm:
+## ### Thresholds: ntheta/nlev.y/y, threshold
+## ### Regression par: y, X, wts, off, link, OR regParStart <- rep(0, p)
+## 
 clm.newRho <-
   function(parent, y, X, weights, offset, tJac)
-### Setting variables in rho: B1, B2, o1, o2, wts, pfun,
-### dfun, gfun
+### Setting variables in rho: B1, B2, o1, o2, wts.
 {
   rho <- new.env(parent = parent)
 
@@ -320,11 +208,12 @@ clm.newRho <-
   rho$o2 <- c(-1e5 * B2[,1]) - offset
   B1 <- B2[, -(ntheta + 1), drop = FALSE]
   B2 <- B2[, -1, drop = FALSE]
+  ## adjust B1 and B2 for structured thresholds:
   rho$B1 <- B1 %*% tJac
   rho$B2 <- B2 %*% tJac
+  ## update B1 and B2 with location effects (X):
   nbeta <- NCOL(X) - 1
   if(nbeta > 0) {
-    ## Update B1 and B2 with X minus intercept:
     rho$B1 <- cbind(rho$B1, -X[, -1, drop = FALSE])
     rho$B2 <- cbind(rho$B2, -X[, -1, drop = FALSE])
   }
@@ -365,6 +254,9 @@ clm.fit <-
   ths <- makeThresholds(y, threshold)
   rho <- clm.newRho(parent.frame(), y=y, X=X, weights=weights,
                     offset=offset, tJac=ths$tJac)
+  rho$clm.nll <- clm.nll
+  rho$clm.grad <- clm.grad
+  rho$clm.hess <- clm.hess
 
   ## set starting values for the clm:
   if(missing(start))
@@ -394,25 +286,28 @@ clm.fit <-
 clm.fit.env <-
   function(rho, control = list())
 ### The main work horse: Where the actual fitting of the clm goes on.
-### Fitting the clm via Newton-Raphson with step halfing. 
+### Fitting the clm via Newton-Raphson with step halving. 
 
 ### -------- Assumes the existence of the following functions:
 ### clm.nll - negative log-likelihood
 ### clm.grad - gradient of nll wrt. par
 ### clm.hess - hessian of nll wrt. par
 ### Trace - for trace information
+
+### Assumes that the Hessian is positive definite (such that step will
+### be in direction of smaller gradient).
 {
   control <- do.call(clm.control, control)
   stepFactor <- 1
   innerIter <- 0
   conv <- 1  ## Convergence flag
   message <- "iteration limit reached"
-  nll <- clm.nll(rho)
+  nll <- rho$clm.nll(rho)
   if(!is.finite(nll))
     stop("Non-finite log-likelihood at starting value")
-  gradient <- clm.grad(rho)
+  gradient <- rho$clm.grad(rho)
   maxGrad <- max(abs(gradient))
-  hessian <- clm.hess(rho)
+  hessian <- rho$clm.hess(rho)
   if(control$trace > 0)
     Trace(iter=0, stepFactor, nll, maxGrad, rho$par, first=TRUE)
   
@@ -428,12 +323,13 @@ clm.fit.env <-
     } ## end convergence test
 
     ## Compute Newton step and update parameters
+    ## print(min(diag(hessian)))
     step <- .Call("La_dgesv", hessian, gradient, .Machine$double.eps,
                   PACKAGE = "base") ## solve H*step = g for 'step'
 ### FIXME: possibly use ginv instead for unidentifiable model?
     step <- as.vector(step)
     rho$par <- rho$par - stepFactor * step
-    nllTry <- clm.nll(rho)
+    nllTry <- rho$clm.nll(rho)
     lineIter <- 0
 
     ## Step halfing if nll increases:
@@ -467,11 +363,13 @@ clm.fit.env <-
       ## }
       stepFactor <- stepFactor/2
       rho$par <- rho$par + stepFactor * step
-      nllTry <- clm.nll(rho)
+      nllTry <- rho$clm.nll(rho)
       lineIter <- lineIter + 1
-      if(control$trace > 0)
+      if(control$trace > 0) {
+        cat("step halving:\n")
         Trace(i+innerIter, stepFactor, nll, maxGrad,
               rho$par, first = FALSE)
+      }
       if(lineIter > control$maxLineIter){
         message <- "step factor reduced below minimum"
         conv <- 2
@@ -482,13 +380,25 @@ clm.fit.env <-
     if(conv == 2) break
 
     ## Update nll, gradient, maxGrad and hessian:
-    gradient <- clm.grad(rho)
+    gradient <- rho$clm.grad(rho)
     maxGrad <- max(abs(gradient))
-    hessian <- clm.hess(rho)
+    hessian <- rho$clm.hess(rho)
     nll <- nllTry
-    if(control$trace > 0)
-      Trace(iter=i+innerIter, stepFactor, nll,
+    if(control$trace > 0) {
+      if(control$trace > 1) {
+        cat("\tgrad: ")
+        cat(paste(formatC(gradient, digits=3, format="e")))
+        cat("\n\tstep: ")
+        cat(paste(formatC(step, digits=3, format="e")))
+        cat("\n\teigen: ")
+        cat(paste(formatC(eigen(hessian, symmetric=TRUE,
+                                only.values=TRUE)$values, digits=3,
+                          format="e")))
+        cat("\n")
+      }
+      Trace(iter=i, stepFactor, nll,
             maxGrad, rho$par, first = FALSE)
+    }
     ## Double stepFactor if needed:
     stepFactor <- min(1, 2 * stepFactor)
   } ## end Newton iterations
@@ -497,27 +407,29 @@ clm.fit.env <-
   
   if(conv > 0) { ## optimization failed
     if(control$trace > 0) cat(message, fill = TRUE)
-    stop(gettextf("optimization failed: %s", message), call. = FALSE)
+    ## stop(gettextf("optimization failed: %s", message), call. = FALSE)
+    warning(gettextf("optimization failed: %s", message), call. = FALSE)
   }
   
   ## return results:
   res <- list(par = rho$par,
               gradient = as.vector(gradient),
-              Hessian = clm.hess(rho), ## ensure hessian is evaluated
+              Hessian = rho$clm.hess(rho), ## ensure hessian is evaluated
               ## at optimum
-              nll = nll, ## negative log-likelihood
+              logLik = -nll, 
               convergence = conv,
               ## 0: successful convergence
               ## 1: iteration limit reached
               ## 2: step factor reduced below minimum
               message = message,
               maxGradient = maxGrad,
-              niter = c(outer = i, inner = innerIter),
+              niter = c(outer = i-1, inner = innerIter),
               fitted = rho$fitted)
   return(res)
 }
 
 clm.nll <- function(rho) { ## negative log-likelihood
+### For linear models
   with(rho, {
     eta1 <- drop(B1 %*% par) + o1
     eta2 <- drop(B2 %*% par) + o2
@@ -533,6 +445,7 @@ clm.nll <- function(rho) { ## negative log-likelihood
 
 clm.grad <- function(rho) { ## gradient of the negative log-likelihood
 ### return: vector of gradients
+### For linear models
   with(rho, {
     p1 <- dfun(eta1)
     p2 <- dfun(eta2)
@@ -546,6 +459,7 @@ clm.grad <- function(rho) { ## gradient of the negative log-likelihood
 
 clm.hess <- function(rho) { ## hessian of the negative log-likelihood
 ### return Hessian matrix
+### For linear models
   with(rho, {
     dg.psi <- crossprod(B1 * gfun(eta1) * wtpr, B1) -
       crossprod(B2 * gfun(eta2) * wtpr, B2)
@@ -555,82 +469,26 @@ clm.hess <- function(rho) { ## hessian of the negative log-likelihood
   })
 }
 
-Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
-    t1 <- sprintf(" %3d:  %-5e:    %.3f:   %1.3e:  ",
-                  iter, stepFactor, val, maxGrad)
-    t2 <- formatC(par)
-    if(first)
-        cat("iter:  step factor:     Value:     max|grad|:   Parameters:\n")
-    cat(t1, t2, "\n")
-}
-
-makeThresholds <- function(y, threshold) {
-### Generate the threshold structure summarized in the transpose of
-### the Jacobian matrix, tJac. Also generating nalpha and alpha.names.
-
-### args:
-### y - response variable, a factor
-### threshold - one of "flexible", "symmetric" or "equidistant"
-
-  stopifnot(is.factor(y))
-  lev <- levels(y)
-  ntheta <- nlevels(y) - 1
-  
-  if(threshold == "flexible") {
-    tJac <- diag(ntheta)
-    nalpha <- ntheta
-    alpha.names <- paste(lev[-length(lev)], lev[-1], sep="|")
-  }
-  
-  if(threshold == "symmetric") {
-    if(!ntheta >=2)
-      stop("symmetric thresholds are only meaningful for responses with 3 or more levels")
-    if(ntheta %% 2) { ## ntheta is odd
-      nalpha <- (ntheta + 1)/2 ## No. threshold parameters
-      tJac <- t(cbind(diag(-1, nalpha)[nalpha:1, 1:(nalpha-1)],
-                      diag(nalpha)))
-      tJac[,1] <- 1
-      alpha.names <-
-        c("central", paste("spacing.", 1:(nalpha-1), sep=""))
-    }
-    else { ## ntheta is even
-      nalpha <- (ntheta + 2)/2
-      tJac <- cbind(rep(1:0, each = ntheta / 2),
-                    rbind(diag(-1, ntheta / 2)[(ntheta / 2):1,],
-                          diag(ntheta / 2)))
-      tJac[,2] <- rep(0:1, each = ntheta / 2)
-      alpha.names <- c("central.1", "central.2",
-                      paste("spacing.", 1:(nalpha-2), sep=""))
-    }
-  }
-  
-  if(threshold == "equidistant") {
-    if(!ntheta >=2)
-      stop("equidistant thresholds are only meaningful for responses with 3 or more levels")
-    tJac <- cbind(1, 0:(ntheta-1))
-    nalpha <- 2
-    alpha.names <- c("threshold.1", "spacing")
-  }
-  return(list(tJac = tJac, nalpha = nalpha, alpha.names = alpha.names))
-}
-
 clm.control <-
-    function(method = c("Newton", "model.frame"), ## ...,
-             trace = 0, maxIter = 100,
-             gradTol = 1e-6, maxLineIter = 10)
+  function(method = c("Newton", "model.frame", "ucminf", "nlminb",
+             "optim"), ...,  trace = 0, maxIter = 100, gradTol = 1e-6,
+           maxLineIter = 15) 
 {
 ### FIXME: change Newton to clm.fit?
+  method <- match.arg(method)
   
   if(!all(is.numeric(c(maxIter, gradTol, maxLineIter))))
     stop("maxIter, gradTol, and maxLineIter should all be numeric")
   
   ## method <- match.arg(method)
-  ctrl <- list(method = match.arg(method),
+  ctrl <- list(method = method,
                trace = as.integer(trace),
                maxIter = as.integer(maxIter),
                gradTol = as.numeric(gradTol),
                maxLineIter = as.integer(maxLineIter))
-  
+  if(method %in% c("ucminf", "nlminb", "optim"))
+    ctrl$ctrl <- list(trace = as.integer(abs(trace)), ...)
+
   return(ctrl)
 }
 

@@ -6,8 +6,9 @@
   Set control parameters for cumulative link models
 }
 \usage{
-clm.control(method = c("Newton", "model.frame"), trace = 0,
-   maxIter = 100, gradTol = 1e-06, maxLineIter = 10)
+clm.control(method = c("Newton", "model.frame", "ucminf", "nlminb",
+   "optim"), ..., trace = 0, 
+   maxIter = 100, gradTol = 1e-06, maxLineIter = 15)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -26,6 +27,9 @@ clm.control(method = c("Newton", "model.frame"), trace = 0,
   \item{maxLineIter}{the maximum number of step halfings allowed if
     a Newton(-Raphson) step over shoots. Defaults to \code{10}.
   }
+  \item{\dots}{control arguments parsed on to \code{\link{ucminf}},
+    \code{\link{nlminb}} or \code{\link{optim}}.
+  } 
 }
 \value{
   a list of control parameters.

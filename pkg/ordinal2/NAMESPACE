@@ -6,9 +6,10 @@ import(Matrix)
 importFrom(numDeriv, hessian)
 importFrom(MASS, ginv)
 importFrom(stats, coef,
-           ## confint,
+           confint,
+           nobs,
            logLik,
-           ## profile,
+           profile,
            vcov, # update,
            extractAIC,
            anova,
@@ -44,7 +45,11 @@ S3method(plot, slice.clm)
 
 S3method(anova, clm)
 S3method(print, anova.clm)
-## S3method(predict, clm)
+S3method(predict, clm)
+S3method(coef, clm)
+S3method(nobs, clm)
+S3method(coef, clm)
+S3method(coef, summary.clm)
 
 S3method(profile, clm)
 S3method(confint, clm)
@@ -53,6 +58,8 @@ S3method(plot, profile.clm)
 
 S3method(logLik, clm)
 S3method(extractAIC, clm)
+S3method(model.matrix, clm)
+S3method(model.frame, clm)
 
 S3method(print, clmm)
 S3method(vcov, clmm)

@@ -12,7 +12,6 @@ clmm <-
 
   link <- match.arg(link)
   threshold <- match.arg(threshold)
-### FIXME: need the following check for formula?
   if(missing(formula))  stop("Model needs a formula")
   if(missing(contrasts)) contrasts <- NULL
 
@@ -93,7 +92,7 @@ clmm.model.frame <- function(mc, contrasts) {
   
   ## Set the appropriate environments:
   environment(fullForm) <- environment(fixedForm) <-
-    environment(formula)
+    environment(eval(mc$formula))
 
   ## Extract full model.frame (fullmf):
   m <- match(c("data", "subset", "weights", "na.action", "offset"),
@@ -122,7 +121,7 @@ clmm.model.frame <- function(mc, contrasts) {
   if(Xint <= 0) {
     X <- cbind("(Intercept)" = rep(1, n), X)
     warning("an intercept is needed and assumed")
-  } ## intercept in X is guarantied.
+  } ## intercept in X is garanteed.
 
   ## Make grList:
   barList <- expandSlash(findbars(mc$formula[[3]]))
@@ -196,16 +195,6 @@ rho.clm2clmm <- function(rho, Zt, grList, ctrl)
   rho$u <- rho$uStart <- rep(0, rho$nrandom)
   rho$.f <- if(package_version(packageDescription("Matrix")$Version) >
                "0.999375-30") 2 else 1
-}
-
-clmm.start <- function(frames, link, threshold) {
-  ## get starting values from clm:
-  fit <- with(frames,
-              clm.fit(y, X, wts, off, link=link, threshold=threshold))
-  
-  ## initialize variance parameters to zero:
-  start <- c(fit$par, rep(0, length(frames$grList)))
-  return(start)
 }
 
 clmm.fit.env <-
@@ -373,15 +362,6 @@ the random effects"
     return(FALSE)
   else
     return(TRUE)
-}
-
-Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
-    t1 <- sprintf(" %3d:  %-5e:    %.3f:   %1.3e:  ",
-                  iter, stepFactor, val, maxGrad)
-    t2 <- formatC(par)
-    if(first)
-        cat("iter:  step factor:     Value:     max|grad|:   Parameters:\n")
-    cat(t1, t2, "\n")
 }
 
 clmm.finalize <-

@@ -14,30 +14,32 @@
 }
 \usage{
 
-\method{confint}{clm}(object, parm = seq_len(nbeta), level = 0.95,
+\method{confint}{clm}(object, parm, level = 0.95,
         type = c("profile", "Wald"), trace = FALSE, ...)
 
-\method{confint}{profile.clm}(object, parm = seq_len(nbeta),
+\method{confint}{profile.clm}(object, parm = seq_len(nprofiles),
         level = 0.95, ...)
 
-\method{profile}{clm}(fitted, which.beta = seq_len(nbeta), alpha = 0.001,
+\method{profile}{clm}(fitted, which.beta = seq_len(nbeta),
+        which.zeta = seq_len(nzeta), alpha = 0.001,
         max.steps = 50, nsteps = 8, trace = FALSE, step.warn = 5,
         control = list(), ...)
 
-\method{plot}{profile.clm}(x, parm = seq_len(nbeta), level = c(0.95, 0.99),
-        Log = FALSE, relative = TRUE, root = FALSE, fig = TRUE,
-        approx = root, n = 1e3,
-        ask = prod(par("mfcol")) < length(parm) && dev.interactive(),
+\method{plot}{profile.clm}(x, which.par = seq_len(nprofiles),
+        level = c(0.95, 0.99), Log = FALSE, relative = TRUE, root =
+        FALSE, fig = TRUE, approx = root, n = 1e3,
+        ask = prod(par("mfcol")) < length(which.par) && dev.interactive(),
         ..., ylim = NULL)
 }
 \arguments{
   \item{object, fitted, x}{
     a fitted \code{\link{clm}} object or a \code{profile.clm} object.
   }
-  \item{parm, which.beta}{
+  \item{parm, which.par, which.beta, which.zeta}{
     a numeric or character vector indicating which regression
     coefficients should be profiled. By default all coefficients are
-    profiled. 
+    profiled. Ignored for \code{confint.clm} where all parameters are
+    considered.
   }
   \item{level}{
     the confidence level. For the \code{plot} method a vector of levels
@@ -99,7 +101,7 @@
   \item{nsteps}{
     the (approximate) number of steps to take in each direction of the
     profile for each parameter.
-    The step length is determined accordingly  assuming a quadratic
+    The step length is determined accordingly assuming a quadratic
     approximation to the log-likelihood function.
     The actual number of steps will often be close to \code{nsteps}, but
     will deviate when the log-likelihood functions is irregular.
@@ -121,7 +123,9 @@
   limits for each parameter. These will be labelled as (1-level)/2 and
   1 - (1-level)/2 in \% (by default 2.5\% and 97.5\%).
 
-  \code{plot.profile.clm} invisibly returns the profile object.
+  \code{plot.profile.clm} invisibly returns the profile object, i.e., a
+  list of \code{\link{data.frame}}s with an \code{lroot} component and a
+  matrix \code{par.vals} with values of the parameters.
 }
 \details{
   These \code{confint} methods call
@@ -129,11 +133,7 @@
   confidence intervals by interpolation of the profile traces.
   If the profile object is already available, this should be used as the
   main argument rather than the fitted model object itself.
-
-  In \code{plot.profile.clm}: at least one of \code{Log} and
-  \code{relative} arguments have to be \code{TRUE}.
-
-}
+  }
 \author{Rune Haubo B Christensen}
 \seealso{
 \code{\link{profile}} and \code{\link{confint}}

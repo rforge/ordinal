@@ -50,14 +50,14 @@ confint(fm1, level = 1 - 1e-10) ## extreme, but it works
 confint(fm1, trace = 1)
 
 ## plot.profile:
-pr1 <- profile(fm1, which=1:2, alpha = 1e-3)
+pr1 <- profile(fm1, which.beta=1:2, alpha = 1e-3)
 par(mfrow = c(1,2))
 plot(pr1)
 plot(pr1, 1)
 plot(pr1, "contactyes")
 plot(pr1, level = .97)
 plot(pr1, Log = TRUE)
-try(plot(pr1, relative = FALSE), silent = TRUE) ## error
+plot(pr1, relative = FALSE)
 plot(pr1, root = TRUE)
 plot(pr1, approx = TRUE)
 plot(pr1, n=10)
