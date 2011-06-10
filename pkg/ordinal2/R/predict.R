@@ -42,7 +42,7 @@ predict.clm <-
       nlev <- length(ylev)
       nnd <- nrow(newdata)
       newdata <-
-        cbind(newdata[rep(1:nnd, each=nlev) ,],
+        cbind(newdata[rep(1:nnd, each=nlev) , , drop=FALSE],
               factor(rep(ylev, nnd), levels=ylev, ordered=TRUE))
       names(newdata)[ncol(newdata)] <- resp
     }

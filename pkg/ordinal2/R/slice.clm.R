@@ -10,16 +10,18 @@ slice.clm <-
   stopifnot(is.numeric(lambda) && lambda > 0)
   stopifnot(is.numeric(grid) && grid >= 1)
   grid <- as.integer(grid)
-  par <- coef(object)
+  par <- coef(object, na.rm=TRUE)
   par.names <- names(par)
   npar <- length(par)
   stopifnot(length(parm) == length(unique(parm)))
   if(is.character(parm))
     parm <- match(parm, par.names, nomatch = 0)
+### disallow character argument due to ambiguity?
   if(!all(parm %in% seq_along(par)))
     stop("invalid 'parm' argument")
   stopifnot(length(parm) > 0)
   parm <- as.integer(parm)
+  ## parm is an integer vector indexing non-aliased coef.
   ml <- object$logLik
   parm.names <- par.names[parm]
 
@@ -31,12 +33,11 @@ slice.clm <-
 
   ## generate sequence of parameters at which to compute the
   ## log-likelihood:
-  curv <- sqrt(1/diag(object$Hess)) ## curvature in nll wrt. par
+  curv <- sqrt(1/diag(object$Hessian)) ## curvature in nll wrt. par
   par.range <- par + curv %o% c(-lambda, lambda)
   ## par.seq - list of length npar:
-  par.seq <- sapply(parm, function(ind) {
-    seq(par.range[ind, 1], par.range[ind, 2], length = grid) }, 
-                    simplify = FALSE)
+  par.seq <- lapply(parm, function(ind) {
+    seq(par.range[ind, 1], par.range[ind, 2], length = grid) })
   ## compute relative logLik for all par.seq for each par:
   logLik <- lapply(seq_along(parm), function(i) { # for each par
     rho$par <- par ## reset par values to MLE
