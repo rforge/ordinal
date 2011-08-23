@@ -18,45 +18,33 @@ clm <-
   control <- do.call(clm.control, c(control, list(...)))
   
   ## identify model as 'simple clm' or 'extended clm':
-  Class <- if(missing(scale))
-    c("sclm", "clm") else c("eclm", "clm")
+  Class <- if(!missing(scale) || link == "cauchit")
+    c("eclm", "clm") else c("sclm", "clm")
   
   ## Compute: y, X, wts, off, mf:
   frames <- eclm.model.frame(mc, contrasts)
-  if(control$method == "model.frame") return(frames)
 
-### Better handling of names and alias information here?
-
-  ## Test column rank deficiency and possibly drop some parameters:
-  ## X is with intercept at this point.
-  frames <- drop.cols(frames, silent=TRUE)
-### FIXME: drop intercept from X and S in drop.cols?
-  
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
-  ths <- makeThresholds(frames$y, threshold)
-  ## adjust alpha.names with nominal effects:
-  nalpha <- length(ths$alpha.names)
-  if(NCOL(frames$NOM) > 1) {
-    frames$coef.names$alpha <- ths$alpha.names <-
-      paste(rep(ths$alpha.names, ncol(frames$NOM)), ".",
-            rep(frames$coef.names$alpha, each=nalpha), sep="")
-    frames$aliased$alpha <- rep(frames$aliased$alpha, each=nalpha)
-  }
-  else {
-    frames$coef.names$alpha <- ths$alpha.names
-    frames$aliased$alpha <- rep(0, nalpha)
-  }
-  ## frames$aliased is a list with alias information
-  ## frames$coef.names is a list with names information
+  frames$ths <- makeThresholds(frames$y, threshold)
+
+  ## Return model.frame?
+  if(control$method == "model.frame") return(frames)
   
-  ## set envir rho with variables: B1, B2, o1, o2, wts, fitted:
+  ## Test column rank deficiency and possibly drop some
+  ## parameters. Also set the lists aliased and coef.names:
+  ## (X is with intercept at this point.)
+  frames <- drop.cols(frames, silent=TRUE)
+### Note: intercept coul be dropped from X and S in drop.cols?
+### Currently they are dropped in eclm.newRho instead.
+  
+  ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted:
   rho <- with(frames, {
     eclm.newRho(parent.frame(), y=y, X=X, NOM=frames$NOM, S=frames$S, 
                 weights=wts, offset=off, S.offset=frames$S.off,
                 tJac=ths$tJac) })
 
-  ## set appropriate logLik and deriv functions in rho:
+  ## Set appropriate logLik and deriv functions in rho:
   if("eclm" %in% Class) {
     rho$clm.nll <- eclm.nll
     rho$clm.grad <- eclm.grad
@@ -66,27 +54,26 @@ clm <-
     rho$clm.grad <- clm.grad
     rho$clm.hess <- clm.hess
   }
-### FIXME: set class to eclm if link = "cauchit"?
 
-  ## set starting values for the parameters:
+  ## Set starting values for the parameters:
   start <- set.start(rho, start=start, get.start=missing(start),
                      threshold=threshold, link=link, frames=frames)
-  rho$par <- start
+  rho$par <- as.vector(start) ## remove attributes
   
   ## Set pfun, dfun and gfun in rho:
   setLinks(rho, link)
 
-  ## possibly return the environment rho without fitting:
+  ## Possibly return the environment rho without fitting:
   if(!doFit) return(rho)
   
-  ## fit the clm:
+  ## Fit the clm:
   if(control$method == "Newton") {
     fit <- if("eclm" %in% Class) clm.fit.NR(rho, control) else
     clm.fit.env(rho, control)
   } else
   fit <- clm.fit.optim(rho, control$method, control$ctrl)
-### FIXME: add arg non.conv = c("error", "warn", "message") to allow
-### non-converged fits to be returned?
+### NOTE: we could add arg non.conv = c("error", "warn", "message") to
+### allow non-converged fits to be returned.
 
   ## Modify and return results:
   res <- eclm.finalize(fit, weights=frames$wts,
@@ -94,6 +81,8 @@ clm <-
                        aliased=frames$aliased) 
   res$link <- link
   res$start <- start
+  if(!is.null(start.iter <- attr(start, "start.iter")))
+    res$niter <- res$niter + start.iter
   res$threshold <- threshold
   res$call <- match.call()
   res$contrasts <- attr(frames$X, "contrasts")
@@ -110,7 +99,7 @@ clm <-
     res$S.terms <- frames$S.terms
     res$S.xlevels <- .getXlevels(res$S.terms, frames$mf)
   }
-  res$tJac <- ths$tJac
+  res$tJac <- frames$ths$tJac
   res$y.levels <- levels(frames$y)
   res$info <- with(res, {
     data.frame("link" = link,
@@ -301,8 +290,7 @@ clm.fit.optim <-
   function(rho, method = c("ucminf", "nlminb", "optim"), control=list()) 
 {
   method <- match.arg(method)
-  ## control <- do.call(clm.control, control)
-### FIXME: set control arguments correctly
+  ## optimize the likelihood:
   optRes <-
     switch(method,
            "nlminb" = nlminb(rho$par,
@@ -319,6 +307,7 @@ clm.fit.optim <-
              method="BFGS",
              control=control),
            )
+  ## save results:
   rho$par <- optRes[[1]]
   res <- list(par = rho$par,
               logLik = -eclm.nll(rho),

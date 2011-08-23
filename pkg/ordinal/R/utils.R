@@ -83,10 +83,15 @@ drop.coef2 <- function(X, tol = 1e-7, silent = FALSE, test.ans = FALSE)
 }
 
 
-drop.cols <- function(mf, silent = FALSE) {
-### drop columns from X and possibly NOM to ensure full column rank 
-### mf - list with X and possibly NOM design matrices.
-
+drop.cols <- function(mf, silent = FALSE) 
+### drop columns from X and possibly NOM and S to ensure full column
+### rank.
+### mf - list with X and possibly NOM and S design matrices. Includes
+### a ths object containing ths$alpha.names
+### 
+### returns: updated version of mf.
+{
+  nalpha <- length(mf$ths$alpha.names)
   ## X is assumed to contain an intercept at this point:
   Xint <- match("(Intercept)", colnames(mf$X), nomatch = 0)
     if(Xint <= 0) {
@@ -94,17 +99,23 @@ drop.cols <- function(mf, silent = FALSE) {
     warning("an intercept is needed and assumed")
   } ## intercept in X is guaranteed.
   if(!is.null(mf$NOM)){
+    ## store coef names:
+    mf$coef.names <- list()
+    mf$coef.names$alpha <-
+      paste(rep(mf$ths$alpha.names, ncol(mf$NOM)), ".",
+            rep(colnames(mf$NOM), each=nalpha), sep="")
+    mf$coef.names$beta <- colnames(mf$X)[-1]
     ## drop columns from NOM:
-    mf$coef.names <- list(alpha = colnames(mf$NOM),
-                          beta = colnames(mf$X)[-1])
     mf$NOM <- drop.coef2(mf$NOM, silent=silent)
-    mf$aliased <- list(alpha = attr(mf$NOM, "aliased"))
     ## drop columns from X:
     NOMX <- drop.coef2(cbind(mf$NOM, mf$X[,-1, drop=FALSE]),
                       silent=silent) 
     ## extract and store X:
     mf$X <- cbind("(Intercept)" = rep(1, nrow(mf$X)),
                   NOMX[,-seq_len(ncol(mf$NOM)), drop=FALSE])
+    ## store alias information:
+    mf$aliased <- list(alpha = rep(attr(mf$NOM, "aliased"),
+                         each=nalpha)) 
     mf$aliased$beta <- attr(NOMX, "aliased")[-seq_len(ncol(mf$NOM))]
     if(!is.null(mf$S)) {
       mf$coef.names$zeta <- colnames(mf$S)[-1]
@@ -118,10 +129,12 @@ drop.cols <- function(mf, silent = FALSE) {
     }
     return(mf)
   }
-  ## drop columns from X asssuming an intercept:
-  mf$coef.names <- list(beta = colnames(mf$X)[-1])
+  ## drop columns from X assuming an intercept:
+  mf$coef.names <- list(alpha = mf$ths$alpha.names,
+                        beta = colnames(mf$X)[-1])
   mf$X <- drop.coef2(mf$X, silent=silent)
-  mf$aliased <- list(beta = attr(mf$X, "aliased")[-1])
+  mf$aliased <- list(alpha = rep(0, nalpha),
+                     beta = attr(mf$X, "aliased")[-1])
   ## drop columns from S if relevant:
   if(!is.null(mf$S)) { 
     Sint <- match("(Intercept)", colnames(mf$S), nomatch = 0)
@@ -374,19 +387,22 @@ set.start <-
                  NOM=frames$NOM, has.intercept=TRUE)
     if(NCOL(frames$S) > 1 || link == "cauchit") {
 ### NOTE: only special start if NCOL(frames$S) > 1 (no reason for
-### special start if scale is only offset and no predictors.
+### special start if scale is only offset and no predictors).
+### NOTE: start cauchit models at the probit estimates if start is not
+### supplied: 
       rho$par <- start
       if(link == "cauchit") setLinks(rho, link="probit")
       else setLinks(rho, link)
       tempk <- rho$k
       rho$k <- 0
       ## increased gradTol:
-      fit <- clm.fit.env(rho, control=list(gradTol=1e-3)) 
+      fit <- try(clm.fit.env(rho, control=list(gradTol=1e-3)),
+                 silent=TRUE) 
       if(class(fit) == "try-error") 
         stop("Failed to find suitable starting values: please supply some",
              call.=FALSE)
-      start.iter <- fit$niter
       start <- c(fit$par, rep(0, NCOL(frames$S) - 1))
+      attr(start, "start.iter") <- fit$niter
       rho$k <- tempk
     }
   }
@@ -397,8 +413,6 @@ set.start <-
     stop(gettextf("length of start is %d should equal %d",
                   length(start), length.start), call.=FALSE)
 
-  ## start cauchit models at the probit estimates if start is not
-  ## supplied: 
   return(start)
 }
 

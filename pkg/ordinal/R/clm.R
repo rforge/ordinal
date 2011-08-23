@@ -129,6 +129,10 @@ clm.fit.env <-
     ## Compute Newton step and update parameters
     step <- .Call("La_dgesv", hessian, gradient, .Machine$double.eps,
                   PACKAGE = "base") ## solve H*step = g for 'step'
+    ## step <- try(.Call("La_dgesv", hessian, gradient, .Machine$double.eps,
+    ##                   PACKAGE = "base"), silent=TRUE)
+    ## if(class(step) == "try-error")
+    ##   stop("Unable to estimate model: model not identifiable")
     step <- as.vector(step)
     rho$par <- rho$par - stepFactor * step
     nllTry <- rho$clm.nll(rho)

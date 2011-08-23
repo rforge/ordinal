@@ -147,7 +147,10 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
     \code{beta} and \code{zeta} each being logical vectors containing
     alias information for the parameters of the same names. 
   }
-  \item{start}{the parameter values at which optimizations has started. 
+  \item{start}{the parameter values at which the optimization has
+    started. An attribute \code{start.iter} gives the number of
+    iterations to obtain starting values for models where \code{scale}
+    is specified or where the \code{cauchit} link is chosen.
   }
   \item{fitted.values}{the fitted probabilities.
   }
@@ -182,29 +185,31 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
   }
   \item{call}{the mathed call.
   }
-  \item{contrasts}{(where relevant) the contrasts used for the \code{formula} part of the
-    model. 
+  \item{contrasts}{(where relevant) the contrasts used for the
+    \code{formula} part of the model. 
   }
-  \item{S.contrasts}{(where relevant) the contrasts used for the \code{scale} part of the
-    model. 
+  \item{S.contrasts}{(where relevant) the contrasts used for the
+    \code{scale} part of the model. 
   }
-  \item{nom.contrasts}{(where relevant) the contrasts used for the \code{nominal} part of the
-    model.
+  \item{nom.contrasts}{(where relevant) the contrasts used for the
+    \code{nominal} part of the model.
   }
   \item{terms}{the terms object for the \code{formula} part.
   }
-  \item{S.terms}{(where relevant) the terms object for the \code{scale} part.
+  \item{S.terms}{(where relevant) the terms object for the \code{scale}
+    part.
   }
-  \item{nom.terms}{(where relevant) the terms object for the \code{nominal} part.
+  \item{nom.terms}{(where relevant) the terms object for the
+    \code{nominal} part. 
   }
-  \item{xlevels}{(where relevant) a record of the levels of the factors used in fitting
-    for the \code{formula} part.
+  \item{xlevels}{(where relevant) a record of the levels of the factors
+    used in fitting for the \code{formula} part.
   }
-  \item{S.xlevels}{(where relevant) a record of the levels of the factors used in fitting
-    for the \code{scale} part.
+  \item{S.xlevels}{(where relevant) a record of the levels of the
+    factors used in fitting for the \code{scale} part.
   }
-  \item{nom.xlevels}{(where relevant) a record of the levels of the factors used in fitting
-    for the \code{nominal} part.
+  \item{nom.xlevels}{(where relevant) a record of the levels of the
+    factors used in fitting for the \code{nominal} part.
   }
   \item{tJac}{the transpose of the Jacobian for the threshold structure.
   }
