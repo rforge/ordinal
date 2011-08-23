@@ -258,18 +258,18 @@ fm2 <- clm(rating ~ temp, data=wine)
 anova(fm2, fm1)
 @ 
 which in this case produce a slightly lower $p$-value.
-Equivalently we can use \texttt{dropterm} to obtain likelihood ratio
+Equivalently we can use \texttt{drop1} to obtain likelihood ratio
 tests of the explanatory variables while \emph{controlling} for the
 remaining variables:
 <<>>=
-dropterm(fm1, test = "Chi")
+drop1(fm1, test = "Chi")
 @ 
 Likelihood ratio tests of the explanatory variables while
 \emph{ignoring} the remaining variables are provided by the
-\texttt{addterm} method:
+\texttt{add1} method:
 <<>>=
 fm0 <- clm(rating ~ 1, data=wine)
-addterm(fm0, scope = ~ temp + contact, test = "Chi")
+add1(fm0, scope = ~ temp + contact, test = "Chi")
 @ 
 In this case these latter tests are not as strong as the tests
 controlling for the other variable.
