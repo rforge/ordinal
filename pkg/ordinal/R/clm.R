@@ -131,7 +131,7 @@ newRho <- function(parent, XX, X, Z, y, weights, Loffset, Soffset,
     rho$lev <- levels(y)
     rho$ntheta <- nlevels(y) - 1
     rho$B2 <- 1 * (col(matrix(0, n, rho$ntheta + 1)) == c(unclass(y)))
-### Setting elements parts of o[12] to [+-]Inf cause problems in
+### Setting elements of o[12] to [+-]Inf cause problems in
 ### getGnll and clmm-related functions because 1) 0*Inf = NaN, while
 ### 0*large.value = 0, so several computations have to be handled
 ### specially and 2) Inf-values are not by default allowed in .C calls
