@@ -5,8 +5,10 @@ getWeights <- function(mf) {
   if (any(wts <= 0))
     stop(gettextf("non-positive weights are not allowed"),
          call.=FALSE)
-### FIXME: Wouldn't it be usefull to just remove any observations with
-### zero weights?
+### NOTE: We do not remove observations where weights == 0, because
+### that could be a somewhat surprising behaviour. It would also
+### require that the model.frame be evaluated all over again to get
+### the right response vector with the right number of levels.
   if(length(wts) && length(wts) != n)
     stop(gettextf("number of weights is %d should equal %d (number of observations)",
                   length(wts), n), call.=FALSE)
@@ -341,7 +343,8 @@ eclm.start <- function(y, threshold, X, NOM=NULL, S=NULL,
 clmm.start <- function(frames, link, threshold) {
   ## get starting values from clm:
   fit <- with(frames,
-              clm.fit(y, X, wts, off, link=link, threshold=threshold))
+              clm.fit(y=y, X=X, weights=wts, offset=off, link=link,
+                      threshold=threshold)) 
   
   ## initialize variance parameters to zero:
   start <- c(fit$par, rep(0, length(frames$grList)))

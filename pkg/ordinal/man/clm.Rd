@@ -224,15 +224,16 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
   \item{na.action}{(where relevant) information returned by
     \code{\link{model.frame}} on the special handling of \code{NA}s. 
   }
-  
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-%%  \item{comp1 }{Description of 'comp1'}
-%%  \item{comp2 }{Description of 'comp2'}
-%% ...
 }
 \author{
   Rune Haubo B Christensen
+}
+\note{
+  Note that the number of iterations shown in the info table by
+  \code{print} and \code{summary} methods can in some cases exceed the
+  maximum number of iterations. This can happen because in a model where
+  scale is specified, the iterations to obtain starting values are added
+  to the main iterations.
 }
 \examples{
 

@@ -299,6 +299,173 @@ which we will now discuss in turn:
 
 Nominal effects:
 
+The CLM in \eqref{eq:CLM} specifies a structure in which the
+regression parameters, $\bm\beta$ are not allowed to vary with $j$
+alongas are the threshold parameters, $\bm\theta$. Nominal effects
+relax this assumption by allowing one or more regression parameters to vary
+with $j$. In the following model we allow the regression parameter for
+\texttt{contact} to vary with $j$:
+\begin{equation}
+  \label{eq:CLM_nominal}
+  \begin{array}{c}
+    \textup{logit}(P(Y_i \leq j)) = \theta_j - \beta_1 (\mathtt{temp}_i)
+    - \beta_{2j} (\mathtt{contact}_i) \\
+    i = 1,\ldots, n, \quad j = 1, \ldots, J-1
+  \end{array}
+\end{equation}
+This means that there is one estimate of $\beta_2$ for each $j$, i.e.,
+for each of the five thresholds in addition to the estimates of
+$\theta_j$ for each $j$. 
+This model is specified as follows in \texttt{clm}:
+<<>>=
+fm.nom <- clm(rating ~ temp, nominal=~contact, data=wine)
+summary(fm.nom)
+@ 
+As can be seen from the output of \texttt{summary} there is no
+regression coefficient estimated for \texttt{contact}, but there are
+two sets of threshold parameters estimated. 
+
+The first five threshold
+parameters have \texttt{.(Intercept)} appended their names indicating
+that these are the estimates of $\theta_j$. 
+The following five threshold parameters
+have \texttt{.contactyes} appended their name indicating that these
+parameters are differences between the threshold parameters at the two
+levels of contact. This interpretation corresponds to the default
+treatment contrasts; if other types of contrasts are specified, the
+interpretation is a little different. 
+
+We can perform a likelihood ratio test of the equal slopes or
+proportional odds assumption for \texttt{contact} by comparing the
+likelihoods of models \eqref{eq:CLM} and \eqref{eq:CLM_nominal} as
+follows: 
+<<>>=
+anova(fm1, fm.nom)
+@ 
+There is only little difference in the log-likelihoods of the two
+models, so the test is insignificant. There is therefore no evidence
+that the proportional odds assumption is violated for
+\texttt{contact}. 
+
+It is not possible to estimate both $\beta_2$ and $\beta_{2j}$ in the
+same model. Consequently variables that appear in \texttt{nominal}
+cannot enter elsewhere as well. For instance not all parameters are
+identifiable in the following model:
+<<>>=
+fm.nom2 <- clm(rating ~ temp + contact, nominal=~contact, data=wine)
+@ 
+We are made aware of this when summarizing or printing the model:
+<<>>=
+summary(fm.nom2)
+@ 
+
+
+Scale effects:
+
+Scale effects are usually motivated from the latent variable
+interpretation of a CLM. Assume the following model for a latent
+variable:
+\begin{equation}
+  \label{eq:latent}
+  S_i = \alpha + \bm x_i^T \bm\beta^* + \varepsilon_i, \quad
+  \varepsilon_i \sim N(0, \sigma^{*^2})
+\end{equation}
+If the ordinal variable $Y_i$ is observed such that $Y_i = j$ is
+recorded if $\theta_{j-1}^* < S_i \leq \theta_j^*$, where
+\begin{equation}
+  \label{eq:thresholds}
+  -\infty \equiv \theta_0^* < \theta_1^* < \ldots < \theta^*_{J-1} <
+  \theta_{J}^* \equiv \infty
+\end{equation}
+then we have the cumulative link model for $Y_i$:
+\begin{equation*}
+  P(Y_i \leq j) = \Phi ( \theta_j - \bm x_i^T \bm\beta )
+\end{equation*}
+where we have used $\theta_j = (\theta_j + \alpha) / \sigma$ and
+$\bm\beta = \bm\beta^* / \sigma$, and $\Phi$ is the inverse probit
+link and denotes the standard normal CDF. 
+Other assumptions on the distribution of the latent variable, $S_i$
+lead to other link functions. 
+
+If the scale (or dispersion) of the latent distribution is described
+by a log-linear model such that $\log( \sigma_i) = \bm z_i^T \bm
+\zeta$, then the resulting CLM reads:
+\begin{equation}
+  \label{eq:CLM_scale}
+  P(Y_i \leq j) = \Phi \left( \frac{\theta_j - \bm x_i^T \bm\beta}
+    {\sigma_i} \right)
+\end{equation}
+Thus allowing for scale effects corresponds to modelling not only the
+location of the latent distribution, but also the scale. If the link
+function is the \texttt{probit}, the corresponding latent distribution
+is Gaussian and the location equals the mean and scale or dispersion
+equals the spread or standard deviation. 
+Just as the absolute location ($\alpha$) is not identifiable, the
+absolute scale ($\sigma$) is not identifiable either in the CLM. 
+
+We can allow the scale of the latent distribution to depend on
+temperature in the following way:
+\begin{equation}
+  \label{eq:CLM_nominal}
+  \textup{logit}(P(Y_i \leq j)) = \frac{\theta_j - \beta_1 (\mathtt{temp}_i)
+    - \beta_{2} (\mathtt{contact}_i)} {\exp( \zeta_1 (\mathtt{temp}_i))}
+\end{equation}
+\begin{equation*}
+  i = 1,\ldots, n, \quad j = 1, \ldots, J-1  
+\end{equation*}
+We can estimate this model with 
+<<>>=
+fm.sca <- clm(rating ~ temp + contact, scale=~temp, data=wine)
+summary(fm.sca)
+@ 
+Notice that both location and scale effects of \texttt{temp} are
+identifiable. Also notice that coefficient is given on the
+log-scale, where the Wald test is more appropriate. 
+The absolute scale of the latent distribution is not estimable, but we
+can estimate the scale at warm conditions relative to cold
+conditions. Therefore the estimate of $\kappa$ in the relation
+$\sigma_{warm} = \kappa \sigma_{cold}$ is given by  
+<<>>=
+exp(fm.sca$zeta)
+@ 
+However, the scale difference is not significant in this case. 
+
+Confidence intervals can be obtained with:
+<<>>=
+confint(fm.sca, type = "profile")
+@ 
+Observe that the Wald intervals cannot be obtained (at least for the
+scale parameters) with
+<<>>=
+confint.default(fm.sca)
+@ 
+but the following will provide them
+<<>>=
+confint(fm.sca, type = "Wald")
+@ 
+
+Model identifiability:
+
+If we attempt to test the proportional odds assumption for
+\texttt{temp}, some peculiarities show up:
+<<>>=
+fm.nom2 <- clm(rating ~ contact, nominal=~temp, data=wine)
+summary(fm.nom2)
+@ 
+Observe that several of the threshold coefficients are extremely large
+with huge standard errors. Also the condition number of the Hessian is
+very large. These are all indications that the model is not
+identifiable. The problem is revealed with
+<<>>=
+with(wine, table(temp, rating))
+@ 
+where the zeros indicate the problem. 
+Nevertheless we can still test the proportional odds assumption for
+\texttt{temp}: 
+<<>>=
+anova(fm1, fm.nom2)
+@ 
+
 \newpage
 \bibliography{ordinal}
 %% \newpage

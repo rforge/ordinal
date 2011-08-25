@@ -5,7 +5,7 @@
 
 rho.clm2clmm.ssr <- function(rho, grList, ctrl)
 ### Version of rho.clm2clmm that is set up to use the C
-### implementations of Lapalce, AGQ and GHQ for a single random
+### implementations of Laplace, AGQ and GHQ for a single random
 ### effect. 
 {
   rho$ctrl <- ctrl

@@ -35,7 +35,7 @@ clm <-
   ## parameters. Also set the lists aliased and coef.names:
   ## (X is with intercept at this point.)
   frames <- drop.cols(frames, silent=TRUE)
-### Note: intercept coul be dropped from X and S in drop.cols?
+### Note: intercept could be dropped from X and S in drop.cols?
 ### Currently they are dropped in eclm.newRho instead.
   
   ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted:
@@ -81,7 +81,8 @@ clm <-
                        aliased=frames$aliased) 
   res$link <- link
   res$start <- start
-  if(!is.null(start.iter <- attr(start, "start.iter")))
+  if(control$method == "Newton" &&
+     !is.null(start.iter <- attr(start, "start.iter")))
     res$niter <- res$niter + start.iter
   res$threshold <- threshold
   res$call <- match.call()
@@ -134,24 +135,22 @@ eclm.model.frame <- function(mc, contrasts) {
   if(!is.null(mc$nominal)) forms$nominal <- mc$nominal
   ## ensure formula, scale and nominal are formulas:
   forms <- lapply(forms, function(x) {
-    if(is.character(x)) as.formula(x, env = parent.frame(2)) else x })
-  ## if(!all(sapply(forms, function(x) inherits(x, "formula"))))
-  ##   stop("formula, scale and nominal should be formulas", call.=FALSE)
+    try(formula(deparse(x), env = parent.frame(2)), silent=TRUE) })
+  if(any(sapply(forms, function(f) class(f) == "try-error")))
+    stop("unable to interpret 'formula', 'scale' or 'nominal'")
+
   fullForm <- do.call(getFullForm, forms)
   ## set environment of 'fullForm' to the environment of 'formula': 
   form.envir <- environment(eval(mc$formula)) 
   environment(fullForm) <- form.envir
 
   ## Extract the full model.frame(mf):
-  ## m <- match(c("data", "subset", "weights",
-  ##              "na.action", "offset"), names(mc), 0)
   m <- match(c("data", "subset", "weights", "na.action"),
              names(mc), 0) 
   mf <- mc[c(1, m)]
   mf$formula <- fullForm
   mf$drop.unused.levels <- TRUE
   mf[[1]] <- as.name("model.frame")
-  ## mf.call <- mf ## save call
   fullmf <- eval(mf, envir = parent.frame(2))
   mf$na.action <- "na.pass" ## filter NAs by hand below
 
@@ -436,6 +435,7 @@ clm.fit.NR <-
     min.ev <- min(eigen(hessian, symmetric=TRUE, only.values=TRUE)$values)
     tol <- 1e-5
     if(min.ev < 0) {
+### if(min.ev <= tol) {
       inflate <- abs(min.ev) + 1 # + tol
       ## inflate <- ceiling(abs(min.ev + tol))
       hessian <- hessian + diag(inflate, nrow(hessian))

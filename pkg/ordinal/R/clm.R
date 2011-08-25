@@ -31,57 +31,88 @@ clm.newRho <-
 }
 
 clm.fit <-
-  function(y, X, weights = rep(1, nrow(X)), offset = rep(0, nrow(X)),
+  function(y, X, S, N, weights = rep(1, nrow(X)),
+           offset = rep(0, nrow(X)), S.offset = rep(0, nrow(X)),
            control = list(), start, 
            link = c("logit", "probit", "cloglog", "loglog", "cauchit"), 
            threshold = c("flexible", "symmetric", "equidistant"))
+### This function basically does the same as clm, but without setting
+### up the model matrices from formulae, and with minimal post
+### processing after parameter estimation. 
 {
   ## Initial argument matching and testing:
   threshold <- match.arg(threshold)
   link <- match.arg(link)
   control <- do.call(clm.control, control)
+  if(missing(y)) stop("please specify y")
+  if(missing(X)) X <- cbind("(Intercept)" = rep(1, length(y)))
   stopifnot(is.factor(y) &&
             is.matrix(X))
   stopifnot(length(y) == nrow(X) &&
             length(y) == length(weights) &&
-            length(y) == length(offset))
-  ## Test for intercept in X:
-  Xint <- match("(Intercept)", colnames(X), nomatch = 0)
-  if(Xint <= 0) {
-    X <- cbind("(Intercept)" = rep(1, nrow(X)), X)
-    warning("an intercept is needed and assumed")
-  } ## intercept in X is guarantied.
-
-  ## ensure X has full rank, generate threshold structure and set the
-  ## rho environment:
-  X <- drop.coef(X)
-  ths <- makeThresholds(y, threshold)
-  rho <- clm.newRho(parent.frame(), y=y, X=X, weights=weights,
-                    offset=offset, tJac=ths$tJac)
-  rho$clm.nll <- clm.nll
-  rho$clm.grad <- clm.grad
-  rho$clm.hess <- clm.hess
-
-  ## set starting values for the clm:
-  if(missing(start))
-    start <- clm.start(y, X, has.intercept = TRUE, threshold = threshold)
-  stopifnot(is.numeric(start) && 
-            length(start) == (ths$nalpha + ncol(X) - 1) )
-  rho$par <- start
-  ## start cauchit models at the probit estimates:
-  if(link == "cauchit" && is.null(match.call()$start)) {
-    setLinks(rho, link="probit")
-    fit <- try(clm.fit.env(rho), silent=TRUE) ## standard control values
-    if(class(fit) == "try-error") 
-      stop("Failed to find suitable starting values: please supply some")
-    rho$par <- fit$par
+            length(y) == length(offset) && 
+            length(y) == length(S.offset))
+  frames <- list(y=y, X=X)
+  ## S and N are optional:
+  if(!missing(S)) {
+    frames$S <- S
+    stopifnot(is.matrix(S) &&
+              length(y) == nrow(S))
+  }
+  if(!missing(N)) {
+    frames$NOM <- N
+    stopifnot(is.matrix(N) &&
+              length(y) == nrow(N))
   }
 
-  ## Set pfun, dfun and gfun in rho:
-  setLinks(rho, link)
+  ## Identify model as 'simple clm' or 'extended clm':
+  Class <- if(any(S.offset != 0) || !missing(S) || link == "cauchit")
+    c("eclm", "clm") else c("sclm", "clm")
+  ## get  threshold structure:
+  frames$ths <- makeThresholds(y, threshold)
+  ## test for column rank deficiency in design matrices:
+  frames <- drop.cols(frames, silent=TRUE)
   
-  ## fit the clm:
-  fit <- clm.fit.env(rho, control = control)
+  ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted...:
+  rho <- eclm.newRho(parent.frame(), y=frames$y, X=frames$X,
+                     NOM=frames$NOM, S=frames$S, weights=weights,
+                     offset=offset, S.offset=S.offset,
+                     tJac=frames$ths$tJac)
+
+  ## Set appropriate logLik and deriv functions in rho:
+  if("eclm" %in% Class) {
+    rho$clm.nll <- eclm.nll
+    rho$clm.grad <- eclm.grad
+    rho$clm.hess <- eclm.hess
+  } else {
+    rho$clm.nll <- clm.nll
+    rho$clm.grad <- clm.grad
+    rho$clm.hess <- clm.hess
+  }
+
+  ## Set starting values for the parameters:
+  start <- set.start(rho, start=start, get.start=missing(start),
+                     threshold=threshold, link=link, frames=frames)
+  rho$par <- as.vector(start) ## remove attributes
+  
+  ## Set inverse link function and its derivatives (pfun, dfun and
+  ## gfun) in rho: 
+  setLinks(rho, link)
+
+  ## Fit the model:
+  if(control$method == "Newton") {
+    fit <- if("eclm" %in% Class) clm.fit.NR(rho, control) else
+    clm.fit.env(rho, control)
+  } else
+  fit <- clm.fit.optim(rho, control$method, control$ctrl)
+
+  ## Format and return the fit:
+  fit$coef.names <- frames$coef.names
+  fit$aliased <- lapply(frames$aliased, as.logical)
+  if(control$method == "Newton" &&
+     !is.null(start.iter <- attr(start, "start.iter")))
+    fit$niter <- fit$niter + start.iter
+
   return(fit)
 ### FIXME: should 'par' be 'coefficients' to allow coef(fit) etc.?
 ### FIXME: should fit contain 'vcov'?
@@ -129,10 +160,14 @@ clm.fit.env <-
     ## Compute Newton step and update parameters
     step <- .Call("La_dgesv", hessian, gradient, .Machine$double.eps,
                   PACKAGE = "base") ## solve H*step = g for 'step'
-    ## step <- try(.Call("La_dgesv", hessian, gradient, .Machine$double.eps,
-    ##                   PACKAGE = "base"), silent=TRUE)
-    ## if(class(step) == "try-error")
-    ##   stop("Unable to estimate model: model not identifiable")
+##     step <- try(.Call("La_dgesv", hessian, gradient, .Machine$double.eps,
+##                       PACKAGE = "base"), silent=TRUE)
+##     if(class(step) == "try-error") {
+##       warning("Unable to compute Newton step:
+## possibly some parameter estimates are infinite or the model is not
+## identifiable")
+##       break
+##     }
     step <- as.vector(step)
     rho$par <- rho$par - stepFactor * step
     nllTry <- rho$clm.nll(rho)
