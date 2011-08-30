@@ -142,6 +142,9 @@ options(continue=" ")
 
 @
 
+\section{Introduction}
+
+
 We will consider the data on the bitterness of wine from
 \citet{randall89} presented in Table~\ref{tab:winedata} and available
 as the object \texttt{wine} in package \textsf{ordinal}. The data were
@@ -190,7 +193,10 @@ print(xtab, only.contents=TRUE, include.rownames=FALSE,
 \end{tabular}
 \end{table}
 
-We will fit the following cumulative link mixed model to the wine
+\section{Fitting Cumulative Link Models}
+
+
+We will fit the following cumulative link model to the wine
 data: 
 \begin{equation}
   \label{eq:CLM}
@@ -203,8 +209,11 @@ data:
 This is a model for the cumulative probability of the $i$th rating
 falling in the $j$th category or below, where $i$ index
 all observations and $j = 1, \ldots, J$ index the response
-categories ($J = 5$). $\{\theta_j\}$ are known as threshold parameters
-or cut-points. 
+categories ($J = 5$). $\{\theta_j\}$ are known as threshold
+parameters, intercepts or cut-points. 
+
+This model is also known as the \emph{proportional odds model}, a
+\emph{cumulative logit model}, and an \emph{ordered logit model}.  
 
 We fit this cumulative link model by maximum likelihood with the
 \texttt{clm} function in package \textsf{ordinal}. Here we save the
@@ -229,9 +238,24 @@ The maximum likelihood estimates of the parameters are:
   ~~\{\hat\theta_j\} = [-1.34,~ 1.25,~ 3.47,~ 5.01].
 \end{equation}
 
-The condition number of the Hessian measures the empirical
+The number of Newton-Raphson iterations is given below \texttt{niter}
+with the number of step-halvings in parenthesis. A large number of
+iteration, say, larger than approximately 10 indicates that the model
+was difficult to fit. 
+
+\texttt{max.grad} is the maximum absolute gradient of the
+log-likelihood function with respect to the parameters. A small
+absolute gradient is a necessary condition for convergence of the
+model. The iterative procedure will declare convergence whenever the
+maximum absolute gradient is below 
+<<>>=
+clm.control()$gradTol
+@ 
+which may be altered --- see \texttt{help(clm.control)}. 
+
+The condition number of the Hessian (\texttt{cond.H}) measures the empirical
 identifiability of the model. High numbers, say larger than $10^4$ or
-$10^6$ indicate that the model is ill defined. This would indicate that
+$10^6$ indicate that the model is ill defined. This could indicate that
 the model can be simplified, that possibly some parameters are not
 identifiable, and that optimization of the model can be difficult. In
 this case the condition number of the Hessian does not indicate a
@@ -286,6 +310,14 @@ Wald confidence intervals) can be obtained with
 confint.default(fm1)
 @ 
 
+In addition to the logit link, which is the default, the probit,
+log-log, complementary log-log and cauchit links are also
+available. For instance, a proportional hazards model for grouped
+survival times is fitted using the complementary log-log link: 
+<<>>=
+fm.cll <- clm(rating ~ contact + temp, data=wine, link="cloglog")
+@ 
+
 The cumulative link model in \eqref{eq:CLM} assume that the
 thresholds, $\{\theta_j\}$ are constant for all values of the
 remaining explanatory variables, here \texttt{temp} and
@@ -297,11 +329,11 @@ categorical variables as well as continuous ones. We can relax that
 assumption in two general ways: with nominal effects and scale effects
 which we will now discuss in turn:
 
-Nominal effects:
+\section{Nominal Effects}
 
 The CLM in \eqref{eq:CLM} specifies a structure in which the
 regression parameters, $\bm\beta$ are not allowed to vary with $j$
-alongas are the threshold parameters, $\bm\theta$. Nominal effects
+as are the threshold parameters, $\bm\theta$. Nominal effects
 relax this assumption by allowing one or more regression parameters to vary
 with $j$. In the following model we allow the regression parameter for
 \texttt{contact} to vary with $j$:
@@ -333,7 +365,11 @@ have \texttt{.contactyes} appended their name indicating that these
 parameters are differences between the threshold parameters at the two
 levels of contact. This interpretation corresponds to the default
 treatment contrasts; if other types of contrasts are specified, the
-interpretation is a little different. 
+interpretation is a little different. As can be seen from the output,
+the effect of \texttt{contact} is almost constant across thresholds
+and around $1.5$ corresponding to the estimate from \texttt{fm1} on
+page \pageref{eq:parameters}, so probably there is not much evidence
+that the effect \texttt{contact} varies with $j$
 
 We can perform a likelihood ratio test of the equal slopes or
 proportional odds assumption for \texttt{contact} by comparing the
@@ -359,8 +395,8 @@ We are made aware of this when summarizing or printing the model:
 summary(fm.nom2)
 @ 
 
+\section{Scale Effects}
 
-Scale effects:
 
 Scale effects are usually motivated from the latent variable
 interpretation of a CLM. Assume the following model for a latent
@@ -406,7 +442,7 @@ absolute scale ($\sigma$) is not identifiable either in the CLM.
 We can allow the scale of the latent distribution to depend on
 temperature in the following way:
 \begin{equation}
-  \label{eq:CLM_nominal}
+  \label{eq:CLM_scale}
   \textup{logit}(P(Y_i \leq j)) = \frac{\theta_j - \beta_1 (\mathtt{temp}_i)
     - \beta_{2} (\mathtt{contact}_i)} {\exp( \zeta_1 (\mathtt{temp}_i))}
 \end{equation}
@@ -419,7 +455,8 @@ fm.sca <- clm(rating ~ temp + contact, scale=~temp, data=wine)
 summary(fm.sca)
 @ 
 Notice that both location and scale effects of \texttt{temp} are
-identifiable. Also notice that coefficient is given on the
+identifiable. Also notice that the scale coefficient for \texttt{temp}
+is given on the
 log-scale, where the Wald test is more appropriate. 
 The absolute scale of the latent distribution is not estimable, but we
 can estimate the scale at warm conditions relative to cold
@@ -428,21 +465,45 @@ $\sigma_{warm} = \kappa \sigma_{cold}$ is given by
 <<>>=
 exp(fm.sca$zeta)
 @ 
-However, the scale difference is not significant in this case. 
+However, the scale difference is not significant in this case as
+judged by the $p$-value in the summary output. \texttt{confint} and
+\texttt{anova} apply with no change to models without scale, but
+\texttt{drop1}, \texttt{add1} and \texttt{step} methods will only drop
+or add terms to the (location) \texttt{formula} and not to
+\texttt{scale}. 
 
-Confidence intervals can be obtained with:
+\section{Predictions}
+
+Fitted values are extracted with e.g., \texttt{fitted(fm1)} and
+produce fitted probabilites, i.e., the $i$th fitted probability is the
+probability that the $i$th observation falls in the response category
+that it did. The predictions of which response class the observations
+would be most likely to fall in given the model are obtained with:
 <<>>=
-confint(fm.sca, type = "profile")
+predict(fm1, type = "class")
 @ 
-Observe that the Wald intervals cannot be obtained (at least for the
-scale parameters) with
+
+Say we just wanted the predictions for the four combinations of
+\texttt{temp} and \texttt{contact}. The probability that an
+observation falls in each of the five response categories based on the
+fitted model is given by:
 <<>>=
-confint.default(fm.sca)
+newData <- expand.grid(temp=levels(wine$temp),
+                       contact=levels(wine$contact))
+cbind(newData, predict(fm1, newdata=newData)$fit)
 @ 
-but the following will provide them
+
+Standard errors and confidence intervals of predictions are also
+available, for example, the predictions, standard errors and 95\%
+confidence intervals for the first six observations are given by
 <<>>=
-confint(fm.sca, type = "Wald")
+head(do.call("cbind", predict(fm1, se.fit=TRUE, interval=TRUE)))
 @ 
+The confidence level can be set with the \texttt{level} argument and
+other types of predictions are available with the \texttt{type}
+argument. 
+
+
 
 Model identifiability:
 
