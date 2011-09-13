@@ -190,29 +190,30 @@ update.uC <- function(rho) {
        conv = 0L,
        as.double(lambda), ## 
        Niter = as.integer(Niter) ## OBS
-       )[c("u", "funValue", "gradValues",
+       )[c("u", "fitted", "funValue", "gradValues",
            "hessValues", "maxGrad", "conv", "Niter")] })
     ## Get message:
-    message <- switch(as.character(fit$conv),
-                      "1" = "max|gradient| < tol, so current iterate is probably solution",
-                      "0" = "Non finite negative log-likelihood",
-                      "-1" = "iteration limit reached when updating the random effects",
-                      "-2" = "step factor reduced below minimum when updating the random effects")
-    ## Check for convergence and report warning/error:
-    if(rho$ctrl$trace > 0 && fit$conv == 1)
-        cat("\nOptimizer converged! ", "max|grad|:",
-            fit$maxGrad, message, fill = TRUE)
-    if(fit$conv != 1 && rho$ctrl$innerCtrl == "warnOnly")
-        warning(message, "\n  at iteration ", rho$Niter)
-    else if(fit$conv != 1 && rho$ctrl$innerCtrl == "giveError")
-        stop(message, "\n  at iteration ", rho$Niter)
-    ## Store values and return:
-    rho$Niter <- fit$Niter
-    rho$u <- fit$u
-    rho$D <- fit$hessValue
-    rho$gradient <- fit$gradValue
-    if(!is.finite(rho$negLogLik <- fit$funValue))
-        return(FALSE)
-    return(TRUE)
+  message <- switch(as.character(fit$conv),
+                    "1" = "max|gradient| < tol, so current iterate is probably solution",
+                    "0" = "Non finite negative log-likelihood",
+                    "-1" = "iteration limit reached when updating the random effects",
+                    "-2" = "step factor reduced below minimum when updating the random effects")
+  ## Check for convergence and report warning/error:
+  if(rho$ctrl$trace > 0 && fit$conv == 1)
+    cat("\nOptimizer converged! ", "max|grad|:",
+        fit$maxGrad, message, fill = TRUE)
+  if(fit$conv != 1 && rho$ctrl$innerCtrl == "warnOnly")
+    warning(message, "\n  at iteration ", rho$Niter)
+  else if(fit$conv != 1 && rho$ctrl$innerCtrl == "giveError")
+    stop(message, "\n  at iteration ", rho$Niter)
+  ## Store values and return:
+  rho$Niter <- fit$Niter
+  rho$fitted <- fit$fitted
+  rho$u <- fit$u
+  rho$D <- fit$hessValue
+  rho$gradient <- fit$gradValue
+  if(!is.finite(rho$negLogLik <- fit$funValue))
+    return(FALSE)
+  return(TRUE)
 }
 

@@ -15,7 +15,6 @@
 %%\VignetteIndexEntry{clm tutorial}
 %%\VignetteDepends{ordinal, xtable}
 \title{A Tutorial on fitting Cumulative Link Models with 
-  %% \texttt{clmm} from 
   the \textsf{ordinal} Package} 
 \author{Rune Haubo B Christensen}
 
@@ -115,8 +114,8 @@
 \end{abstract}
 
 %% \newpage
-%% \tableofcontents
-%% \newpage
+\tableofcontents
+\newpage
 
 \SweaveOpts{echo=TRUE, results=verb, width=4.5, height=4.5}
 \SweaveOpts{prefix.string=figs}
@@ -143,7 +142,7 @@ options(continue=" ")
 @
 
 \section{Introduction}
-
+\label{sec:introduction}
 
 We will consider the data on the bitterness of wine from
 \citet{randall89} presented in Table~\ref{tab:winedata} and available
@@ -193,8 +192,17 @@ print(xtab, only.contents=TRUE, include.rownames=FALSE,
 \end{tabular}
 \end{table}
 
-\section{Fitting Cumulative Link Models}
+The intention with this tutorial is not to explain cumulative link
+models in details, rather the main aim is to briefly cover the main
+functions and methods in the \textsf{ordinal} package to analyze
+ordinal data. A more thorough introduction to cumulative link models
+and the \textsf{ordinal} package is given in 
+\citet{christensen11}; a book length treatment is given by
+\citet{agresti10} although not related to the \textsf{ordinal}
+package. 
 
+\section{Fitting Cumulative Link Models}
+\label{sec:fitt-cumul-link}
 
 We will fit the following cumulative link model to the wine
 data: 
@@ -208,9 +216,10 @@ data:
 \end{equation}
 This is a model for the cumulative probability of the $i$th rating
 falling in the $j$th category or below, where $i$ index
-all observations and $j = 1, \ldots, J$ index the response
-categories ($J = 5$). $\{\theta_j\}$ are known as threshold
-parameters, intercepts or cut-points. 
+all observations ($n=72$) and $j = 1, \ldots, J$ index the response
+categories ($J = 5$). The $theta_j$ parameter is the intercept
+for the $j$th cumulative logit $\textup{logit}(P(Y_i \leq j))$; they
+are known as threshold parameters, intercepts or cut-points. 
 
 This model is also known as the \emph{proportional odds model}, a
 \emph{cumulative logit model}, and an \emph{ordered logit model}.  
@@ -235,14 +244,11 @@ The maximum likelihood estimates of the parameters are:
 \begin{equation}
   \label{eq:parameters}
   \hat\beta_1 = 2.50, ~~\hat\beta_2 = 1.53, 
-  ~~\{\hat\theta_j\} = [-1.34,~ 1.25,~ 3.47,~ 5.01].
+  ~~\{\hat\theta_j\} = \{-1.34,~ 1.25,~ 3.47,~ 5.01\}.
 \end{equation}
 
 The number of Newton-Raphson iterations is given below \texttt{niter}
-with the number of step-halvings in parenthesis. A large number of
-iteration, say, larger than approximately 10 indicates that the model
-was difficult to fit. 
-
+with the number of step-halvings in parenthesis. 
 \texttt{max.grad} is the maximum absolute gradient of the
 log-likelihood function with respect to the parameters. A small
 absolute gradient is a necessary condition for convergence of the
@@ -274,14 +280,14 @@ exp(coef(fm1)[5])
 
 The $p$-values for the location coefficients provided by the
 \texttt{summary} method are based on the so-called Wald
-statistic. More accurate test are provided by likelihood ratio
+statistic. More accurate tests are provided by likelihood ratio
 tests. These can be obtained with the \texttt{anova} method, for
 example, the likelihood ratio test of \texttt{contact} is
 <<>>=
 fm2 <- clm(rating ~ temp, data=wine)
 anova(fm2, fm1)
 @ 
-which in this case produce a slightly lower $p$-value.
+which in this case produces a slightly lower $p$-value.
 Equivalently we can use \texttt{drop1} to obtain likelihood ratio
 tests of the explanatory variables while \emph{controlling} for the
 remaining variables:
@@ -307,7 +313,7 @@ fairly accurate. Less accurate, but simple and symmetric confidence
 intervals based on the standard errors of the parameters (so-called
 Wald confidence intervals) can be obtained with
 <<>>=
-confint.default(fm1)
+confint(fm1, type="Wald")
 @ 
 
 In addition to the logit link, which is the default, the probit,
@@ -323,20 +329,19 @@ thresholds, $\{\theta_j\}$ are constant for all values of the
 remaining explanatory variables, here \texttt{temp} and
 \texttt{contact}. This is generally referred to as the
 \emph{proportional odds assumption} or \emph{equal slopes
-  assumption}, while both names are not entirely adequate since the
-assumption is also made for other links than the logit and for
-categorical variables as well as continuous ones. We can relax that
+  assumption}.
+We can relax that
 assumption in two general ways: with nominal effects and scale effects
-which we will now discuss in turn:
+which we will now discuss in turn.
 
 \section{Nominal Effects}
+\label{sec:nominal-effects}
 
 The CLM in \eqref{eq:CLM} specifies a structure in which the
-regression parameters, $\bm\beta$ are not allowed to vary with $j$
-as are the threshold parameters, $\bm\theta$. Nominal effects
-relax this assumption by allowing one or more regression parameters to vary
-with $j$. In the following model we allow the regression parameter for
-\texttt{contact} to vary with $j$:
+regression parameters, $\bm\beta$ are not allowed to vary with $j$. 
+Nominal effects relax this assumption by allowing one or more
+regression parameters to vary with $j$. In the following model we
+allow the regression parameter for \texttt{contact} to vary with $j$: 
 \begin{equation}
   \label{eq:CLM_nominal}
   \begin{array}{c}
@@ -345,10 +350,8 @@ with $j$. In the following model we allow the regression parameter for
     i = 1,\ldots, n, \quad j = 1, \ldots, J-1
   \end{array}
 \end{equation}
-This means that there is one estimate of $\beta_2$ for each $j$, i.e.,
-for each of the five thresholds in addition to the estimates of
-$\theta_j$ for each $j$. 
-This model is specified as follows in \texttt{clm}:
+This means that there is one estimate of $\beta_2$ for each $j$.
+This model is specified as follows with \texttt{clm}:
 <<>>=
 fm.nom <- clm(rating ~ temp, nominal=~contact, data=wine)
 summary(fm.nom)
@@ -369,7 +372,7 @@ interpretation is a little different. As can be seen from the output,
 the effect of \texttt{contact} is almost constant across thresholds
 and around $1.5$ corresponding to the estimate from \texttt{fm1} on
 page \pageref{eq:parameters}, so probably there is not much evidence
-that the effect \texttt{contact} varies with $j$
+that the effect of \texttt{contact} varies with $j$
 
 We can perform a likelihood ratio test of the equal slopes or
 proportional odds assumption for \texttt{contact} by comparing the
@@ -396,14 +399,14 @@ summary(fm.nom2)
 @ 
 
 \section{Scale Effects}
-
+\label{sec:scale-effects}
 
 Scale effects are usually motivated from the latent variable
 interpretation of a CLM. Assume the following model for a latent
 variable:
 \begin{equation}
   \label{eq:latent}
-  S_i = \alpha + \bm x_i^T \bm\beta^* + \varepsilon_i, \quad
+  S_i = \alpha^* + \bm x_i^T \bm\beta^* + \varepsilon_i, \quad
   \varepsilon_i \sim N(0, \sigma^{*^2})
 \end{equation}
 If the ordinal variable $Y_i$ is observed such that $Y_i = j$ is
@@ -417,32 +420,51 @@ then we have the cumulative link model for $Y_i$:
 \begin{equation*}
   P(Y_i \leq j) = \Phi ( \theta_j - \bm x_i^T \bm\beta )
 \end{equation*}
-where we have used $\theta_j = (\theta_j + \alpha) / \sigma$ and
-$\bm\beta = \bm\beta^* / \sigma$, and $\Phi$ is the inverse probit
+where we have used $\theta_j = (\theta_j^* + \alpha^*) / \sigma^*$ and
+$\bm\beta = \bm\beta^* / \sigma^*$ (parameters with a ``$^*$'' exist on
+the latent scale, while those without are identifiable), 
+and $\Phi$ is the inverse probit
 link and denotes the standard normal CDF. 
 Other assumptions on the distribution of the latent variable, $S_i$
-lead to other link functions. 
+lead to other link functions, e.g., a logistic distribution for the
+latent variable corresponds to a logit link. 
 
 If the scale (or dispersion) of the latent distribution is described
 by a log-linear model such that $\log( \sigma_i) = \bm z_i^T \bm
-\zeta$, then the resulting CLM reads:
+\zeta$ (equivalently $\sigma_i = \exp(\bm z_i^T \bm \zeta)$; also note
+that $\bm z_i^T \bm \zeta$ is a linear model just like $\bm x_i^T \bm
+\beta$), then the resulting CLM reads (for more details, see e.g.,
+\citet{christensen11} or \citet{agresti10}):
 \begin{equation}
   \label{eq:CLM_scale}
   P(Y_i \leq j) = \Phi \left( \frac{\theta_j - \bm x_i^T \bm\beta}
     {\sigma_i} \right)
 \end{equation}
-Thus allowing for scale effects corresponds to modelling not only the
-location of the latent distribution, but also the scale. If the link
-function is the \texttt{probit}, the corresponding latent distribution
-is Gaussian and the location equals the mean and scale or dispersion
-equals the spread or standard deviation. 
-Just as the absolute location ($\alpha$) is not identifiable, the
-absolute scale ($\sigma$) is not identifiable either in the CLM. 
+The conventional link functions in cumulative link models correspond
+to distributions for the latent variable that are members of the
+location-scale family of distributions
+(cf. \url{http://en.wikipedia.org/wiki/Location-scale_family}). 
+They have the common form $F(\mu, 
+\sigma)$, where $\mu$ denotes the location of the distribution and
+$\sigma$ denotes the scale of the distribution. For instance in the
+normal distribution (probit link) $\mu$ is the mean, and $\sigma$ is
+the spread, while in the logistic distribution (logit link), $\mu$ is
+the mean and $\sigma\pi / \sqrt 3$ is the spread
+(cf. \url{http://en.wikipedia.org/wiki/Logistic_distribution}). 
 
-We can allow the scale of the latent distribution to depend on
-temperature in the following way:
+Thus allowing for scale effects corresponds to modelling not only the
+location of the latent distribution, but also the scale.  
+Just as the absolute location ($\alpha^*$) is not identifiable, the
+absolute scale ($\sigma^*$) is not identifiable either in the CLM,
+however \emph{differences} in location modelled with $\bm x_i^T
+\bm\beta$ and \emph{ratios} of scale modelled with $\exp(\bm z_i^T
+\bm\zeta)$ are identifiable. 
+
+Now we turn to our running example and fit a model where we allow the
+scale of the latent distribution to depend on 
+temperature:
 \begin{equation}
-  \label{eq:CLM_scale}
+  \label{eq:CLM_scale_wine}
   \textup{logit}(P(Y_i \leq j)) = \frac{\theta_j - \beta_1 (\mathtt{temp}_i)
     - \beta_{2} (\mathtt{contact}_i)} {\exp( \zeta_1 (\mathtt{temp}_i))}
 \end{equation}
@@ -467,15 +489,56 @@ exp(fm.sca$zeta)
 @ 
 However, the scale difference is not significant in this case as
 judged by the $p$-value in the summary output. \texttt{confint} and
-\texttt{anova} apply with no change to models without scale, but
+\texttt{anova} apply with no change to models with scale, but
 \texttt{drop1}, \texttt{add1} and \texttt{step} methods will only drop
 or add terms to the (location) \texttt{formula} and not to
 \texttt{scale}. 
 
+\section{Structured Thresholds}
+\label{sec:struct-thresh}
+
+In section~\ref{sec:nominal-effects} we relaxed the assumption that
+regression parameters have the same effect across all thresholds. In
+this section we will instead impose additional restrictions on the
+thresholds. In the following model we require that the thresholds,
+$\theta_j$ are equidistant or equally spaced ($\theta_j - \theta_{j-1}
+= \textup{constant}$ for $j = 2, ..., J-1$):
+<<>>=
+fm.equi <- clm(rating ~ temp + contact, data=wine,
+               threshold="equidistant") 
+summary(fm.equi)
+@ 
+The parameters determining the thresholds are now the first threshold
+and the spacing among consecutive thresholds. The mapping to this
+parameterization is stored in the transpose of the Jacobian
+(\texttt{tJac}) component of the model fit. This makes it possible to
+get the thresholds imposed by the equidistance structure with
+<<>>=
+c(with(fm.equi, tJac %*% alpha))
+@ 
+The following shows that the distance between consecutive thresholds
+in \texttt{fm1} is very close to the \texttt{spacing} parameter from
+\texttt{fm.equi}: 
+<<>>=
+mean(diff(fm1$alpha))
+@ 
+
+The gain in imposing additional restrictions on the thresholds is the
+use of fewer parameters. Whether the restrictions are warranted by the
+data can be tested in a likelihood ratio test:
+<<>>=
+anova(fm1, fm.equi)
+@ 
+In this case the test is non-significant, so there is no considerable
+loss of fit at the gain of saving two parameters, hence we may retain
+the model with equally spaced thresholds. 
+
+
 \section{Predictions}
+\label{sec:predictions}
 
 Fitted values are extracted with e.g., \texttt{fitted(fm1)} and
-produce fitted probabilites, i.e., the $i$th fitted probability is the
+produce fitted probabilities, i.e., the $i$th fitted probability is the
 probability that the $i$th observation falls in the response category
 that it did. The predictions of which response class the observations
 would be most likely to fall in given the model are obtained with:
@@ -495,7 +558,8 @@ cbind(newData, predict(fm1, newdata=newData)$fit)
 
 Standard errors and confidence intervals of predictions are also
 available, for example, the predictions, standard errors and 95\%
-confidence intervals for the first six observations are given by
+confidence intervals are given by (illustrated here using
+\texttt{do.call} for the first six observations): 
 <<>>=
 head(do.call("cbind", predict(fm1, se.fit=TRUE, interval=TRUE)))
 @ 
@@ -503,9 +567,8 @@ The confidence level can be set with the \texttt{level} argument and
 other types of predictions are available with the \texttt{type}
 argument. 
 
-
-
-Model identifiability:
+\section{Infinite Parameter Estimates}
+\label{sec:infin-param-estim}
 
 If we attempt to test the proportional odds assumption for
 \texttt{temp}, some peculiarities show up:
@@ -513,19 +576,223 @@ If we attempt to test the proportional odds assumption for
 fm.nom2 <- clm(rating ~ contact, nominal=~temp, data=wine)
 summary(fm.nom2)
 @ 
-Observe that several of the threshold coefficients are extremely large
-with huge standard errors. Also the condition number of the Hessian is
-very large. These are all indications that the model is not
-identifiable. The problem is revealed with
-<<>>=
-with(wine, table(temp, rating))
-@ 
-where the zeros indicate the problem. 
-Nevertheless we can still test the proportional odds assumption for
-\texttt{temp}: 
+Several of the threshold coefficients are extremely large with huge
+standard errors. Also the condition number of the Hessian is very
+large and a larger number of iterations was used all indicating that
+something is not well-behaved. The problem is that the the ML estimates of
+some of the threshold parameters are at (plus/minus)
+infinity. \texttt{clm} is not able to detect this and just stops
+iterating when the likelihood function is flat enough for the
+termination criterion to be satisfied, i.e., when the maximum absolute
+gradient is small enough. 
+
+Even though some parameter estimates are not at (plus/minus) infinity
+while they should have been, the remaining parameters are accurately
+determined and the value of the log-likelihood is also accurately
+determined. This means that likelihood ratio tests are still
+available, for example, it is still possible to test the proportional
+odds assumption for \texttt{temp}:
 <<>>=
 anova(fm1, fm.nom2)
 @ 
+
+\section{Unidentified parameters}
+\label{sec:unid-param}
+
+In the following example (using another data set) one parameter is not
+identifiable: 
+<<>>=
+data(soup)
+fm.soup <- clm(SURENESS ~ PRODID * DAY, data=soup)
+summary(fm.soup)
+@ 
+The undefined parameter shows up as \texttt{NA} in the coefficient
+table. The
+source of the singularity is revealed in the following table:
+<<>>=
+with(soup, table(DAY, PRODID))
+@ 
+which shows that the third \texttt{PRODID} was not presented at the
+second day at all. The design matrix will in this case be column rank
+deficient (also referred to as singular). This is detected by
+\texttt{clm} using the \texttt{drop.coef} function from
+\textsf{ordinal}. The following illustrates that the column rank of
+the design matrix is less than its number of columns: 
+<<>>=
+mm <- model.matrix( ~ PRODID * DAY, data=soup)
+ncol(mm)
+qr(mm, LAPACK = FALSE)$rank
+@ 
+
+A similar type of rank deficiency occurs when variables in
+\texttt{nominal} are also present in \texttt{formula} or
+\texttt{scale} as illustrated in section \ref{sec:nominal-effects}. 
+
+\section{Assessment of Model Convergence}
+\label{sec:assessm-model-conv}
+
+The maximum likelihood estimates of the parameters in cumulative link
+models do not have closed form expressions, so iterative methods have
+to be applied to fit the models. Such iterative methods can fail to
+converge simply because an optimum cannot be found or because the
+parameter estimates are not determined accurately enough. 
+
+An optimum has been found if the maximum absolute gradient is small
+and if the condition number of the Hessian (defined here as the ratio
+of the largest to the smallest eigenvalues of the Hessian evaluated at
+convergence) is positive and not very large, say smaller than $10^4$ or
+$10^6$. The maximum absolute gradient (\texttt{max.grad}) and the
+condition number of the Hessian (\texttt{cond.H}) are reported by the
+summary method, for an example see page \pageref{eq:parameters}. 
+A large condition number of the Hessian is not necessarily a
+problem, but it can be. A small condition number of the Hessian on the
+other hand is a good insurance that an optimum has been reached. 
+Thus the maximum absolute gradient and the condition number
+of the Hessian can be used to check if the optimization has reached a
+well-defined optimum. 
+
+To determine the accuracy of the parameter estimates we use the
+\texttt{convergence} method:
+<<>>=
+convergence(fm1)
+@ 
+The most important information is the number of correct decimals
+(\texttt{Cor.Dec}) and the number of significant digits
+(\texttt{Sig.Dig}) with which the parameters are determined. In this
+case all parameters are very accurately determined, so there is no
+reason to lower the convergence tolerance. The \texttt{logLik.error}
+shows that the error in the reported value of the log-likelihood is in
+the order of $10^{-14}$, which is by far small enough that likelihood
+ratio tests based on this model are accurate. 
+
+The convergence properties of the fitted model may be illustrated by
+plotting slices of the log-likelihood function for the parameters. The
+following code produce the slices in Figure~\ref{fig:slice1}.
+<<>>=
+slice.fm1 <- slice(fm1, lambda = 5)
+par(mfrow = c(2, 3))
+plot(slice.fm1)
+@ 
+The slices illustrates the log-likelihood function plotted as a
+function each parameter in turn while the remaining parameters are
+fixed at the ML estimates. 
+The \texttt{lambda} argument controls how far from the ML estimates
+the slices should be computed; it can be interpreted as a multiplier
+in curvature units, where a curvature unit is similar to a standard
+error. 
+
+\setkeys{Gin}{width=.32\textwidth}
+\begin{figure}
+  \centering
+<<slice11, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, parm = 1)
+@ 
+<<slice12, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, parm = 2)
+@ 
+<<slice13, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, parm = 3)
+@ 
+<<slice14, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, parm = 4)
+@ 
+<<slice15, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, parm = 5)
+@ 
+<<slice16, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice.fm1, parm = 6)
+@ 
+\caption{Slices of the (negative) log-likelihood function for
+  parameters in a 
+  model for the bitterness-of-wine data. Dashed lines indicate
+  quadratic approximations to the log-likelihood function and
+  vertical bars indicate maximum likelihood estimates.}
+\label{fig:slice1}
+\end{figure}
+
+For an inspection of the log-likelihood function closer to the optimum
+we can use a smaller \texttt{lambda}:
+<<slice2, echo=TRUE, results=hide>>=
+slice2.fm1 <- slice(fm1, lambda = 1e-5)
+par(mfrow = c(2, 3))
+plot(slice2.fm1)
+@ 
+The resulting figure is shown in Fig.~\ref{fig:slice2}. 
+
+\setkeys{Gin}{width=.32\textwidth}
+\begin{figure}
+  \centering
+<<slice21, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, parm = 1)
+@ 
+<<slice22, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, parm = 2)
+@ 
+<<slice23, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, parm = 3)
+@ 
+<<slice24, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, parm = 4)
+@ 
+<<slice25, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, parm = 5)
+@ 
+<<slice26, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(slice2.fm1, parm = 6)
+@ 
+  \caption{Slices of the log-likelihood function for
+    parameters in a model for the bitterness-of-wine data very close
+    to the MLEs. Dashed lines indicate 
+    quadratic approximations to the log-likelihood function and
+    vertical bars the indicate maximum likelihood estimates.}
+\label{fig:slice2}
+\end{figure}
+
+\section{Profile Likelihood}
+\label{sec:profile-likelihood}
+
+The profile likelihood can be used for several things. Two of the most
+important objectives are to provide accurate likelihood confidence
+intervals and to illustrate effects of parameters in the fitted
+model. 
+
+Confidence intervals based on the profile likelihood were already
+obtained in section~\ref{sec:fitt-cumul-link} and will not be treated
+any further here. 
+
+The effects of \texttt{contact} and \texttt{temp} can be illustrated
+with 
+<<profileLikelihood, echo=TRUE>>=
+pr1 <- profile(fm1, alpha=1e-4)
+plot(pr1)
+@ 
+and provided in Figure~\ref{fig:ProfileLikelihood}. 
+The \texttt{alpha} argument is the significance level controling how
+far from the maximum likelihood estimate the likelihood function
+should be profiled. Learn more about the arguments to \texttt{profile}
+with \texttt{help(profile.clm)}. 
+From the relative
+profile likelihood for \texttt{tempwarm} we see that parameter values
+between 1 and 4 are reasonably well supported by the data, and values
+outside this range has little likelihood. Values between 2 and 3 are
+very well supported by the data and all have high likelihood. 
+
+\setkeys{Gin}{width=.32\textwidth}
+\begin{figure}
+  \centering
+<<prof1, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(pr1, which.par=1)
+@   
+<<prof2, echo=FALSE, results=hide, fig=TRUE, include=TRUE, width=3, height=3>>=
+plot(pr1, which.par=2)
+@   
+  \caption{Relative profile likelihoods for the regression parameters
+    in the Wine study. Horizontal lines indicate 95\% and 99\%
+    confidence bounds.} 
+  \label{fig:ProfileLikelihood}
+\end{figure}
+
+
 
 \newpage
 \bibliography{ordinal}
