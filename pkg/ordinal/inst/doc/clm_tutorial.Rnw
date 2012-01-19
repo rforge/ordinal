@@ -197,9 +197,9 @@ models in details, rather the main aim is to briefly cover the main
 functions and methods in the \textsf{ordinal} package to analyze
 ordinal data. A more thorough introduction to cumulative link models
 and the \textsf{ordinal} package is given in 
-\citet{christensen11}; a book length treatment is given by
-\citet{agresti10} although not related to the \textsf{ordinal}
-package. 
+\citet{christensen11}; a book length treatment of ordinal data
+analysis is given by \citet{agresti10} although not related to the
+\textsf{ordinal} package. 
 
 \section{Fitting Cumulative Link Models}
 \label{sec:fitt-cumul-link}
