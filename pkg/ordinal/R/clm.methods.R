@@ -163,7 +163,8 @@ print.summary.clm <-
 }
   
 logLik.clm <- function(object, ...)
-  structure(object$logLik, df = object$edf, class = "logLik")
+  structure(object$logLik, df = object$edf, nobs=object$nobs,
+            class = "logLik")
 
 extractAIC.clm <- function(fit, scale = 0, k = 2, ...) {
   edf <- fit$edf

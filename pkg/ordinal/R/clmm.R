@@ -93,10 +93,13 @@ more than one random effects term", call.=FALSE)
   fit$start <- start
   fit$threshold <- threshold
   fit$call <- match.call()
+  fit$formula <- frames$formula
   fit$tJac <- ths$tJac
   fit$contrasts <- attr(frames$X, "contrasts")
   fit$na.action <- attr(frames$mf, "na.action")
   fit$terms <- frames$terms
+### FIXME: Should the terms object contain only the fixed effects
+### terms? 
   fit$xlevels <- .getXlevels(fit$terms, frames$mf)
   fit$y.levels <- levels(frames$y)
   res <- clmm.finalize(fit=fit, frames=frames,
@@ -115,15 +118,32 @@ clmm.model.frame <- function(mc, contrasts) {
 ### FIXME: what if formula is not "evaluated", but just
 ### frm <- y ~ x; clmm2(frm, ...)?
 
+  ## Evaluate the formula in the enviroment in which clmm was called
+  ## (parent.frame(2)) to get them evaluated properly:
+  form <- eval.parent(mc$formula, 2)
+  ## get the environment of the formula. If this does not have an
+  ## enviroment (it could be a character), then use the parent frame. 
+  form.envir <-
+    if(!is.null(env <- environment(form))) env
+    else parent.frame(2)
+  ## ensure 'formula' is a formula-object:
+  form <- try(formula(deparse(form), env = form.envir), silent=TRUE)
+  ## report error if the formula cannot be interpreted
+  if(class(form) == "try-error")
+    stop("unable to interpret 'formula'")
+  environment(form) <- form.envir
+
   ## Construct a formula with all (fixed and random) variables
   ## (fullForm) and a formula with only fixed-effects variables
   ## (fixedForm):  
-  fixedForm <- nobars(mc$formula) ## ignore terms with '|'
-  fullForm <- subbars(mc$formula)      # substitute `+' for `|'
+  fixedForm <- nobars(form) ## ignore terms with '|'
+  fullForm <- subbars(form)      # substitute `+' for `|'
   
   ## Set the appropriate environments:
-  environment(fullForm) <- environment(fixedForm) <-
-    environment(eval(mc$formula))
+  environment(fullForm) <- environment(fixedForm) <- form.envir
+  ## environment(eval(mc$formula))
+### FIXME: possibly environment(eval.parent(mc$formula, 2)) is
+### better?? 
 
   ## Extract full model.frame (fullmf):
   m <- match(c("data", "subset", "weights", "na.action", "offset"),
@@ -155,7 +175,7 @@ clmm.model.frame <- function(mc, contrasts) {
   } ## intercept in X is garanteed.
 
   ## Make grList:
-  barList <- expandSlash(findbars(mc$formula[[3]]))
+  barList <- expandSlash(findbars(form[[3]]))
   if (!length(barList))
     stop("No random effects terms specified in formula")
   names(barList) <- unlist(lapply(barList,
@@ -200,7 +220,7 @@ clmm.model.frame <- function(mc, contrasts) {
   attr(fullmf, "terms") <- fixedTerms
   res <- list(y = y, X = X, Zt = Zt, wts = as.double(wts),
               off = as.double(off), mf = fullmf, terms = fixedTerms,
-              grList = grList)
+              grList = grList, formula = form)
   ## Note: X is with dimnames and an intercept is guarantied.
   return(res)
 }

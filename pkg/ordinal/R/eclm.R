@@ -461,7 +461,7 @@ clm.fit.NR <-
     lineIter <- 0
 
     ## Step halfing if nll increases:
-    while(nllTry > nll) {
+    while(nllTry > nll) { # nllTry > nll + 1e-8 ?
       stepFactor <- stepFactor/2
       rho$par <- rho$par + stepFactor * step
       nllTry <- rho$clm.nll(rho)

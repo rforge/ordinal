@@ -19,7 +19,8 @@ summary(m1)
 vcov(m1)
 
 logLik(m1)
-ll.m1 <- structure(-2687.74456343981, df = 7, class = "logLik")
+ll.m1 <- structure(-2687.74456343981, df = 7L, nobs = 1847,
+                   class = "logLik")
 stopifnot(all.equal(logLik(m1), ll.m1))
 
 AIC(m1)

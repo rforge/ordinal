@@ -25,7 +25,7 @@ fm1 <- clm(rating ~ contact, scale=as.formula(~temp), data=wine)
 fm1 <- clm(rating ~ contact, scale=as.formula("~temp"), data=wine)
 
 #################################
-## can evaluate of if 'formula' is character:
+## can evaluate if 'formula' is a character:
 f <- "rating ~ contact + temp"
 clm(f, data=wine)
 clm(as.formula(f), data=wine)

@@ -423,11 +423,12 @@ clmm.finalize <-
     ## compute ranef estimates and conditional variance:
     ranef <- rep.int(stDev, nlev) * random
     names(ranef) <- as.vector(unlist(random.names))
-    ranef <- split(x=ranef, f=rep.int(names(frames$grList), nlev))
+    ranef <- split(x=-ranef, f=rep.int(names(frames$grList), nlev))
+### NOTE: parameterization of random effects should change sign; this
+### would avoid changing the sign at this point.
     condVar <- as.vector(diag(solve(L)) * rep.int(stDev^2, nlev))
     names(condVar) <- as.vector(unlist(random.names))
     condVar <- split(x=condVar, f=rep.int(names(frames$grList), nlev)) 
-### FIXME: test correctness of ranef and condVar.
 
     ## remove excess elements:
     rm(list = c("L")) 
