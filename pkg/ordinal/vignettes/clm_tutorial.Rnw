@@ -661,8 +661,8 @@ The most important information is the number of correct decimals
 (\texttt{Sig.Dig}) with which the parameters are determined. In this
 case all parameters are very accurately determined, so there is no
 reason to lower the convergence tolerance. The \texttt{logLik.error}
-shows that the error in the reported value of the log-likelihood is in
-the order of $10^{-14}$, which is by far small enough that likelihood
+shows that the error in the reported value of the log-likelihood is
+below $10^{-10}$, which is by far small enough that likelihood
 ratio tests based on this model are accurate. 
 
 The convergence properties of the fitted model may be illustrated by

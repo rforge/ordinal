@@ -90,5 +90,9 @@ March 04 2010:
 
 2012-01-19:
 
-- Changed evaluation of formula on clm to make clm more forgiving for
+- Changed evaluation of formula in clm to make clm more forgiving for
   evaluation inside other functions.
+
+2012-05-09:
+
+- Updated evaluation of formula in clmm, cf. resent update of clm.
