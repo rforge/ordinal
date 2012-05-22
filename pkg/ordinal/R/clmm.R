@@ -15,7 +15,6 @@
 ## 3. Function gauss.hermite adopted with only minor modifications
 ## from package statMod(?)
 
-
 clmm <-
   function(formula, data, weights, start, subset, 
            na.action, contrasts, Hess = TRUE, model = TRUE,
@@ -32,15 +31,14 @@ clmm <-
   if(missing(formula))  stop("Model needs a formula")
   if(missing(contrasts)) contrasts <- NULL
   ## set control parameters:
-  control <- do.call(clmm.control, c(control, list(...)))
+  control <- getCtrlArgs(control, list(...))
   nAGQ <- as.integer(round(nAGQ))
-
   ## Extract y, X, Zt, offset (off), weights (wts):
   frames <- clmm.model.frame(mc, contrasts)
   if(control$method == "model.frame") return(frames)
   ## Test rank deficiency and possibly drop some parameters:
   ## X is guarantied to have an intercept at this point.
-  frames$X <- drop.coef(frames$X)
+  frames$X <- drop.coef(frames$X, silent=FALSE)
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
   ths <- makeThresholds(frames$y, threshold)
@@ -115,9 +113,6 @@ clmm.model.frame <- function(mc, contrasts) {
 ### mc - the matched call
 ### contrasts - contrasts for the fixed model terms
 
-### FIXME: what if formula is not "evaluated", but just
-### frm <- y ~ x; clmm2(frm, ...)?
-
   ## Evaluate the formula in the enviroment in which clmm was called
   ## (parent.frame(2)) to get them evaluated properly:
   form <- eval.parent(mc$formula, 2)
@@ -141,9 +136,6 @@ clmm.model.frame <- function(mc, contrasts) {
   
   ## Set the appropriate environments:
   environment(fullForm) <- environment(fixedForm) <- form.envir
-  ## environment(eval(mc$formula))
-### FIXME: possibly environment(eval.parent(mc$formula, 2)) is
-### better?? 
 
   ## Extract full model.frame (fullmf):
   m <- match(c("data", "subset", "weights", "na.action", "offset"),
@@ -167,6 +159,7 @@ clmm.model.frame <- function(mc, contrasts) {
   fixedmf <- eval(fixedmf, envir = parent.frame(2))
   fixedTerms <- attr(fixedmf, "terms")
   X <- model.matrix(fixedTerms, fullmf, contrasts)
+  n <- nrow(X)
   ## remove intercept from X:
   Xint <- match("(Intercept)", colnames(X), nomatch = 0)
   if(Xint <= 0) {
@@ -292,16 +285,22 @@ clmm.fit.env <-
 
 getNLA <- function(rho, par) {
 ### negative log-likelihood by the Laplace approximation
-    if(!missing(par)) rho$par <- par
-    if(!update.u(rho)) return(Inf)
-    if(any(rho$D < 0)) return(Inf)
-    logDetD <- c(suppressWarnings(determinant(rho$L)$modulus)) -
-      rho$nrandom * log(2*pi) / 2
-    rho$nll + logDetD 
+  if(!missing(par)) rho$par <- par
+  if(any(!is.finite(rho$par)))
+    stop(gettextf(paste(c("Non-finite parameters not allowed:",
+                          formatC(rho$par, format="g")), collapse=" ")))
+  if(!update.u(rho)) return(Inf)
+  if(any(rho$D < 0)) return(Inf)
+  logDetD <- c(suppressWarnings(determinant(rho$L)$modulus)) -
+    rho$nrandom * log(2*pi) / 2
+  rho$nll + logDetD
 }
 
 nll.u <- function(rho) { ## negative log-likelihood
 ### Not allowing for scale, and flexible link functions
+  ## if(any(diff(rho$par[1:rho$nalpha]) < 0)) 
+  ##   return(Inf)
+### FIXME: adjust for threshold functions!
   rho$tau <- with(rho, exp(par[nalpha + nbeta + 1:ntau]))
   rho$varVec <- rep.int(rho$tau, rho$nlev)
   ## rho$b <- rho$varVec * rho$u
@@ -311,8 +310,8 @@ nll.u <- function(rho) { ## negative log-likelihood
 ### FIXME: possibly it should be '- b.exploded' ?
   rho$eta1 <- as.vector(rho$eta1Fix + b.exploded + rho$o1)
   rho$eta2 <- as.vector(rho$eta2Fix + b.exploded + rho$o2)
-  rho$fitted <- rho$pfun(rho$eta1) - rho$pfun(rho$eta2)
-  if(any(is.na(rho$fitted)) || any(rho$fitted <= 0))
+  rho$fitted <- getFitted(rho$eta1, rho$eta2, rho$pfun)
+  if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
     nll <- Inf
   else
     nll <- -sum(rho$wts * log(rho$fitted)) -
@@ -320,23 +319,26 @@ nll.u <- function(rho) { ## negative log-likelihood
   nll
 }
 
-
 nllFast.u <- function(rho) { ## negative log-likelihood
 ### Not allowing for scale, and flexible link functions
+  ## If the thresholds are not increasing, return Inf:
+  ## if(any(diff(rho$par[1:rho$nalpha]) < 0))
+  ##   return(Inf)
+### FIXME: adjust for threshold functions!
   rho$varVec <- rep.int(rho$tau, rho$nlev)
   b.exploded <- as.vector(crossprod(rho$Zt, rho$varVec * rho$u))
 ### FIXME: possibly it should be '- b.exploded' ?
   rho$eta1 <- as.vector(rho$eta1Fix + b.exploded + rho$o1)
   rho$eta2 <- as.vector(rho$eta2Fix + b.exploded + rho$o2)
-  rho$fitted <- rho$pfun(rho$eta1) - rho$pfun(rho$eta2)
-  if(any(is.na(rho$fitted)) || any(rho$fitted <= 0))
+  rho$fitted <- getFitted(rho$eta1, rho$eta2, rho$pfun)
+  ## rho$pfun(rho$eta1) - rho$pfun(rho$eta2)
+  if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
     nll <- Inf
   else
     nll <- -sum(rho$wts * log(rho$fitted)) -
       sum(dnorm(x=rho$u, mean=0, sd=1, log=TRUE))
   nll
 }
-
 
 grad.u <- function(rho){
 ### should only be called with up to date values of eta1, eta2, par
@@ -351,16 +353,22 @@ grad.u <- function(rho){
 hess.u <- function(rho) {
 ### should only be called with up-to-date values of eta1, eta2, par,
 ### p1, p2
-  ## browser()
   g1 <- rho$gfun(rho$eta1) ## does not need to be saved
   g2 <- rho$gfun(rho$eta2) ## does not need to be saved
-  phi2 <- ((rho$p1 - rho$p2)^2 / rho$fitted - g1 + g2) * rho$wtpr
+  ## phi2 <- ((rho$p1 - rho$p2)^2 / rho$fitted - g1 + g2) * rho$wtpr
+  phi2 <- rho$wts * ( ((rho$p1 - rho$p2) / rho$fitted)^2 -
+                     ( (g1 - g2) / rho$fitted) )
   ## rho$Lambda <- Diagonal(x = rho$varVec)
   ## rho$Vt <- crossprod(rho$Lambda,
   ##                     tcrossprod(rho$Zt, Diagonal(x = sqrt(phi2))))
+  ## This may happen if the link function [pfun, dfun and gfun]
+  ## evalueates its arguments inaccurately: 
+  if(any(phi2 < 0))  return(FALSE)
   rho$Vt <- crossprod(Diagonal(x = rho$varVec),
                       tcrossprod(rho$Zt, Diagonal(x = sqrt(phi2))))
-  return(update(rho$L, rho$Vt, mult = 1))
+  rho$L <- update(rho$L, rho$Vt, mult = 1)
+  return(TRUE)
+  ## return(update(rho$L, rho$Vt, mult = 1))
   ## return(tcrossprod(rho$Vt) + Diagonal(rho$nrandom)) ## Hessian
 }
 
@@ -388,7 +396,7 @@ iterate is probably solution"
             conv <- 0
       break
     }
-    rho$L <- hess.u(rho)
+    if(!hess.u(rho)) return(FALSE)
     step <- as.vector(solve(rho$L, rho$gradient))
     rho$u <- rho$u - stepFactor * step
     nllTry <- nllFast.u(rho) ## no 'X %*% beta' update
@@ -425,7 +433,7 @@ the random effects"
   else if(conv != 0 && rho$ctrl$innerCtrl == "giveError")
         stop(message, "\n  at iteration ", rho$Niter)
   rho$Niter <- rho$Niter + i - 1
-    rho$L <- hess.u(rho)
+  if(!hess.u(rho)) return(FALSE)
   if(!is.finite(rho$nll))
     return(FALSE)
   else
@@ -516,5 +524,23 @@ clmm.control <-
     optCtrl$grad <- "central"
   
   list(method = method, ctrl = ctrl, optCtrl = optCtrl)
+}
+
+getCtrlArgs <- function(control, extras) {
+### Recover control arguments from clmm.control and extras (...):
+### 
+  ## Collect control arguments in list:
+  ctrl.args <- c(extras, control$ctrl, control$optCtrl)
+  ## Identify the two occurences "trace", delete them, and add trace=1
+  ## or trace=-1 to the list of arguments:
+  which.trace <- which(names(ctrl.args) == "trace")
+  trace.sum <- sum(unlist(ctrl.args[which.trace]))
+  ctrl.args <- ctrl.args[-which.trace]
+  ## remove duplicated arguments:
+  ctrl.args <- ctrl.args[!duplicated(names(ctrl.args))]
+  if(trace.sum >= 1) ctrl.args$trace <- 1
+  if(trace.sum >= 2 || trace.sum <= -1) ctrl.args$trace <- -1
+  ## return the updated list of control parameters:
+  do.call("clmm.control", ctrl.args)
 }
 

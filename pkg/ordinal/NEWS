@@ -96,3 +96,11 @@ March 04 2010:
 2012-05-09:
 
 - Updated evaluation of formula in clmm, cf. resent update of clm.
+
+2012-05-22:
+
+- Better evaluation of fitted probabilities. This should reduce the
+  occurance of the "sqrt(phi2) : NaNs produced" error message.
+- Improved evaluation of control parameters in clmm using the new
+  function getCtrlArgs.
+- Better warning if intercept is attempted removed in clmm.

@@ -1,3 +1,25 @@
+getFitted <- function(eta1, eta2, pfun, ...) {
+  ## eta1, eta2: linear predictors
+  ## pfun: cumulative distribution function
+  ##
+  ## Compute fitted values while maintaining high precision in the
+  ## result - if eta1 and eta2 are both large, fitted is the
+  ## difference between two numbers very close to 1, which leads to
+  ## imprecision and potentially errors.
+  ##
+  ## Note that (eta1 > eta2) always holds, hence (eta2 > 0) happens
+  ## relatively rarely.
+  ## if(any(!is.finite(eta1)) ||any(!is.finite(eta2))) {
+  ##   print("eta1 or eta2 has non-finite values")
+  ##   ## browser()
+  ## }
+  k2 <- eta2 > 0
+  fitted <- pfun(eta1) - pfun(eta2)
+  fitted[k2] <- pfun(eta2[k2], lower.tail=FALSE) -
+    pfun(eta1[k2], lower.tail=FALSE)
+  fitted
+}
+
 getWeights <- function(mf) {
 ### mf - model.frame
   n <- nrow(mf)
@@ -198,7 +220,8 @@ setLinks <- function(rho, link) {
   rho$pfun <- switch(link,
                      logit = plogis,
                      probit = pnorm,
-                     cloglog = function(x) pgumbel(x, max=FALSE),
+                     cloglog = function(x, lower.tail=TRUE) pgumbel(x,
+                                             lower.tail=lower.tail, max=FALSE),
                      cauchit = pcauchy,
                      loglog = pgumbel,
                      "Aranda-Ordaz" = function(x, lambda) pAO(x, lambda),
