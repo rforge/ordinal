@@ -345,13 +345,15 @@ eclm.nll <- function(rho, par) {
 ### offset but no predictors in the scale model:
     eta1 <- (drop(B1 %*% par[1:n.psi]) + o1)/sigma
     eta2 <- (drop(B2 %*% par[1:n.psi]) + o2)/sigma
-    fitted <- pfun(eta1) - pfun(eta2)
-    if(all(is.finite(fitted)) && all(fitted > 0))
+  })
+### NOTE: getFitted is not found from within rho, so we have to
+### evalueate it outside of rho
+  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
+  if(all(is.finite(rho$fitted)) && all(rho$fitted > 0))
 ### NOTE: Need test here because some fitted <= 0 if thresholds are
 ### not ordered increasingly.
-      -sum(wts * log(fitted))
-    else Inf
-  })
+    -sum(rho$wts * log(rho$fitted))
+  else Inf
 }
 
 eclm.grad <- function(rho) {
@@ -497,7 +499,7 @@ clm.fit.NR <-
                           format="e")))
         cat("\n")
       }
-      Trace(iter=i, stepFactor, nll,
+      Trace(iter=i+innerIter, stepFactor, nll,
             maxGrad, rho$par, first = FALSE)
     }
     ## Double stepFactor if needed:

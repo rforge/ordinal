@@ -65,7 +65,10 @@ clmm <-
   rho$par <- start
 
   ## Update rho with RE information:
-  if(ntau == 1L) {
+  ## only use clmm.fit.ssr if useMatrix=FALSE and there is a single
+  ## random effects term:
+  use.ssr <- (ntau == 1L && !control$useMatrix)
+  if(use.ssr) {
     rho.clm2clmm.ssr(rho=rho, grList=frames$grList,
                      ctrl=control$ctrl)
     set.AGQ(rho, nAGQ)
@@ -73,17 +76,21 @@ clmm <-
   else
     rho.clm2clmm(rho=rho, Zt=frames$Zt, grList=frames$grList,
                  ctrl=control$ctrl)
+  ## Stop if arguments are incompatible:
   if(nAGQ != 1 && ntau > 1)
-    stop("Quadrature methods are not available with
-more than one random effects term", call.=FALSE)
-  
+    stop(gettextf("Quadrature methods are not available with more than one random effects term"),
+         call.=FALSE) 
+  if(nAGQ != 1 && control$useMatrix)
+    stop(gettextf("Quadrature methods are not available with 'useMatrix = TRUE'"),
+         call.=FALSE) 
+    
   ## Possibly return the environment, rho without fitting:
   if(!doFit)  return(rho)
 
   ## Fit the clmm:
   fit <-
-    if(ntau == 1L) clmm.fit.ssr(rho, control = control$optCtrl, Hess)
-    else  clmm.fit.env(rho, control = control$optCtrl, Hess)
+    if(use.ssr) clmm.fit.ssr(rho, control = control$optCtrl, Hess)
+    else clmm.fit.env(rho, control = control$optCtrl, Hess)
   
   ## Modify and return results:
   fit$nAGQ <- nAGQ
@@ -310,7 +317,7 @@ nll.u <- function(rho) { ## negative log-likelihood
 ### FIXME: possibly it should be '- b.exploded' ?
   rho$eta1 <- as.vector(rho$eta1Fix + b.exploded + rho$o1)
   rho$eta2 <- as.vector(rho$eta2Fix + b.exploded + rho$o2)
-  rho$fitted <- getFitted(rho$eta1, rho$eta2, rho$pfun)
+  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
   if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
     nll <- Inf
   else
@@ -330,8 +337,7 @@ nllFast.u <- function(rho) { ## negative log-likelihood
 ### FIXME: possibly it should be '- b.exploded' ?
   rho$eta1 <- as.vector(rho$eta1Fix + b.exploded + rho$o1)
   rho$eta2 <- as.vector(rho$eta2Fix + b.exploded + rho$o2)
-  rho$fitted <- getFitted(rho$eta1, rho$eta2, rho$pfun)
-  ## rho$pfun(rho$eta1) - rho$pfun(rho$eta2)
+  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
   if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
     nll <- Inf
   else
@@ -502,11 +508,13 @@ clmm.finalize <-
 clmm.control <-
   function(method = c("ucminf", "model.frame"),
            ..., trace = 0, maxIter = 50, gradTol = 1e-4,
-           maxLineIter = 50,
+           maxLineIter = 50, useMatrix = FALSE,
            innerCtrl = c("warnOnly", "noWarn", "giveError"))
 {
   method <- match.arg(method)
   innerCtrl <- match.arg(innerCtrl)
+  useMatrix <- as.logical(useMatrix)
+  stopifnot(is.logical(useMatrix))
   ctrl <- list(trace=ifelse(trace < 0, 1, 0),
                maxIter=maxIter,
                gradTol=gradTol,
@@ -523,14 +531,15 @@ clmm.control <-
   if(method == "ucminf" && !"grad" %in% names(optCtrl))
     optCtrl$grad <- "central"
   
-  list(method = method, ctrl = ctrl, optCtrl = optCtrl)
+  list(method = method, useMatrix = useMatrix, ctrl = ctrl, optCtrl = optCtrl)
 }
 
 getCtrlArgs <- function(control, extras) {
 ### Recover control arguments from clmm.control and extras (...):
 ### 
   ## Collect control arguments in list:
-  ctrl.args <- c(extras, control$ctrl, control$optCtrl)
+  ctrl.args <- c(extras, control$method, control$useMatrix,
+                 control$ctrl, control$optCtrl) 
   ## Identify the two occurences "trace", delete them, and add trace=1
   ## or trace=-1 to the list of arguments:
   which.trace <- which(names(ctrl.args) == "trace")

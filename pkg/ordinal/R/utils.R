@@ -9,15 +9,22 @@ getFitted <- function(eta1, eta2, pfun, ...) {
   ##
   ## Note that (eta1 > eta2) always holds, hence (eta2 > 0) happens
   ## relatively rarely.
-  ## if(any(!is.finite(eta1)) ||any(!is.finite(eta2))) {
-  ##   print("eta1 or eta2 has non-finite values")
-  ##   ## browser()
-  ## }
   k2 <- eta2 > 0
   fitted <- pfun(eta1) - pfun(eta2)
   fitted[k2] <- pfun(eta2[k2], lower.tail=FALSE) -
     pfun(eta1[k2], lower.tail=FALSE)
   fitted
+}
+
+getFittedC <-
+  function(eta1, eta2,
+           link = c("logit", "probit", "cloglog", "loglog", "cauchit",
+             "Aranda-Ordaz", "log-gamma"), lambda=1)
+### Same as getFitted only this is implemented in C and handles all
+### link functions including the flexible ones.
+{
+  link <- match.arg(link)
+  .Call("get_fitted", eta1, eta2, link, lambda)
 }
 
 getWeights <- function(mf) {

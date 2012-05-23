@@ -210,7 +210,7 @@ clm.fit.env <-
                           format="e")))
         cat("\n")
       }
-      Trace(iter=i, stepFactor, nll,
+      Trace(iter=i+innerIter, stepFactor, nll,
             maxGrad, rho$par, first = FALSE)
     }
     ## Double stepFactor if needed:
@@ -244,14 +244,16 @@ clm.nll <- function(rho) { ## negative log-likelihood
   with(rho, {
     eta1 <- drop(B1 %*% par) + o1
     eta2 <- drop(B2 %*% par) + o2
-    fitted <- pfun(eta1) - pfun(eta2)
-    if(all(fitted > 0))
+  })
+### NOTE: getFitted is not found from within rho, so we have to
+### evalueate it outside of rho
+  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
+  if(all(rho$fitted > 0))
 ### NOTE: Need test here because some fitted <= 0 if thresholds are
 ### not ordered increasingly.
 ### It is assumed that 'all(is.finite(pr)) == TRUE' 
-      -sum(wts * log(fitted))
-    else Inf
-  })
+    -sum(rho$wts * log(rho$fitted))
+  else Inf
 }
 
 clm.grad <- function(rho) { ## gradient of the negative log-likelihood
