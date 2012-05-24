@@ -38,8 +38,8 @@ innerCtrl = c("warnOnly", "noWarn", "giveError"))
     Laplace approximation using the Matrix package is used, while if
     \code{FALSE} (default), a C implementation of the Laplace
     approximation valid only for models with a single random effects
-    term is used. \code{TRUE} is not valid for models fitted with
-    quadrature methods. 
+    term is used when possible.
+    \code{TRUE} is not valid for models fitted with quadrature methods.  
   }
   \item{innerCtrl}{the use of warnings/errors if the inner optimization
     fails to converge.

@@ -104,3 +104,12 @@ March 04 2010:
 - Improved evaluation of control parameters in clmm using the new
   function getCtrlArgs.
 - Better warning if intercept is attempted removed in clmm.
+
+2012-05-23:
+
+- Adding useMatrix argument to clmm.control
+- Using getFitted in clm
+- Implementing getFittedC in C and updating C code for fit.clmm.ssr
+  with better and faster evaluation of fitted values   
+- Introduction of links.h, links.c and get_fitted.c in /src
+
