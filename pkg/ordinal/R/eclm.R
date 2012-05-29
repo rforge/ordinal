@@ -150,7 +150,7 @@ eclm.model.frame <- function(mc, contrasts) {
   if(any(sapply(forms, function(f) class(f) == "try-error")))
     stop("unable to interpret 'formula', 'scale' or 'nominal'")
   ## collect all variables in a full formula:
-  fullForm <- do.call(getFullForm, forms)  
+  fullForm <- do.call("getFullForm", forms)  
   ## set environment of 'fullForm' to the environment of 'formula': 
   environment(fullForm) <- form.envir
 
@@ -164,6 +164,8 @@ eclm.model.frame <- function(mc, contrasts) {
   if(is.null(mf$data)) mf$data <- form.envir 
   fullmf <- eval(mf, envir = parent.frame(2))
   mf$na.action <- "na.pass" ## filter NAs by hand below
+
+  ## browser()
 
   ## Extract X:
   ## get X from fullmf to handle e.g., NAs and subset correctly

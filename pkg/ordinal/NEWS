@@ -113,3 +113,11 @@ March 04 2010:
   with better and faster evaluation of fitted values   
 - Introduction of links.h, links.c and get_fitted.c in /src
 
+2012-05-29:
+
+- Correcting formula interpretation in clm to allow for really long
+  formulas.
+- Better evaluation of control arguments in clmm (adjustment of
+  getCtrlAgs).
+- Adding clmm.control.R to ./test
+

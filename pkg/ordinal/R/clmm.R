@@ -531,20 +531,51 @@ clmm.control <-
   if(method == "ucminf" && !"grad" %in% names(optCtrl))
     optCtrl$grad <- "central"
   
-  list(method = method, useMatrix = useMatrix, ctrl = ctrl, optCtrl = optCtrl)
+  list(method = method, useMatrix = useMatrix, ctrl = ctrl,
+       optCtrl = optCtrl)
 }
+
+## getCtrlArgs <- function(control, extras) {
+## ### Recover control arguments from clmm.control and extras (...):
+## ### 
+##   ## Collect control arguments in list:
+##   ctrl.args <- c(extras, control$method, control$useMatrix,
+##                  control$ctrl, control$optCtrl) 
+##   ## Identify the two occurences "trace", delete them, and add trace=1
+##   ## or trace=-1 to the list of arguments:
+##   which.trace <- which(names(ctrl.args) == "trace")
+##   trace.sum <- sum(unlist(ctrl.args[which.trace]))
+##   ctrl.args <- ctrl.args[-which.trace]
+##   ## remove duplicated arguments:
+##   ctrl.args <- ctrl.args[!duplicated(names(ctrl.args))]
+##   if(trace.sum >= 1) ctrl.args$trace <- 1
+##   if(trace.sum >= 2 || trace.sum <= -1) ctrl.args$trace <- -1
+##   ## return the updated list of control parameters:
+##   do.call("clmm.control", ctrl.args)
+## }
 
 getCtrlArgs <- function(control, extras) {
 ### Recover control arguments from clmm.control and extras (...):
-### 
+###
+  if(!is.list(control))
+    stop("'control' should be a list")
   ## Collect control arguments in list:
-  ctrl.args <- c(extras, control$method, control$useMatrix,
-                 control$ctrl, control$optCtrl) 
+  ## 1) assuming 'control' is a call to clmm.control:
+  ctrl.args <-
+    if(setequal(names(control),
+                c("method", "useMatrix", "ctrl", "optCtrl")))
+      c(extras, control$ctrl, control$optCtrl)
+  ## assuming 'control' is specified with control=list( 'args'):
+    else
+      c(extras, control)
+### NOTE: having c(extras, control) rather than c(control, extras)
+### means that extras have precedence over control.
   ## Identify the two occurences "trace", delete them, and add trace=1
   ## or trace=-1 to the list of arguments:
   which.trace <- which(names(ctrl.args) == "trace")
   trace.sum <- sum(unlist(ctrl.args[which.trace]))
-  ctrl.args <- ctrl.args[-which.trace]
+  if(trace.sum) 
+    ctrl.args <- ctrl.args[-which.trace]
   ## remove duplicated arguments:
   ctrl.args <- ctrl.args[!duplicated(names(ctrl.args))]
   if(trace.sum >= 1) ctrl.args$trace <- 1
@@ -552,4 +583,3 @@ getCtrlArgs <- function(control, extras) {
   ## return the updated list of control parameters:
   do.call("clmm.control", ctrl.args)
 }
-

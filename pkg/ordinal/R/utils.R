@@ -60,13 +60,18 @@ getFullForm <- function(form, ..., envir=parent.frame()) {
   forms <- list(...)
   if(lf <- length(forms)) {
     rhs <- character(0)
+    ## Collect rhs terms in a single vector of rh-sides:
     for(i in 1:lf) {
-      rhs <- c(rhs, deparse(forms[[i]][[2]]))
+      rhs <- c(rhs, Deparse(forms[[i]][[2]]))
       if(length(forms[[i]]) >= 3)
-        rhs <- c(rhs, deparse(forms[[i]][[3]]))
+        rhs <- c(rhs, Deparse(forms[[i]][[3]]))
     }
+    ## add '+' inbetween terms:
     rhs <- paste(rhs, collapse=" + ")
-    form <- paste(deparse(form), rhs, sep=" + ")
+    ## combine if 'deparse(form)' is a (long) vector:
+    form2 <- paste(deparse(form, width.cutoff=500L), collapse=" ")
+    ## combine form2 and rhs into a single string:
+    form <- paste(form2, rhs, sep=" + ")
   }
   return(as.formula(form, env=envir))
 }
@@ -489,3 +494,10 @@ getB <- function(y, NOM=NULL, X=NULL, offset=NULL, tJac=NULL) {
   list(B1=B1, B2=B2, o1=o1, o2=o2) 
 }
 
+Deparse <-
+  function(expr, width.cutoff = 500L, backtick = mode(expr) %in%  
+           c("call", "expression", "(", "function"),
+           control = c("keepInteger", "showAttributes", "keepNA"),
+           nlines = -1L)
+  deparse(expr=expr, width.cutoff= width.cutoff, backtick=backtick,
+          control=control, nlines=nlines) 
