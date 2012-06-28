@@ -1,6 +1,6 @@
 clm.newRho <-
   function(parent, y, X, weights, offset, tJac)
-### Set variables in rho: B1, B2, o1, o2, wts.
+### Set variables in rho: B1, B2, o1, o2 and wts.
 {
   rho <- new.env(parent = parent)
 
