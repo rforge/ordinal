@@ -35,7 +35,7 @@ clm.fit <-
            offset = rep(0, nrow(X)), S.offset = rep(0, nrow(X)),
            control = list(), start, 
            link = c("logit", "probit", "cloglog", "loglog", "cauchit"), 
-           threshold = c("flexible", "symmetric", "equidistant"))
+           threshold = c("flexible", "symmetric", "symmetric2", "equidistant"))
 ### This function basically does the same as clm, but without setting
 ### up the model matrices from formulae, and with minimal post
 ### processing after parameter estimation. 
@@ -158,8 +158,6 @@ clm.fit.env <-
     } ## end convergence test
 
     ## Compute Newton step and update parameters
-    step <- .Call("La_dgesv", hessian, gradient, .Machine$double.eps,
-                  PACKAGE = "base") ## solve H*step = g for 'step'
 ##     step <- try(.Call("La_dgesv", hessian, gradient, .Machine$double.eps,
 ##                       PACKAGE = "base"), silent=TRUE)
 ##     if(class(step) == "try-error") {
@@ -168,7 +166,7 @@ clm.fit.env <-
 ## identifiable")
 ##       break
 ##     }
-    step <- as.vector(step)
+    step <- as.vector(solve(hessian, gradient))
     rho$par <- rho$par - stepFactor * step
     nllTry <- rho$clm.nll(rho)
     lineIter <- 0

@@ -1,8 +1,8 @@
 Package: ordinal
 Type: Package
 Title: Regression Models for Ordinal Data
-Version: 2012.05-29
-Date: 2012-05-29
+Version: 2013.4-11
+Date: 2013-04-11
 Author: Rune Haubo B Christensen
 Maintainer: Rune Haubo B Christensen <rhbc@imm.dtu.dk>
 Imports: numDeriv

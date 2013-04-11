@@ -112,12 +112,14 @@ predict.clm <-
           eval(attr(object$S.terms, "variables")[[i + 1]], newdata)
     }
 ### Construct model environment:
+    tJac <- object$tJac
+    dimnames(tJac) <- NULL
     env <- eclm.newRho(parent.frame(), y=y, X=X,
                        NOM=if(is.nom) NOM else NULL,
                        S=if(is.scale) S else NULL,
                        weights=rep(1, n), offset=offset,
                        S.offset=if(is.scale) Soff else rep(0, n),
-                       tJac=object$tJac)
+                       tJac=tJac)
     setLinks(env, link=object$link)
   } ## end !missing(newdata) or type == "class"
   else  env <- update(object, doFit=FALSE)

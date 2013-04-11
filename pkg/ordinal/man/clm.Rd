@@ -19,7 +19,7 @@
 clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
   na.action, contrasts, model = TRUE, control=list(),
   link = c("logit", "probit", "cloglog", "loglog", "cauchit"),
-  threshold = c("flexible", "symmetric", "equidistant"), ...) 
+  threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...) 
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -92,7 +92,12 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
     (cut-points). \code{"flexible"} provides the standard unstructured
     thresholds, \code{"symmetric"} restricts the distance between the
     thresholds to be symmetric around the central one or two thresholds
-    for odd or equal numbers or thresholds respectively, and
+    for odd or equal numbers or thresholds respectively,
+    \code{"symmetric2"} restricts the latent
+    mean in the reference group to zero; this means that the central
+    threshold (even no. response levels) is zero or that the two central
+    thresholds are equal apart from their sign (uneven no. response
+    levels), and 
     \code{"equidistant"} restricts the distance between consecutive
     thresholds to be of the same size.
   }
@@ -210,6 +215,14 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
   }
   \item{nom.xlevels}{(where relevant) a record of the levels of the
     factors used in fitting for the \code{nominal} part.
+  }
+  \item{Theta}{(where relevant) a table (\code{data.frame}) of
+    thresholds for all combinations of levels of factors in the
+    \code{nominal} formula.
+  }
+  \item{alpha.mat}{(where relevant) a table (\code{data.frame}) of
+    threshold parameters where each row corresponds to an effect in the
+    \code{nominal} formula. 
   }
   \item{tJac}{the transpose of the Jacobian for the threshold structure.
   }

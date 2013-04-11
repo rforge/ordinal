@@ -207,6 +207,10 @@ setStart <- function(rho) ## Ok
         alphas <- c(alphas[q1+1],cumsum(rep(spacing[q1+2], rho$nalpha-1)))
     if(rho$threshold == "symmetric" && !rho$ntheta %% 2) ## ntheta even
         alphas <- c(alphas[q1:(q1+1)], cumsum(rep(spacing[q1+1], rho$nalpha-2)))
+    if(rho$threshold == "symmetric2" && rho$ntheta %% 2) ## ntheta odd
+        alphas <- cumsum(rep(spacing[q1+2], rho$nalpha-1))
+    if(rho$threshold == "symmetric2" && !rho$ntheta %% 2) ## ntheta even
+        alphas <- cumsum(rep(spacing[q1+1], rho$nalpha-2))
     if(rho$threshold == "equidistant")
         alphas <- c(alphas[1], mean(diff(spacing)))
     ## initialize nominal effects to zero:
@@ -371,8 +375,9 @@ fitNR <- function(rho) ## OK
             break
         }
         rho$Hessian <- .hessian(rho)
-        step <- .Call("La_dgesv", rho$Hessian, rho$gradient, .Machine$double.eps,
-                      PACKAGE = "base") ## solve H*step = g for 'step'
+        ## step <- .Call("La_dgesv", rho$Hessian, rho$gradient, .Machine$double.eps,
+        ##               PACKAGE = "base") ## solve H*step = g for 'step'
+        step <- as.vector(solve(rho$Hessian, rho$gradient))
         rho$par <- rho$par - stepFactor * step
         negLogLikTry <- .negLogLik(rho)
         lineIter <- 0

@@ -3,7 +3,7 @@ simple_clm <-
            doFit = TRUE, na.action, contrasts, model = TRUE,
            control = list(),
            link = c("logit", "probit", "cloglog", "loglog"), 
-           threshold = c("flexible", "symmetric", "equidistant"), ...)
+           threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...)
 {
   ## Initial argument matching and testing:
   mc <- match.call(expand.dots = FALSE)

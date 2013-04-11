@@ -1,11 +1,15 @@
 clm <-
   function(formula, scale, nominal, data, weights, start, subset,
            doFit = TRUE, na.action, contrasts, model = TRUE,
-           control = list(),
+           control = list(), ## tJac,
            link = c("logit", "probit", "cloglog", "loglog", "cauchit"), 
-           threshold = c("flexible", "symmetric", "equidistant"), ...)
+           threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...)
 ### deliberately no offset argument - include offset in the relevant
-### formula/scale instead. 
+### formula/scale instead.
+
+### FIXME: drop the tJac argument and let threshold accept it as a
+### numeric matrix. Also test that ncol(tJac) <= nrow(tJac) or,
+### perhaps better: rank(tJac) <= nlevels(y).
 {
   ## Initial argument matching and testing:
   mc <- match.call(expand.dots = FALSE)
@@ -26,6 +30,10 @@ clm <-
 
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
+  ## if(missing(tJac)) tJac <- NULL
+  ## if(!is.null(tJac) && missing(start))
+  ##   stop("specify 'start' when supplying 'tJac'")
+  ## frames$ths <- makeThresholds(frames$y, threshold, tJac)
   frames$ths <- makeThresholds(frames$y, threshold)
 
   ## Return model.frame?
@@ -86,22 +94,49 @@ clm <-
     res$niter <- res$niter + start.iter
   res$threshold <- threshold
   res$call <- match.call()
+  res$y.levels <- lev <- levels(frames$y)
+  res$tJac <- frames$ths$tJac
+  rownames(res$tJac) <- paste(lev[-length(lev)], lev[-1], sep="|")
+  colnames(res$tJac) <- frames$ths$alpha.names
   res$contrasts <- attr(frames$X, "contrasts")
   res$na.action <- attr(frames$mf, "na.action")
   res$terms <- frames$terms
   res$xlevels <- .getXlevels(res$terms, frames$mf)
   if(!is.null(frames$NOM)) {
+    ## Save nominal information:
     res$nom.contrasts <- attr(frames$NOM, "contrasts")
     res$nom.terms <- frames$nom.terms
     res$nom.xlevels <- .getXlevels(res$nom.terms, frames$mf)
+    ## get matrix of thresholds; Theta:
+    Theta.list <-
+      getThetamat(terms=res$nom.terms, alpha=res$alpha,
+                  assign=attr(frames$NOM, "assign"),
+                  contrasts=res$nom.contrasts, xlevels=res$nom.xlevels,
+                  tJac=res$tJac)
+### NOTE: cannot get Theta if some threshold parameters are aliased. 
+    ## Test that thresholds are increasing:
+    if(all(is.finite(res$alpha))) {
+      th.increasing <- apply(Theta.list$Theta, 1, function(th)
+                             all(diff(th) >= 0))
+      if(!all(th.increasing))
+        warning("Not all thresholds are increasing: fit may be invalied",
+                call.=FALSE)
+    }
+    res$Theta <- if(length(Theta.list) == 2)
+      with(Theta.list, cbind(mf.basic, Theta)) else Theta.list$Theta
+    res$alpha.mat <-
+      matrix(res$alpha, ncol=ncol(res$tJac), byrow=TRUE)
+    colnames(res$alpha.mat) <- colnames(res$tJac)
+    rownames(res$alpha.mat) <- attr(frames$NOM, "orig.colnames")
+  } else { ## no nominal effects:
+    res$Theta <- res$alpha %*% res$tJac
+    names(res$Theta) <- rownames(res$tJac)
   }
   if(!is.null(frames$S)) {
     res$S.contrasts <- attr(frames$S, "contrasts")
     res$S.terms <- frames$S.terms
     res$S.xlevels <- .getXlevels(res$S.terms, frames$mf)
   }
-  res$tJac <- frames$ths$tJac
-  res$y.levels <- levels(frames$y)
   res$info <- with(res, {
     data.frame("link" = link,
                "threshold" = threshold,
@@ -165,13 +200,14 @@ eclm.model.frame <- function(mc, contrasts) {
   fullmf <- eval(mf, envir = parent.frame(2))
   mf$na.action <- "na.pass" ## filter NAs by hand below
 
-  ## browser()
-
   ## Extract X:
   ## get X from fullmf to handle e.g., NAs and subset correctly
   mf$formula <- forms[[1]]
   X.mf <- eval(mf, envir = parent.frame(2))
   X.terms <- attr(X.mf, "terms")
+### FIXME: make sure that contrast for terms in X.terms are parsed to
+### model.matrix here. Similar problem with S and NOM design matrices
+### below. 
   X <- model.matrix(X.terms, fullmf, contrasts)
   n <- nrow(X)
   ## Test for intercept in X:
@@ -457,9 +493,8 @@ clm.fit.NR <-
         cat(paste("X is not positive definite, inflating diagonal with",
                   formatC(inflate, digits=5, format="fg"), "\n"))
     }
-    step <- .Call("La_dgesv", hessian, gradient, .Machine$double.eps,
-                  PACKAGE = "base") ## solve H*step = g for 'step'
-    step <- as.vector(step)
+    ## solve H*step = g for 'step'
+    step <- as.vector(solve(hessian, gradient))
     rho$par <- rho$par - stepFactor * step
     nllTry <- rho$clm.nll(rho)
     lineIter <- 0

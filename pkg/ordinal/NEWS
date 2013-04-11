@@ -121,3 +121,23 @@ March 04 2010:
   getCtrlAgs).
 - Adding clmm.control.R to ./test
 
+2012-09-10:
+- Computing Newton step in clm with solve() rather than
+  .Call("La_dgesv", ...) to accomodate changes in R base. 
+
+2012-09-11:
+- Using globalVariables() conditional on getRversion() >= '2.15.1'.
+
+2013-03-20:
+- Adding symmetric2 threshold function, which restricts the latent
+  mean in the reference group to zero. This means that the central
+  threshold (ylev even) is zero or that the two central thresholds
+  are equal apart from their sign (ylev uneven).
+
+2013-04-08:
+- Allowing zero weights in clm unless there are no observations with a
+  positive weight in one or more response categories.
+
+2013-04-11:
+- clm now computes Theta and alpha.mat tables of thresholds and
+  threshold-parameters if nominal effects are specified.

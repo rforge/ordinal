@@ -14,7 +14,7 @@ clm.fit(y, X, S, N, weights = rep(1, nrow(X)),
   offset = rep(0, nrow(X)), S.offset = rep(0, nrow(X)),
   control = list(), start,
   link = c("logit", "probit", "cloglog", "loglog", "cauchit"),
-  threshold = c("flexible", "symmetric", "equidistant"))
+  threshold = c("flexible", "symmetric", "symmetric2", "equidistant"))
 
 }
 %- maybe also 'usage' for other objects documented here.

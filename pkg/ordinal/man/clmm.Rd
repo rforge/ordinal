@@ -12,7 +12,7 @@
 clmm(formula, data, weights, start, subset, na.action, contrasts, Hess =
 TRUE, model = TRUE, link = c("logit", "probit", "cloglog", "loglog",
 "cauchit"), doFit = TRUE, control = list(), nAGQ = 1L,
-threshold = c("flexible", "symmetric", "equidistant"), ...)
+threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...)
 
 %% also document getNLA(rho, par) here and include examples
 }

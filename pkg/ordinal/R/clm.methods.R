@@ -38,8 +38,12 @@ print.clm <-
       cat("\nThreshold coefficients: (", sum(x$aliased$alpha),
           " not defined because of singularities)\n", sep = "") 
     else cat("\nThreshold coefficients:\n")
-    print.default(format(x$alpha, digits = digits), 
-                  quote = FALSE)
+    if(!is.null(x$call$nominal))
+      print.default(format(x$alpha.mat, digits = digits), 
+                    quote = FALSE)
+    else
+      print.default(format(x$alpha, digits = digits), 
+                    quote = FALSE)
   }
 
   if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
@@ -61,6 +65,8 @@ vcov.clm <- function(object, ...)
   }
   else
     VCOV <- solve(H) ## MASS::ginv(H)
+### FIXME: Use a cholesky decomposition to get vcov for better
+### precision - vcov.nls for details.
   return(structure(VCOV, dimnames = dn))
 }
 

@@ -31,9 +31,9 @@ getWeights <- function(mf) {
 ### mf - model.frame
   n <- nrow(mf)
   if(is.null(wts <- model.weights(mf))) wts <- rep(1, n)
-  if (any(wts <= 0))
-    stop(gettextf("non-positive weights are not allowed"),
-         call.=FALSE)
+  ## if (any(wts <= 0))
+  ##   stop(gettextf("non-positive weights are not allowed"),
+  ##        call.=FALSE)
 ### NOTE: We do not remove observations where weights == 0, because
 ### that could be a somewhat surprising behaviour. It would also
 ### require that the model.frame be evaluated all over again to get
@@ -41,6 +41,15 @@ getWeights <- function(mf) {
   if(length(wts) && length(wts) != n)
     stop(gettextf("number of weights is %d should equal %d (number of observations)",
                   length(wts), n), call.=FALSE)
+  if(any(wts < 0))
+    stop(gettextf("negative weights are not allowed"),
+         call.=FALSE)
+  if(any(wts == 0)) {
+    y <- model.response(mf, "any")
+    if(any(table(y[wts > 0]) == 0))
+      stop(gettextf("zero positive weights for one or more response categories"),
+           call.=FALSE)
+  }
   return(as.double(wts))
 }
 
@@ -258,7 +267,7 @@ setLinks <- function(rho, link) {
   rho$link <- link
 }
 
-makeThresholds <- function(y, threshold) {
+makeThresholds <- function(y, threshold) { ## , tJac) {
 ### Generate the threshold structure summarized in the transpose of
 ### the Jacobian matrix, tJac. Also generating nalpha and alpha.names.
 
@@ -268,46 +277,73 @@ makeThresholds <- function(y, threshold) {
   stopifnot(is.factor(y))
   lev <- levels(y)
   ntheta <- nlevels(y) - 1
-  
-  if(threshold == "flexible") {
-    tJac <- diag(ntheta)
-    nalpha <- ntheta
-    alpha.names <- paste(lev[-length(lev)], lev[-1], sep="|")
-  }
-  
-  if(threshold == "symmetric") {
-    if(!ntheta >=2)
-      stop("symmetric thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
-    if(ntheta %% 2) { ## ntheta is odd
-      nalpha <- (ntheta + 1)/2 ## No. threshold parameters
-      tJac <- t(cbind(diag(-1, nalpha)[nalpha:1, 1:(nalpha-1)],
-                      diag(nalpha)))
-      tJac[,1] <- 1
-      alpha.names <-
-        c("central", paste("spacing.", 1:(nalpha-1), sep=""))
+
+  ## if(!is.null(tJac)) {
+  ##   stopifnot(nrow(tJac) == ntheta)
+  ##   nalpha <- ncol(tJac)
+  ##   alpha.names <- colnames(tJac)
+  ##   if(is.null(alpha.names) || anyDuplicated(alpha.names))
+  ##     alpha.names <- as.character(1:nalpha)
+  ##   dimnames(tJac) <- NULL
+  ## }
+  ## else { ## threshold structure identified by threshold argument:
+    if(threshold == "flexible") {
+      tJac <- diag(ntheta)
+      nalpha <- ntheta
+      alpha.names <- paste(lev[-length(lev)], lev[-1], sep="|")
     }
-    else { ## ntheta is even
-      nalpha <- (ntheta + 2)/2
-      tJac <- cbind(rep(1:0, each = ntheta / 2),
-                    rbind(diag(-1, ntheta / 2)[(ntheta / 2):1,],
-                          diag(ntheta / 2)))
-      tJac[,2] <- rep(0:1, each = ntheta / 2)
-      alpha.names <- c("central.1", "central.2",
-                      paste("spacing.", 1:(nalpha-2), sep=""))
+    
+    if(threshold == "symmetric") {
+      if(!ntheta >=2)
+        stop("symmetric thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
+      if(ntheta %% 2) { ## ntheta is odd
+        nalpha <- (ntheta + 1)/2 ## No. threshold parameters
+        tJac <- t(cbind(diag(-1, nalpha)[nalpha:1, 1:(nalpha-1)],
+                        diag(nalpha)))
+        tJac[,1] <- 1
+        alpha.names <-
+          c("central", paste("spacing.", 1:(nalpha-1), sep=""))
+      }
+      else { ## ntheta is even
+        nalpha <- (ntheta + 2)/2
+        tJac <- cbind(rep(1:0, each = ntheta / 2),
+                      rbind(diag(-1, ntheta / 2)[(ntheta / 2):1,],
+                            diag(ntheta / 2)))
+        tJac[,2] <- rep(0:1, each = ntheta / 2)
+        alpha.names <- c("central.1", "central.2",
+                         paste("spacing.", 1:(nalpha-2), sep=""))
+      }
     }
-  }
-  
-  if(threshold == "equidistant") {
-    if(!ntheta >=2)
-      stop("equidistant thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
-    tJac <- cbind(1, 0:(ntheta-1))
-    nalpha <- 2
-    alpha.names <- c("threshold.1", "spacing")
-  }
+    ## Assumes latent mean is zero:
+    if(threshold == "symmetric2") {
+      if(!ntheta >=2)
+        stop("symmetric thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
+      if(ntheta %% 2) { ## ntheta is odd
+        nalpha <- (ntheta - 1)/2 ## No. threshold parameters
+        tJac <- rbind(apply(-diag(nalpha), 1, rev),
+                      rep(0, nalpha), 
+                      diag(nalpha))
+      }
+      else { ## ntheta is even
+        nalpha <- ntheta/2
+        tJac <- rbind(apply(-diag(nalpha), 1, rev),
+                      diag(nalpha))
+      }
+      alpha.names <- paste("spacing.", 1:nalpha, sep="")
+    }
+    
+    if(threshold == "equidistant") {
+      if(!ntheta >=2)
+        stop("equidistant thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
+      tJac <- cbind(1, 0:(ntheta-1))
+      nalpha <- 2
+      alpha.names <- c("threshold.1", "spacing")
+    }
+  ## }
   return(list(tJac = tJac, nalpha = nalpha, alpha.names = alpha.names))
 }
-
-Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
+  
+  Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
     t1 <- sprintf(" %3d:  %-5e:    %.3f:   %1.3e:  ",
                   iter, stepFactor, val, maxGrad)
     t2 <- formatC(par)
@@ -320,7 +356,7 @@ Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
 ## Functions for starting values:
 
 start.threshold <-
-  function(y, threshold = c("flexible", "symmetric", "equidistant")) 
+  function(y, threshold = c("flexible", "symmetric", "symmetric2", "equidistant")) 
 ### args:
 ### y - model response, a factor with at least two levels
 ### threshold - threshold structure, character.
@@ -329,7 +365,7 @@ start.threshold <-
   threshold <- match.arg(threshold)
   stopifnot(is.factor(y) && nlevels(y) >= 2)
   ntheta <- nlevels(y) - 1L
-  if(threshold %in% c("symmetric", "equidistant") && nlevels(y) < 3)
+  if(threshold %in% c("symmetric", "symmetric2", "equidistant") && nlevels(y) < 3)
     stop(gettextf("symmetric and equidistant thresholds are only
 meaningful for responses with 3 or more levels"))
   
@@ -346,6 +382,14 @@ meaningful for responses with 3 or more levels"))
     nalpha <- (ntheta + 2) / 2
     start <- c(start[c(nalpha - 1, nalpha)],
                diff(start[nalpha:ntheta])) ## works for ntheta >= 2
+  }
+  if(threshold == "symmetric2" && ntheta %% 2) { ## ntheta odd >= 3
+    nalpha <- (ntheta + 3) / 2
+    start <- start[nalpha:ntheta] ## works for ntheta >= 3
+  }
+  if(threshold == "symmetric2" && !ntheta %% 2) {## ntheta even >= 4
+    nalpha <- (ntheta + 2) / 2
+    start <- start[nalpha:ntheta] ## works for ntheta >= 2
   }
   if(threshold == "equidistant")
     start <- c(start[1], mean(diff(start)))
@@ -501,3 +545,75 @@ Deparse <-
            nlines = -1L)
   deparse(expr=expr, width.cutoff= width.cutoff, backtick=backtick,
           control=control, nlines=nlines) 
+
+getThetamat <-
+  function(terms, alpha, assign, contrasts, xlevels, tJac)
+### Compute matrix of thresholds for all combinations of levels of
+### factors in the nominal formula.
+###
+### Input:
+### terms: nominal terms object
+### alpha: vector of threshold parameters
+### assign: attr(NOM, "assign"), where NOM is the design matrix for
+###   the nominal effects
+### contrasts: list of contrasts for the nominal effects
+### tJac: threshold Jacobian with appropriate dimnames.
+### 
+### Output:
+### Theta: data.frame of thresholds
+### mf.basic: if nrow(Theta) > 1 a data.frame with factors in columns
+###   and all combinations of the factor levels in rows.
+{
+  ## Make matrix of thresholds; Theta:
+  Theta <- matrix(alpha, ncol=ncol(tJac), byrow=TRUE)
+  all.termnm <- attr(terms, "term.labels")
+### NOTE: need to index with all.termnm not to include (weights) and
+### possibly other stuff.
+  var.classes <- attr(terms, "dataClasses")[all.termnm]
+  numeric.var <- which(var.classes != "factor")
+### NOTE: for "dataClasses" see help(.MFclass). logical variables are
+### treated like numeric variables.
+  ## matrix with variables-by-terms:
+  factor.table <- attr(terms, "factors")
+  ## terms associated with numerical variables:
+  numeric.terms <-
+    which(colSums(factor.table[numeric.var, , drop=FALSE]) > 0)
+  ## terms only involving factor variables:
+  factor.terms <-
+    which(colSums(factor.table[numeric.var, , drop=FALSE]) == 0)
+  ## remove rows in Theta corresponding to numerical variables:
+  if(length(numeric.terms)) {
+### NOTE: ncol(NOM) == length(asgn) == nrow(Theta)
+### length(attr(terms, "term.labels")) == ncol(factor.table)
+### NOTE: length(var.classes) == nrow(factor.table)
+    numeric.rows <- which(assign %in% numeric.terms)
+    Theta <- Theta[-numeric.rows, , drop=FALSE]
+    if(length(factor.terms))
+      terms <- drop.terms(terms, dropx=numeric.terms,
+                          keep.response=FALSE)  
+  }
+  ## if some nominal effects are factors:
+  if(length(factor.terms)) {
+    ## get xlevels for factors, not ordered (factors)
+    factor.var <- which(var.classes == "factor")
+    factor.varnm <- names(var.classes)[factor.var]
+    xlev <- xlevels[factor.varnm]
+    ## minimal complete model frame:
+    mf.basic <- do.call(expand.grid, xlev)
+    ## minimal complete design matrix:
+    X <- model.matrix(terms, data=mf.basic,
+                      contrasts=contrasts) 
+### NOTE: There are no contrasts for numerical variables.
+### FIXME: remove contrasts for 'ordered' variables.
+    ## from threshold parameters to thresholds:
+    Theta <- apply(Theta, 2, function(th) X %*% th)
+  }
+  ## adjust for threshold functions:
+  Theta <- t(apply(Theta, 1, function(th) tJac %*% th))
+  colnames(Theta) <- rownames(tJac)
+  res <- list(Theta = as.data.frame(Theta))
+  ## add factor information if any:
+  if(nrow(Theta) > 1)  res$mf.basic <- mf.basic
+  ## return:
+  res
+}

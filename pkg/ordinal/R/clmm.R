@@ -15,13 +15,16 @@
 ## 3. Function gauss.hermite adopted with only minor modifications
 ## from package statMod(?)
 
+if(getRversion() >= '2.15.1')
+  utils:::globalVariables(c("ths", "link", "threshold", "optRes", "Niter"))
+
 clmm <-
   function(formula, data, weights, start, subset, 
            na.action, contrasts, Hess = TRUE, model = TRUE,
            link = c("logit", "probit", "cloglog", "loglog", 
              "cauchit"), ##, "Aranda-Ordaz", "log-gamma"), ## lambda, 
            doFit = TRUE, control = list(), nAGQ = 1L,
-           threshold = c("flexible", "symmetric", "equidistant"), ...)
+           threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...)
 {
 ### Extract the matched call and initial testing:
   mc <- match.call(expand.dots = FALSE)
@@ -78,10 +81,10 @@ clmm <-
                  ctrl=control$ctrl)
   ## Stop if arguments are incompatible:
   if(nAGQ != 1 && ntau > 1)
-    stop(gettextf("Quadrature methods are not available with more than one random effects term"),
+    stop("Quadrature methods are not available with more than one random effects term",
          call.=FALSE) 
   if(nAGQ != 1 && control$useMatrix)
-    stop(gettextf("Quadrature methods are not available with 'useMatrix = TRUE'"),
+    stop("Quadrature methods are not available with 'useMatrix = TRUE'",
          call.=FALSE) 
     
   ## Possibly return the environment, rho without fitting:
