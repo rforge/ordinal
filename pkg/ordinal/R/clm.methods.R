@@ -190,9 +190,15 @@ anova.clm <- function(object, ...)
 {
   mc <- match.call()
   dots <- list(...)
-  if (length(dots) == 0)
+  ## remove 'test' and 'type' arguments from dots-list:
+  not.keep <- which(names(dots) %in% c("test", "type"))
+  if(length(not.keep)) {
+    message("'test' and 'type' arguments ignored in anova.clm\n")
+    dots <- dots[-not.keep]
+  }
+  if(length(dots) == 0)
     stop('anova is not implemented for a single "clm" object')
-  mlist <- list(object, ...)
+  mlist <- c(list(object), dots)
   if(!all(sapply(mlist, function(model)
                  inherits(model, c("clm", "clmm")))))
     stop("only 'clm' and 'clmm' objects are allowed")

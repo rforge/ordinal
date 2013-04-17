@@ -180,9 +180,10 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
     optimum. 
   }
   \item{convergence}{convergence code where 0 indicates successful
-    convergence, 1 indicates the iteration limit was reached before
-    convergence and 2 indicates the step factor was reduced below minimum
-    before convergence was reached. 
+    convergence; 1 indicates the iteration limit was reached before
+    convergence; 2 indicates the step factor was reduced below minimum
+    before convergence was reached; 3 indicates that thresholds are not
+    increasing (with nominal effects).
   }
   \item{link}{character, the link function used.
   }
@@ -240,13 +241,6 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
 }
 \author{
   Rune Haubo B Christensen
-}
-\note{
-  Note that the number of iterations shown in the info table by
-  \code{print} and \code{summary} methods can in some cases exceed the
-  maximum number of iterations. This can happen because in a model where
-  scale is specified, the iterations to obtain starting values are added
-  to the main iterations.
 }
 \examples{
 

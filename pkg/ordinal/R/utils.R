@@ -566,15 +566,15 @@ getThetamat <-
 {
   ## Make matrix of thresholds; Theta:
   Theta <- matrix(alpha, ncol=ncol(tJac), byrow=TRUE)
-  all.termnm <- attr(terms, "term.labels")
-### NOTE: need to index with all.termnm not to include (weights) and
+  ## matrix with variables-by-terms:
+  factor.table <- attr(terms, "factors")
+  all.varnm <- rownames(factor.table)
+### NOTE: need to index with all.varnm not to include (weights) and
 ### possibly other stuff.
-  var.classes <- attr(terms, "dataClasses")[all.termnm]
+  var.classes <- attr(terms, "dataClasses")[all.varnm]
   numeric.var <- which(var.classes != "factor")
 ### NOTE: for "dataClasses" see help(.MFclass). logical variables are
 ### treated like numeric variables.
-  ## matrix with variables-by-terms:
-  factor.table <- attr(terms, "factors")
   ## terms associated with numerical variables:
   numeric.terms <-
     which(colSums(factor.table[numeric.var, , drop=FALSE]) > 0)

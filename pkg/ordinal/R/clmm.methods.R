@@ -157,3 +157,4 @@ extractAIC.clmm <- function(fit, scale = 0, k = 2, ...) {
   edf <- fit$edf
   c(edf, -2*fit$logLik + k * edf)
 }
+

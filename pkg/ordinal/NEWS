@@ -141,3 +141,9 @@ March 04 2010:
 2013-04-11:
 - clm now computes Theta and alpha.mat tables of thresholds and
   threshold-parameters if nominal effects are specified.
+
+2013-04-17:
+- anova.clm and anova.clmm now tests for illegal arguments 'test' and
+  'type' (wish from Ben Bolker and Jonathan Dushoff)
+- introducing convergence code 3 in clm: Thresholds are not
+  increasing, which can happen with nominal effects.

@@ -118,9 +118,12 @@ clm <-
     if(all(is.finite(res$alpha))) {
       th.increasing <- apply(Theta.list$Theta, 1, function(th)
                              all(diff(th) >= 0))
-      if(!all(th.increasing))
+      if(!all(th.increasing)) {
         warning("Not all thresholds are increasing: fit may be invalied",
                 call.=FALSE)
+        if(res$convergence == 0)
+          res$convergence <- 3L
+      }
     }
     res$Theta <- if(length(Theta.list) == 2)
       with(Theta.list, cbind(mf.basic, Theta)) else Theta.list$Theta
@@ -129,8 +132,7 @@ clm <-
     colnames(res$alpha.mat) <- colnames(res$tJac)
     rownames(res$alpha.mat) <- attr(frames$NOM, "orig.colnames")
   } else { ## no nominal effects:
-    res$Theta <- res$alpha %*% res$tJac
-    names(res$Theta) <- rownames(res$tJac)
+    res$Theta <- res$alpha %*% t(res$tJac)
   }
   if(!is.null(frames$S)) {
     res$S.contrasts <- attr(frames$S, "contrasts")
