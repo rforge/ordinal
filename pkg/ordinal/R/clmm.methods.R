@@ -1,4 +1,4 @@
-print.clmm <- 
+print.clmm <-
   function(x, digits = max(3, getOption("digits") - 3), ...)
 {
   if(x$nAGQ >= 2)
@@ -41,13 +41,20 @@ print.clmm <-
   return(invisible(x))
 }
 
-vcov.clmm <- function(object, ...) vcov.clm(object, ...)
+vcov.clmm <- function(object, ...)
+    vcov.clm(object, method="Cholesky", ...)
+### FIXME: Perhaps we want to get the vcov from the Hessian of the
+### (variance) parameters that are not essentially zero? That would
+### make it possible to get a vcov when a variance is otherwise
+### essentially zero. Will it change something?
+### Use the tolerance in hessian() as the tolerance in judging whether
+### a var-par is essentially zero.
 
 summary.clmm <- function(object, correlation = FALSE, ...)
 {
   if(is.null(object$Hessian))
     stop("Model needs to be fitted with Hess = TRUE")
-  
+
   npar <- length(object$alpha) + length(object$beta)
   coef <- matrix(0, npar, 4,
                  dimnames = list(names(object$coefficients[1:npar]),
@@ -55,10 +62,10 @@ summary.clmm <- function(object, correlation = FALSE, ...)
   coef[, 1] <- object$coefficients[1:npar]
   vc <- try(vcov(object), silent = TRUE)
   if(class(vc) == "try-error") {
-    warning("Variance-covariance matrix of the parameters is not defined")
-    coef[, 2:4] <- NaN
-    if(correlation) warning("Correlation matrix is unavailable")
-    object$condHess <- NaN
+      warning("Variance-covariance matrix of the parameters is not defined")
+      coef[, 2:4] <- NaN
+      if(correlation) warning("Correlation matrix is unavailable")
+      object$condHess <- NaN
   }
   else {
     coef[, 2] <- sd <- sqrt(diag(vc)[1:npar])
@@ -108,14 +115,14 @@ print.summary.clmm <-
   print(x$varMat, digits=digits, ...)
   nlev.char <- paste(names(x$nlev), " ", x$nlev, sep="", collapse=",  ")
   cat("Number of groups: ", nlev.char, "\n")
-  
+
   nbeta <- length(x$beta)
   nalpha <- length(x$alpha)
   if(nbeta > 0) {
     cat("\nCoefficients:\n")
     printCoefmat(x$coefficients[nalpha + 1:nbeta, , drop=FALSE],
                  digits=digits, signif.stars=signif.stars,
-                 has.Pvalue=TRUE, ...) 
+                 has.Pvalue=TRUE, ...)
   } else {
     cat("\nNo Coefficients\n")
   }
@@ -123,9 +130,9 @@ print.summary.clmm <-
     cat("\nThreshold coefficients:\n")
     printCoefmat(x$coefficients[seq_len(nalpha), -4, drop=FALSE],
                  digits=digits, has.Pvalue=FALSE, signif.stars=FALSE,
-                 ...) 
+                 ...)
   }
-  
+
   if(nzchar(mess <- naprint(x$na.action))) cat("(", mess, ")\n", sep="")
   if(!is.null(correl <- x$correlation)) {
     cat("\nCorrelation of Coefficients:\n")

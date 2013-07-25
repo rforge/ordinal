@@ -29,28 +29,28 @@ getFittedC <-
 
 getWeights <- function(mf) {
 ### mf - model.frame
-  n <- nrow(mf)
-  if(is.null(wts <- model.weights(mf))) wts <- rep(1, n)
-  ## if (any(wts <= 0))
-  ##   stop(gettextf("non-positive weights are not allowed"),
-  ##        call.=FALSE)
+    n <- nrow(mf)
+    if(is.null(wts <- model.weights(mf))) wts <- rep(1, n)
+    ## if (any(wts <= 0))
+    ##   stop(gettextf("non-positive weights are not allowed"),
+    ##        call.=FALSE)
 ### NOTE: We do not remove observations where weights == 0, because
 ### that could be a somewhat surprising behaviour. It would also
 ### require that the model.frame be evaluated all over again to get
 ### the right response vector with the right number of levels.
-  if(length(wts) && length(wts) != n)
-    stop(gettextf("number of weights is %d should equal %d (number of observations)",
-                  length(wts), n), call.=FALSE)
-  if(any(wts < 0))
-    stop(gettextf("negative weights are not allowed"),
-         call.=FALSE)
-  if(any(wts == 0)) {
-    y <- model.response(mf, "any")
-    if(any(table(y[wts > 0]) == 0))
-      stop(gettextf("zero positive weights for one or more response categories"),
-           call.=FALSE)
-  }
-  return(as.double(wts))
+    if(length(wts) && length(wts) != n)
+        stop(gettextf("number of weights is %d should equal %d (number of observations)",
+                      length(wts), n), call.=FALSE)
+    if(any(wts < 0))
+        stop(gettextf("negative weights are not allowed"),
+             call.=FALSE)
+    ## if(any(wts == 0)) {
+    ##     y <- model.response(mf, "any")
+    ##     if(any(table(y[wts > 0]) == 0))
+    ##         stop(gettextf("zero positive weights for one or more response categories"),
+    ##              call.=FALSE)
+    ## }
+    return(as.double(wts))
 }
 
 getOffset <- function(mf) {
@@ -65,7 +65,7 @@ getOffset <- function(mf) {
 
 getFullForm <- function(form, ..., envir=parent.frame()) {
 ### collect terms in several formulas in a single formula
-### sets the environment of the resulting formula to envir. 
+### sets the environment of the resulting formula to envir.
   forms <- list(...)
   if(lf <- length(forms)) {
     rhs <- character(0)
@@ -87,7 +87,7 @@ getFullForm <- function(form, ..., envir=parent.frame()) {
 
 ## getFullForm <- function(form, ..., envir=parent.frame()) {
 ## ### collect terms in several formulas in a single formula (on the rhs)
-## ### sets the environment of the resulting formula to envir. 
+## ### sets the environment of the resulting formula to envir.
 ##   forms <- list(form, ...)
 ##   allVars <- unlist(sapply(forms, all.vars))
 ##   rhs <- paste(allVars, collapse=" + ")
@@ -96,7 +96,7 @@ getFullForm <- function(form, ..., envir=parent.frame()) {
 ## }
 
 drop.coef2 <- function(X, tol = 1e-7, silent = FALSE, test.ans = FALSE)
-### works if ncol(X) >= 0 and nrow(X) >= 0 
+### works if ncol(X) >= 0 and nrow(X) >= 0
 {
   ## test and match arguments:
   stopifnot(is.matrix(X))
@@ -128,83 +128,94 @@ drop.coef2 <- function(X, tol = 1e-7, silent = FALSE, test.ans = FALSE)
 }
 
 
-drop.cols <- function(mf, silent = FALSE) 
+drop.cols <- function(mf, silent = FALSE, drop.scale=TRUE)
 ### drop columns from X and possibly NOM and S to ensure full column
 ### rank.
 ### mf - list with X and possibly NOM and S design matrices. Includes
 ### a ths object containing ths$alpha.names
-### 
+###
 ### returns: updated version of mf.
 {
-  nalpha <- length(mf$ths$alpha.names)
-  ## X is assumed to contain an intercept at this point:
-  Xint <- match("(Intercept)", colnames(mf$X), nomatch = 0)
+    nalpha <- length(mf$ths$alpha.names)
+    ## X is assumed to contain an intercept at this point:
+    Xint <- match("(Intercept)", colnames(mf$X), nomatch = 0)
     if(Xint <= 0) {
-    mf$X <- cbind("(Intercept)" = rep(1, nrow(mf$X)), mf$X)
-    warning("an intercept is needed and assumed")
-  } ## intercept in X is guaranteed.
-  if(!is.null(mf$NOM)){
-    ## store coef names:
-    mf$coef.names <- list()
-    mf$coef.names$alpha <-
-      paste(rep(mf$ths$alpha.names, ncol(mf$NOM)), ".",
-            rep(colnames(mf$NOM), each=nalpha), sep="")
-    mf$coef.names$beta <- colnames(mf$X)[-1]
-    ## drop columns from NOM:
-    mf$NOM <- drop.coef2(mf$NOM, silent=silent)
-    ## drop columns from X:
-    NOMX <- drop.coef2(cbind(mf$NOM, mf$X[,-1, drop=FALSE]),
-                      silent=silent) 
-    ## extract and store X:
-    mf$X <- cbind("(Intercept)" = rep(1, nrow(mf$X)),
-                  NOMX[,-seq_len(ncol(mf$NOM)), drop=FALSE])
-    ## store alias information:
-    mf$aliased <- list(alpha = rep(attr(mf$NOM, "aliased"),
-                         each=nalpha)) 
-    mf$aliased$beta <- attr(NOMX, "aliased")[-seq_len(ncol(mf$NOM))]
+        mf$X <- cbind("(Intercept)" = rep(1, nrow(mf$X)), mf$X)
+        warning("an intercept is needed and assumed")
+    } ## intercept in X is guaranteed.
+    if(!is.null(mf$NOM)){
+        ## store coef names:
+        mf$coef.names <- list()
+        mf$coef.names$alpha <-
+            paste(rep(mf$ths$alpha.names, ncol(mf$NOM)), ".",
+                  rep(colnames(mf$NOM), each=nalpha), sep="")
+        mf$coef.names$beta <- colnames(mf$X)[-1]
+        ## drop columns from NOM:
+        mf$NOM <- drop.coef2(mf$NOM, silent=silent)
+        ## drop columns from X:
+        NOMX <- drop.coef2(cbind(mf$NOM, mf$X[,-1, drop=FALSE]),
+                           silent=silent)
+        ## extract and store X:
+        mf$X <- cbind("(Intercept)" = rep(1, nrow(mf$X)),
+                      NOMX[,-seq_len(ncol(mf$NOM)), drop=FALSE])
+        ## store alias information:
+        mf$aliased <- list(alpha = rep(attr(mf$NOM, "aliased"),
+                           each=nalpha))
+        mf$aliased$beta <- attr(NOMX, "aliased")[-seq_len(ncol(mf$NOM))]
+        if(drop.scale && !is.null(mf$S)) {
+            mf$coef.names$zeta <- colnames(mf$S)[-1]
+            ## drop columns from S:
+            NOMS <- drop.coef2(cbind(mf$NOM, mf$S[,-1, drop=FALSE]),
+                               silent=silent)
+            ## extract and store S:
+            mf$S <- cbind("(Intercept)" = rep(1, nrow(mf$S)),
+                          NOMS[,-seq_len(ncol(mf$NOM)), drop=FALSE])
+            mf$aliased$zeta <- attr(NOMS,
+                                    "aliased")[-seq_len(ncol(mf$NOM))]
+        } else if(!is.null(mf$S)) {
+            Sint <- match("(Intercept)", colnames(mf$S), nomatch = 0)
+            if(Sint <= 0) {
+                mf$S <- cbind("(Intercept)" = rep(1, nrow(mf$S)), mf$S)
+                warning("an intercept is needed and assumed in 'scale'",
+                        call.=FALSE)
+            } ## intercept in S is guaranteed.
+            mf$coef.names$zeta <- colnames(mf$S)[-1]
+            mf$S <- drop.coef2(mf$S, silent=silent)
+            mf$aliased$zeta <- attr(mf$S, "aliased")[-1]
+        }
+        return(mf)
+    }
+    ## drop columns from X assuming an intercept:
+    mf$coef.names <- list(alpha = mf$ths$alpha.names,
+                          beta = colnames(mf$X)[-1])
+    mf$X <- drop.coef2(mf$X, silent=silent)
+    mf$aliased <- list(alpha = rep(0, nalpha),
+                       beta = attr(mf$X, "aliased")[-1])
+    ## drop columns from S if relevant:
     if(!is.null(mf$S)) {
-      mf$coef.names$zeta <- colnames(mf$S)[-1]
-      ## drop columns from S:
-      NOMS <- drop.coef2(cbind(mf$NOM, mf$S[,-1, drop=FALSE]),
-                         silent=silent) 
-      ## extract and store X:
-      mf$S <- cbind("(Intercept)" = rep(1, nrow(mf$S)),
-                    NOMS[,-seq_len(ncol(mf$NOM)), drop=FALSE])
-      mf$aliased$zeta <- attr(NOMS, "aliased")[-seq_len(ncol(mf$NOM))] 
+        Sint <- match("(Intercept)", colnames(mf$S), nomatch = 0)
+        if(Sint <= 0) {
+            mf$S <- cbind("(Intercept)" = rep(1, nrow(mf$S)), mf$S)
+            warning("an intercept is needed and assumed in 'scale'",
+                    call.=FALSE)
+        } ## intercept in S is guaranteed.
+        mf$coef.names$zeta <- colnames(mf$S)[-1]
+        mf$S <- drop.coef2(mf$S, silent=silent)
+        mf$aliased$zeta <- attr(mf$S, "aliased")[-1]
     }
     return(mf)
-  }
-  ## drop columns from X assuming an intercept:
-  mf$coef.names <- list(alpha = mf$ths$alpha.names,
-                        beta = colnames(mf$X)[-1])
-  mf$X <- drop.coef2(mf$X, silent=silent)
-  mf$aliased <- list(alpha = rep(0, nalpha),
-                     beta = attr(mf$X, "aliased")[-1])
-  ## drop columns from S if relevant:
-  if(!is.null(mf$S)) { 
-    Sint <- match("(Intercept)", colnames(mf$S), nomatch = 0)
-    if(Sint <= 0) {
-      mf$S <- cbind("(Intercept)" = rep(1, nrow(mf$S)), mf$S)
-      warning("an intercept is needed and assumed in 'scale'",
-              call.=FALSE)
-    } ## intercept in S is guaranteed.
-    mf$coef.names$zeta <- colnames(mf$S)[-1]
-    mf$S <- drop.coef2(mf$S, silent=silent)
-    mf$aliased$zeta <- attr(mf$S, "aliased")[-1]
-  }
-  return(mf)
 }
 
 eclm.finalize <- function(fit, weights, coef.names, aliased)
 ### destinguishing between par and coef where the former does not
 ### contain aliased coefficients.
-{   
-  nalpha <- length(aliased$alpha) 
+{
+  nalpha <- length(aliased$alpha)
   nbeta <- length(aliased$beta)
   nzeta <- length(aliased$zeta)
   ## nalias <- sum(unlist(alised))
   ncoef <- nalpha + nbeta + nzeta ## including aliased coef
-  
+
   npar <- sum(!unlist(aliased)) ## excluding aliased coef
   stopifnot(length(fit$par) == npar)
 
@@ -212,10 +223,10 @@ eclm.finalize <- function(fit, weights, coef.names, aliased)
     coefficients <- rep(NA, nalpha + nbeta + nzeta)
     ## insure correct order of alpha, beta and zeta:
     keep <- match(c("alpha", "beta", "zeta"), names(aliased),
-                  nomatch=0) 
+                  nomatch=0)
     aliased <- lapply(aliased[keep], as.logical)
     for(i in names(aliased))
-      names(aliased[[i]]) <- coef.names[keep][[i]] 
+      names(aliased[[i]]) <- coef.names[keep][[i]]
     names(coefficients) <- unlist(coef.names[keep])
     par.names <- names(coefficients)[!unlist(aliased)]
     coefficients[!unlist(aliased)] <- fit$par
@@ -229,7 +240,7 @@ eclm.finalize <- function(fit, weights, coef.names, aliased)
     n <- length(weights)
     fitted.values <- fitted
     df.residual = nobs - edf
-    rm(list = c("par", "par.names", "keep", "i", "fitted"))
+    rm(list = c("par.names", "keep", "i"))
   })
   class(fit) <- "clm"
   return(fit)
@@ -257,7 +268,7 @@ setLinks <- function(rho, link) {
                      "log-gamma" = function(x, lambda) dlgamma(x, lambda))
   rho$gfun <- switch(link,
                      logit = glogis,
-                     probit = gnorm, 
+                     probit = gnorm,
                      cloglog = function(x) ggumbel(x, max=FALSE),
                      loglog = ggumbel,
                      cauchit = gcauchy,
@@ -267,16 +278,16 @@ setLinks <- function(rho, link) {
   rho$link <- link
 }
 
-makeThresholds <- function(y, threshold) { ## , tJac) {
+makeThresholds <- function(ylevels, threshold) { ## , tJac) {
 ### Generate the threshold structure summarized in the transpose of
 ### the Jacobian matrix, tJac. Also generating nalpha and alpha.names.
 
 ### args:
 ### y - response variable, a factor
 ### threshold - one of "flexible", "symmetric" or "equidistant"
-  stopifnot(is.factor(y))
-  lev <- levels(y)
-  ntheta <- nlevels(y) - 1
+  ## stopifnot(is.factor(y))
+  lev <- ylevels
+  ntheta <- length(lev) - 1
 
   ## if(!is.null(tJac)) {
   ##   stopifnot(nrow(tJac) == ntheta)
@@ -292,10 +303,11 @@ makeThresholds <- function(y, threshold) { ## , tJac) {
       nalpha <- ntheta
       alpha.names <- paste(lev[-length(lev)], lev[-1], sep="|")
     }
-    
+
     if(threshold == "symmetric") {
       if(!ntheta >=2)
-        stop("symmetric thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
+        stop("symmetric thresholds are only meaningful for responses with 3 or more levels",
+             call.=FALSE)
       if(ntheta %% 2) { ## ntheta is odd
         nalpha <- (ntheta + 1)/2 ## No. threshold parameters
         tJac <- t(cbind(diag(-1, nalpha)[nalpha:1, 1:(nalpha-1)],
@@ -317,11 +329,12 @@ makeThresholds <- function(y, threshold) { ## , tJac) {
     ## Assumes latent mean is zero:
     if(threshold == "symmetric2") {
       if(!ntheta >=2)
-        stop("symmetric thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
+        stop("symmetric thresholds are only meaningful for responses with 3 or more levels",
+             call.=FALSE)
       if(ntheta %% 2) { ## ntheta is odd
         nalpha <- (ntheta - 1)/2 ## No. threshold parameters
         tJac <- rbind(apply(-diag(nalpha), 1, rev),
-                      rep(0, nalpha), 
+                      rep(0, nalpha),
                       diag(nalpha))
       }
       else { ## ntheta is even
@@ -331,10 +344,11 @@ makeThresholds <- function(y, threshold) { ## , tJac) {
       }
       alpha.names <- paste("spacing.", 1:nalpha, sep="")
     }
-    
+
     if(threshold == "equidistant") {
       if(!ntheta >=2)
-        stop("equidistant thresholds are only meaningful for responses with 3 or more levels", call.=FALSE)
+        stop("equidistant thresholds are only meaningful for responses with 3 or more levels",
+             call.=FALSE)
       tJac <- cbind(1, 0:(ntheta-1))
       nalpha <- 2
       alpha.names <- c("threshold.1", "spacing")
@@ -342,7 +356,7 @@ makeThresholds <- function(y, threshold) { ## , tJac) {
   ## }
   return(list(tJac = tJac, nalpha = nalpha, alpha.names = alpha.names))
 }
-  
+
   Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
     t1 <- sprintf(" %3d:  %-5e:    %.3f:   %1.3e:  ",
                   iter, stepFactor, val, maxGrad)
@@ -356,22 +370,22 @@ makeThresholds <- function(y, threshold) { ## , tJac) {
 ## Functions for starting values:
 
 start.threshold <-
-  function(y, threshold = c("flexible", "symmetric", "symmetric2", "equidistant")) 
+  function(ylevels, threshold = c("flexible", "symmetric", "symmetric2", "equidistant"))
 ### args:
-### y - model response, a factor with at least two levels
+### ylevels - levels of the model response, at least of length two
 ### threshold - threshold structure, character.
 {
   ## match and test arguments:
   threshold <- match.arg(threshold)
-  stopifnot(is.factor(y) && nlevels(y) >= 2)
-  ntheta <- nlevels(y) - 1L
-  if(threshold %in% c("symmetric", "symmetric2", "equidistant") && nlevels(y) < 3)
+  nylevels <- length(ylevels)
+  ntheta <- nylevels - 1L
+  if(threshold %in% c("symmetric", "symmetric2", "equidistant") && nylevels < 3)
     stop(gettextf("symmetric and equidistant thresholds are only
 meaningful for responses with 3 or more levels"))
-  
+
   ## default starting values:
   start <- qlogis((1:ntheta) / (ntheta + 1) ) # just a guess
-  
+
   ## adjusting for threshold functions:
   if(threshold == "symmetric" && ntheta %% 2) { ## ntheta odd >= 3
     nalpha <- (ntheta + 1) / 2
@@ -401,15 +415,15 @@ meaningful for responses with 3 or more levels"))
 start.beta <- function(X, has.intercept = TRUE)
   return(rep(0, NCOL(X) - has.intercept))
 
-clm.start <- function(y, threshold, X, has.intercept = TRUE)
+clm.start <- function(ylevels, threshold, X, has.intercept = TRUE)
 ### could use eclm.start instead
-  return(c(start.threshold(y, threshold),
-           start.beta(X, has.intercept)))  
+  return(c(start.threshold(ylevels, threshold),
+           start.beta(X, has.intercept)))
 
-eclm.start <- function(y, threshold, X, NOM=NULL, S=NULL,
+eclm.start <- function(ylevels, threshold, X, NOM=NULL, S=NULL,
                        has.intercept=TRUE)
 {
-  st <- start.threshold(y, threshold)
+  st <- start.threshold(ylevels, threshold)
   if(NCOL(NOM) > 1)
     st <- c(st, rep(rep(0, length(st)), ncol(NOM)-1))
   start <- c(st, start.beta(X, has.intercept))
@@ -423,18 +437,18 @@ clmm.start <- function(frames, link, threshold) {
   ## get starting values from clm:
   fit <- with(frames,
               clm.fit(y=y, X=X, weights=wts, offset=off, link=link,
-                      threshold=threshold)) 
-  
+                      threshold=threshold))
+
   ## initialize variance parameters to zero:
   start <- c(fit$par, rep(0, length(frames$grList)))
   return(start)
 }
 
 ## set.start <-
-##   function(rho, start=NULL, get.start=TRUE, threshold, link, frames) 
+##   function(rho, start=NULL, get.start=TRUE, threshold, link, frames)
 ## {
 ##   ## set starting values for the parameters:
-##   if(get.start) 
+##   if(get.start)
 ##     start <-
 ##       eclm.start(y=frames$y, threshold=threshold, X=frames$X,
 ##                  NOM=frames$NOM, S=frames$S, has.intercept=TRUE)
@@ -445,13 +459,13 @@ clmm.start <- function(frames, link, threshold) {
 ##     stop(gettextf("length of start is %d should equal %d",
 ##                   length(start), length.start), call.=FALSE)
 ##   ## start cauchit models at the probit estimates if start is not
-##   ## supplied: 
+##   ## supplied:
 ##   if(link == "cauchit" && get.start) {
 ##     rho$par <- start
 ##     setLinks(rho, link="probit")
 ## ### Update this fit if class is eclm:
-##     fit <- try(clm.fit.env(rho), silent=TRUE) ## standard control values
-##     if(class(fit) == "try-error") 
+##     fit <- try(clm.fit.NR(rho), silent=TRUE) ## standard control values
+##     if(class(fit) == "try-error")
 ##       stop("Failed to find suitable starting values: please supply some",
 ##            call.=FALSE)
 ##     start <- fit$par
@@ -460,27 +474,27 @@ clmm.start <- function(frames, link, threshold) {
 ## }
 
 set.start <-
-  function(rho, start=NULL, get.start=TRUE, threshold, link, frames) 
+  function(rho, start=NULL, get.start=TRUE, threshold, link, frames)
 {
   ## set starting values for the parameters:
   if(get.start) {
     start <- ## not 'starting' scale effects:
-      eclm.start(y=frames$y, threshold=threshold, X=frames$X,
+      eclm.start(ylevels=frames$ylevels, threshold=threshold, X=frames$X,
                  NOM=frames$NOM, has.intercept=TRUE)
     if(NCOL(frames$S) > 1 || link == "cauchit") {
 ### NOTE: only special start if NCOL(frames$S) > 1 (no reason for
 ### special start if scale is only offset and no predictors).
 ### NOTE: start cauchit models at the probit estimates if start is not
-### supplied: 
+### supplied:
       rho$par <- start
       if(link == "cauchit") setLinks(rho, link="probit")
       else setLinks(rho, link)
       tempk <- rho$k
       rho$k <- 0
       ## increased gradTol:
-      fit <- try(clm.fit.env(rho, control=list(gradTol=1e-3)),
-                 silent=TRUE) 
-      if(class(fit) == "try-error") 
+      fit <- try(clm.fit.NR(rho, control=list(gradTol=1e-3)),
+                 silent=TRUE)
+      if(class(fit) == "try-error")
         stop("Failed to find suitable starting values: please supply some",
              call.=FALSE)
       start <- c(fit$par, rep(0, NCOL(frames$S) - 1))
@@ -535,16 +549,16 @@ getB <- function(y, NOM=NULL, X=NULL, offset=NULL, tJac=NULL) {
   }
   dimnames(B1) <- NULL
   dimnames(B2) <- NULL
-  list(B1=B1, B2=B2, o1=o1, o2=o2) 
+  list(B1=B1, B2=B2, o1=o1, o2=o2)
 }
 
 Deparse <-
-  function(expr, width.cutoff = 500L, backtick = mode(expr) %in%  
+  function(expr, width.cutoff = 500L, backtick = mode(expr) %in%
            c("call", "expression", "(", "function"),
            control = c("keepInteger", "showAttributes", "keepNA"),
            nlines = -1L)
   deparse(expr=expr, width.cutoff= width.cutoff, backtick=backtick,
-          control=control, nlines=nlines) 
+          control=control, nlines=nlines)
 
 getThetamat <-
   function(terms, alpha, assign, contrasts, xlevels, tJac)
@@ -558,13 +572,13 @@ getThetamat <-
 ###   the nominal effects
 ### contrasts: list of contrasts for the nominal effects
 ### tJac: threshold Jacobian with appropriate dimnames.
-### 
+###
 ### Output:
 ### Theta: data.frame of thresholds
 ### mf.basic: if nrow(Theta) > 1 a data.frame with factors in columns
 ###   and all combinations of the factor levels in rows.
 {
-  ## Make matrix of thresholds; Theta:
+    ## Make matrix of thresholds; Theta:
   Theta <- matrix(alpha, ncol=ncol(tJac), byrow=TRUE)
   ## matrix with variables-by-terms:
   factor.table <- attr(terms, "factors")
@@ -590,7 +604,7 @@ getThetamat <-
     Theta <- Theta[-numeric.rows, , drop=FALSE]
     if(length(factor.terms))
       terms <- drop.terms(terms, dropx=numeric.terms,
-                          keep.response=FALSE)  
+                          keep.response=FALSE)
   }
   ## if some nominal effects are factors:
   if(length(factor.terms)) {
@@ -602,15 +616,20 @@ getThetamat <-
     mf.basic <- do.call(expand.grid, xlev)
     ## minimal complete design matrix:
     X <- model.matrix(terms, data=mf.basic,
-                      contrasts=contrasts) 
+                      contrasts=contrasts)
 ### NOTE: There are no contrasts for numerical variables.
 ### FIXME: remove contrasts for 'ordered' variables.
     ## from threshold parameters to thresholds:
     Theta <- apply(Theta, 2, function(th) X %*% th)
   }
-  ## adjust for threshold functions:
-  Theta <- t(apply(Theta, 1, function(th) tJac %*% th))
-  colnames(Theta) <- rownames(tJac)
+  ## adjust each row in Theta for threshold functions:
+    tmp <- lapply(seq_len(nrow(Theta)), function(i)
+                  c(tJac %*% Theta[i, ]))
+    Theta <- do.call(rbind, tmp)
+### NOTE: apply returns a vector and not a matrix when ncol(Theta) ==
+### 1, so we need to avoid it here.
+    ## Theta <- t(apply(Theta, 1, function(th) tJac %*% th))
+    colnames(Theta) <- rownames(tJac)
   res <- list(Theta = as.data.frame(Theta))
   ## add factor information if any:
   if(nrow(Theta) > 1)  res$mf.basic <- mf.basic

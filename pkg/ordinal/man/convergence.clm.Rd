@@ -12,7 +12,8 @@
 
 convergence(object, ...)
 
-\method{convergence}{clm}(object, digits = max(3, getOption("digits") - 3), ...)
+\method{convergence}{clm}(object, digits = max(3, getOption("digits") - 3),
+   tol = sqrt(.Machine$double.eps), ...)
 
 }
 \arguments{
@@ -20,6 +21,9 @@ convergence(object, ...)
     \code{"clm"}, i.e., the result of a call to \code{clm}.
   }
   \item{digits}{the number of digits in the printed table.
+  }
+  \item{tol}{numerical tolerence to judge if the Hessian is positive
+    definite from its smallest eigenvalue.
   }
   \item{...}{arguments to a from methods. Not used by the \code{clm} method.
   }
@@ -49,12 +53,12 @@ convergence(object, ...)
   estimates. The numerical errors are determined from the Method
   Independent Error Theorem (Elden et al, 2004) and is based on the
   Newton step evaluated at convergence.
-  
+
 }
 \references{
   Elden, L., Wittmeyer-Koch, L. and Nielsen, H. B. (2004) \emph{Introduction
     to Numerical Computation --- analysis and Matlab illustrations.}
-  Studentliteratur. 
+  Studentliteratur.
 }
 %% \seealso{
 %% }

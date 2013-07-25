@@ -24,7 +24,7 @@ profile.clm <-
 ### BETA:
   beta.names <- names(fitted$beta) ## possible beta
   nbeta <- length(fitted$beta)
-  if(is.character(which.beta)) 
+  if(is.character(which.beta))
     which.beta <- match(which.beta, beta.names, nomatch = 0)
   ## which.beta is a numeric vector
   if(!all(which.beta %in% seq_len(nbeta)))
@@ -32,7 +32,7 @@ profile.clm <-
 ### ZETA:
   zeta.names <- names(fitted$zeta) ## possible zeta
   nzeta <- length(fitted$zeta)
-  if(is.character(which.zeta)) 
+  if(is.character(which.zeta))
     which.zeta <- match(which.zeta, zeta.names, nomatch = 0)
   ## which.zeta is a numeric vector
   if(!all(which.zeta %in% seq_len(nzeta)))
@@ -47,13 +47,13 @@ profile.clm <-
                      trace, step.warn, control, ...)
   else NULL
   ## collect and return results:
-  val <- structure(c(prof.beta, prof.zeta), original.fit = fitted) 
+  val <- structure(c(prof.beta, prof.zeta), original.fit = fitted)
   class(val) <- c("profile.clm")
   return(val)
 }
 
-profile.clm.beta <- 
-  function(fitted, which.beta, alpha = 0.001, 
+profile.clm.beta <-
+  function(fitted, which.beta, alpha = 0.001,
            max.steps = 50, nsteps = 8, trace = FALSE,
            step.warn = 5, control = list(), ...)
 ### which.beta is assumed to be a numeric vector
@@ -70,17 +70,17 @@ profile.clm.beta <-
   }
 ### NOTE: we need to update zeta.names to make names(orig.par)
 ### unique. This is needed to correctly construct the resulting
-### par.vals matrix and to extract from it again. 
-  std.err <- coef(summary(fitted))[nalpha + 1:nbeta, "Std. Error"]   
+### par.vals matrix and to extract from it again.
+  std.err <- coef(summary(fitted))[nalpha + 1:nbeta, "Std. Error"]
   ## results list:
-  prof.list <- vector("list", length = length(which.beta)) 
+  prof.list <- vector("list", length = length(which.beta))
   names(prof.list) <- beta.names[which.beta]
   ## get model matrices and model environment:
-  X <- update(fitted, method = "model.frame")$X ## containing alias cols
+  mf <- update(fitted, method = "model.frame")
+  X <- with(mf, X[wts > 0, , drop=FALSE]) ## containing alias cols
   rho <- update(fitted, doFit = FALSE)
   orig <- as.list(rho)[c("B1", "B2", "o1", "o2")]
   rho$n.psi <- rho$n.psi - 1 ## needed for models with scale
-  fitter <- if(rho$k > 0) clm.fit.NR else clm.fit.env 
   nalpha.clean <- sum(!fitted$aliased$alpha)
   par.clean <- orig.par[!is.na(orig.par)]
   ## which of which.beta are NA:
@@ -112,7 +112,7 @@ profile.clm.beta <-
         new.off <- X[, 1+wb, drop=TRUE] * beta.i
         rho$o1 <- orig$o1 - new.off
         rho$o2 <- orig$o2 - new.off
-        fit <- fitter(rho, control)
+        fit <- clm.fit.NR(rho, control)
         ## save likelihood root statistic:
         lroot <- -direction * sqrt(2*(fitted$logLik - fit$logLik))
         ## save lroot and pararameter values:
@@ -124,7 +124,7 @@ profile.clm.beta <-
         ## break for loop if profile is far enough:
         if(abs(lroot) > lroot.max) break
       } ## end 'step in seq_len(max.steps)'
-      ## test that lroot.max is reached and enough steps are taken: 
+      ## test that lroot.max is reached and enough steps are taken:
       if(abs(lroot) < lroot.max)
         warning("profile may be unreliable for ", wb.name,
                 " because lroot.max was not reached for ",
@@ -134,12 +134,12 @@ profile.clm.beta <-
                 " because only ", step, "\n  steps were taken ",
                 c("down", "up")[(direction + 1)/2 + 1])
     } ## end 'direction in c(-1, 1)'
-    ## order lroot and par values and collect in a data.frame: 
+    ## order lroot and par values and collect in a data.frame:
     lroot.order <- order(lroot.wb, decreasing = TRUE)
     prof.list[[wb.name]] <-
       structure(data.frame(lroot.wb[lroot.order]), names = "lroot")
     prof.list[[wb.name]]$par.vals <- par.wb[lroot.order, ]
-    
+
     if(!all(diff(par.wb[lroot.order, wb.name]) > 0))
       warning("likelihood is not monotonically decreasing from maximum,\n",
               "  so profile may be unreliable for ", wb.name)
@@ -147,8 +147,8 @@ profile.clm.beta <-
   prof.list
 }
 
-profile.clm.zeta <- 
-  function(fitted, which.zeta, alpha = 0.001, 
+profile.clm.zeta <-
+  function(fitted, which.zeta, alpha = 0.001,
            max.steps = 50, nsteps = 8, trace = FALSE,
            step.warn = 5, control = list(), ...)
 ### which.zeta is assumed to be a numeric vector
@@ -161,12 +161,12 @@ profile.clm.zeta <-
   names(zeta) <- zeta.names <- paste("sca", names(fitted$zeta), sep=".")
 ### NOTE: we need to update zeta.names to make names(orig.par)
 ### unique. This is needed to correctly construct the resulting
-### par.vals matrix and to extract from it again. 
+### par.vals matrix and to extract from it again.
   orig.par <- c(fitted$alpha, fitted$beta, zeta)
   nalpha <- length(fitted$alpha)
-  std.err <- coef(summary(fitted))[nalpha+nbeta+1:nzeta, "Std. Error"]   
+  std.err <- coef(summary(fitted))[nalpha+nbeta+1:nzeta, "Std. Error"]
   ## results list:
-  prof.list <- vector("list", length = length(which.zeta)) 
+  prof.list <- vector("list", length = length(which.zeta))
   names(prof.list) <- names(zeta)[which.zeta]
   ## get model environment:
   rho <- update(fitted, doFit = FALSE)
@@ -178,7 +178,6 @@ profile.clm.zeta <-
   zeta.clean <- zeta[!fitted$aliased$zeta]
   ## which of which.zeta are NA:
   alias.wz <- fitted$aliased$zeta[which.zeta]
-  fitter <- if(rho$k > 0) clm.fit.NR else clm.fit.env 
   ## For each which.zeta move up or down, fit the model and store the
   ## signed likelihood root statistic and parameter values:
   for(wz in which.zeta) {
@@ -218,7 +217,7 @@ profile.clm.zeta <-
         ## break for loop if profile is far enough:
         if(abs(lroot) > lroot.max) break
       } ## end 'step in seq_len(max.steps)'
-      ## test that lroot.max is reached and enough steps are taken: 
+      ## test that lroot.max is reached and enough steps are taken:
       if(abs(lroot) < lroot.max)
         warning("profile may be unreliable for ", wz.name,
                 " because lroot.max was not reached for ",
@@ -228,12 +227,12 @@ profile.clm.zeta <-
                 " because only ", step, "\n  steps were taken ",
                 c("down", "up")[(direction + 1)/2 + 1])
     } ## end 'direction in c(-1, 1)'
-    ## order lroot and par values and collect in a data.frame: 
+    ## order lroot and par values and collect in a data.frame:
     lroot.order <- order(lroot.wz, decreasing = TRUE)
     prof.list[[wz.name]] <-
       structure(data.frame(lroot.wz[lroot.order]), names = "lroot")
     prof.list[[wz.name]]$par.vals <- par.wz[lroot.order, ]
-    
+
     if(!all(diff(par.wz[lroot.order, wz.name]) > 0))
       warning("likelihood is not monotonically decreasing from maximum,\n",
               "  so profile may be unreliable for ", wz.name)
@@ -247,7 +246,7 @@ profile.clm.zeta <-
 ##            step.warn = 5, control = list(), ...)
 ## ### NOTE: seq_len(nbeta) works for nbeta = 0: numeric(0), while
 ## ### 1:nbeta gives c(1, 0).
-## 
+##
 ## ### This is almost a copy of profile.clm2, which use clm.fit rather
 ## ### than clm.fit.env. The current implementation is the fastest, but
 ## ### possibly less readable.
@@ -262,23 +261,23 @@ profile.clm.zeta <-
 ##   nsteps <- round(nsteps)
 ##   step.warn <- round(step.warn)
 ##   trace <- as.logical(trace)[1]
-##   ## possible parameters on which to profile (including aliased coef): 
+##   ## possible parameters on which to profile (including aliased coef):
 ##   beta.names <- names(fitted$beta)
 ##   nbeta <- length(fitted$beta)
-##   if(is.character(which.beta)) 
+##   if(is.character(which.beta))
 ##     which.beta <- match(which.beta, beta.names, nomatch = 0)
 ##   ## which.beta is a numeric vector
 ##   if(!all(which.beta %in% seq_len(nbeta)))
 ##     stop("invalid 'parm' argument")
 ##   stopifnot(length(which.beta) > 0)
 ##   std.err <- coef(summary(fitted))[-(1:length(fitted$alpha)),
-##                                    "Std. Error"]   
+##                                    "Std. Error"]
 ##   ## profile limit:
 ##   lroot.max <- qnorm(1 - alpha/2)
 ##   ## profile step length:
 ##   delta <- lroot.max / nsteps
 ##   ## results list:
-##   prof.list <- vector("list", length = length(which.beta)) 
+##   prof.list <- vector("list", length = length(which.beta))
 ##   names(prof.list) <- beta.names[which.beta]
 ##   ## get model.frame:
 ##   X <- update(fitted, method = "model.frame")$X ## containing alias cols
@@ -327,7 +326,7 @@ profile.clm.zeta <-
 ##         ## break for loop if profile is far enough:
 ##         if(abs(lroot) > lroot.max) break
 ##       } ## end 'step in seq_len(max.steps)'
-##       ## test that lroot.max is reached and enough steps are taken: 
+##       ## test that lroot.max is reached and enough steps are taken:
 ##       if(abs(lroot) < lroot.max)
 ##         warning("profile may be unreliable for ", wb.name,
 ##                 " because lroot.max was not reached for ",
@@ -337,17 +336,17 @@ profile.clm.zeta <-
 ##                 " because only ", step, "\n  steps were taken ",
 ##                 c("down", "up")[(direction + 1)/2 + 1])
 ##     } ## end 'direction in c(-1, 1)'
-##     ## order lroot and par. values and collect in a data.frame: 
+##     ## order lroot and par. values and collect in a data.frame:
 ##     lroot.order <- order(lroot.wb, decreasing = TRUE)
 ##     prof.list[[wb.name]] <-
 ##       structure(data.frame(lroot.wb[lroot.order]), names = "lroot")
 ##     prof.list[[wb.name]]$par.vals <- par.wb[lroot.order, ]
-##     
+##
 ##     if(!all(diff(par.wb[lroot.order, wb.name]) > 0))
 ##       warning("likelihood is not monotonically decreasing from maximum,\n",
 ##               "  so profile may be unreliable for ", wb.name)
 ##   } ## end 'wb in which.beta'
-##   val <- structure(prof.list, original.fit = fitted) 
+##   val <- structure(prof.list, original.fit = fitted)
 ##   class(val) <- c("profile.clm")
 ##   return(val)
 ## }
@@ -355,7 +354,7 @@ profile.clm.zeta <-
 confint.clm <-
   function(object, parm, level = 0.95,
            type = c("profile", "Wald"), trace = FALSE, ...)
-### parm argument is ignored - use confint.profile for finer control. 
+### parm argument is ignored - use confint.profile for finer control.
 {
   ## match and test arguments
   type <- match.arg(type)
@@ -387,15 +386,15 @@ confint.clm <-
   ## get and return CIs:
   confint(object, level = level, ...)
 }
-  
+
 ## confint.clm <-
 ##   function(object, parm = seq_len(npar), level = 0.95,
 ##            type = c("profile", "Wald"), trace = FALSE, ...)
 ## ### parm: a 2-list with beta and zeta?
 ## ### or args which.beta, which.zeta while parm is redundant?
-## 
+##
 ## ### make waldci.clm(object, which.alpha, which.beta, which.zeta, level
-## ### = 0.95) ?? 
+## ### = 0.95) ??
 ## {
 ##   ## match and test arguments
 ##   type <- match.arg(type)
@@ -456,14 +455,14 @@ confint.profile.clm <-
   ci <- array(NA, dim = c(length(parm), 2),
               dimnames = list(prof.names[parm], pct))
   cutoff <- qnorm(a)
-  ## compute CI from spline interpolation of the likelihood profile: 
+  ## compute CI from spline interpolation of the likelihood profile:
   for(pr.name in prof.names[parm]) {
     if(is.null(pro <- object[[ pr.name ]])) next
     sp <- spline(x = pro[, "par.vals"][, pr.name], y = pro[, 1]) ## OBS
     ci[pr.name, ] <- approx(sp$y, sp$x, xout = rev(cutoff))$y
   }
-  ## do not drop(ci) because rownames are lost for single coef cases:  
-  return(ci) 
+  ## do not drop(ci) because rownames are lost for single coef cases:
+  return(ci)
 }
 
 plot.profile.clm <-
@@ -591,7 +590,7 @@ profileAlt.clm <- ## using clm.fit()
   trace <- as.logical(trace)[1]
   beta.names <- names(fitted$beta)
   nbeta <- length(fitted$beta)
-  if(is.character(which.beta)) 
+  if(is.character(which.beta))
     which.beta <- match(which.beta, beta.names, nomatch = 0)
   if(!all(which.beta %in% seq_len(nbeta)))
     stop("invalid 'parm' argument")
@@ -611,7 +610,7 @@ profileAlt.clm <- ## using clm.fit()
   ## profile step length:
   delta <- lroot.max / nsteps
   ## results list:
-  prof.list <- vector("list", length = length(which.beta)) 
+  prof.list <- vector("list", length = length(which.beta))
   names(prof.list) <- beta.names[which.beta]
   ## get model.frame:
   mf <- update(fitted, method = "model.frame")
@@ -625,7 +624,7 @@ profileAlt.clm <- ## using clm.fit()
     par.wb <- matrix(orig.par, nrow = 1) ## MLE
     wb.name <- beta.names[wb]
     lroot.wb <- 0 ## lroot at MLE
-    X.wb <- X[, -(1+wb), drop=FALSE] 
+    X.wb <- X[, -(1+wb), drop=FALSE]
     for(direction in c(-1, 1)) { ## move down or up
       if(trace) {
         message("\nParameter: ", wb.name,
@@ -655,7 +654,7 @@ profileAlt.clm <- ## using clm.fit()
         ## break for loop if profile is far enough:
         if(abs(lroot) > lroot.max) break
       } ## end 'step in seq_len(max.steps)'
-      ## test that lroot.max is reached and enough steps are taken: 
+      ## test that lroot.max is reached and enough steps are taken:
       if(abs(lroot) < lroot.max)
         warning("profile may be unreliable for ", wb.name,
                 " because lroot.max was not reached for ",
@@ -665,17 +664,17 @@ profileAlt.clm <- ## using clm.fit()
                 " because only ", step, "\n  steps were taken ",
                 c("down", "up")[(direction + 1)/2 + 1])
     } ## end 'direction in c(-1, 1)'
-    ## order lroot and par. values and collect in a data.frame: 
+    ## order lroot and par. values and collect in a data.frame:
     lroot.order <- order(lroot.wb, decreasing = TRUE)
     prof.list[[wb.name]] <-
       structure(data.frame(lroot.wb[lroot.order]), names = "lroot")
     prof.list[[wb.name]]$par.vals <- par.wb[lroot.order, ]
-    
+
     if(!all(diff(par.wb[lroot.order, wb.name]) > 0))
       warning("likelihood is not monotonically decreasing from maximum,\n",
               "  so profile may be unreliable for ", wb.name)
   } ## end 'wb in which.beta'
-  val <- structure(prof.list, original.fit = fitted) 
+  val <- structure(prof.list, original.fit = fitted)
   class(val) <- c("profile.clm")
   return(val)
 }

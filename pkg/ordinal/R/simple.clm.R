@@ -2,7 +2,7 @@ simple_clm <-
   function(formula, data, weights, start, subset, offset,
            doFit = TRUE, na.action, contrasts, model = TRUE,
            control = list(),
-           link = c("logit", "probit", "cloglog", "loglog"), 
+           link = c("logit", "probit", "cloglog", "loglog"),
            threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...)
 {
   ## Initial argument matching and testing:
@@ -16,10 +16,10 @@ simple_clm <-
   control <- do.call(clm.control, c(control, list(...)))
 
   ## Compute: y, X, wts, off, mf:
-  if (missing(data)) 
+  if (missing(data))
     data <- environment(formula)
   mf <- match.call(expand.dots = FALSE)
-  m <- match(c("formula", "data", "subset", "weights", "na.action", 
+  m <- match(c("formula", "data", "subset", "weights", "na.action",
                "offset"), names(mf), 0L)
   mf <- mf[c(1L, m)]
   mf$drop.unused.levels <- TRUE
@@ -31,7 +31,7 @@ simple_clm <-
   if(!is.factor(y)) stop("response needs to be a factor", call.=FALSE)
   ## design matrix:
   mt <- attr(mf, "terms")
-  X <- if (!is.empty.model(mt)) 
+  X <- if (!is.empty.model(mt))
     model.matrix(mt, mf, contrasts)
   else cbind("(Intercept)" = rep(1, NROW(y)))
   ## Test for intercept in X:
@@ -41,19 +41,20 @@ simple_clm <-
     warning("an intercept is needed and assumed in 'formula'",
             call.=FALSE)
   } ## intercept in X is guaranteed.
-  frames <- list(y=y, X=X)
   wts <- ordinal:::getWeights(mf)
   off <- ordinal:::getOffset(mf)
+  ylevels <- levels(droplevels(y[wts > 0]))
+  frames <- list(y=y, ylevels=ylevels, X=X)
 
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
-  frames$ths <- ordinal:::makeThresholds(y, threshold)
+  frames$ths <- ordinal:::makeThresholds(ylevels, threshold)
   ## test for column rank deficiency in design matrices:
   frames <- ordinal:::drop.cols(frames, silent=TRUE)
 
   ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted:
   rho <- ordinal:::eclm.newRho(parent.frame(), y=frames$y, X=frames$X,
-                     NOM=NULL, S=NULL, 
+                     NOM=NULL, S=NULL,
                      weights=wts, offset=off, S.offset=NULL,
                      tJac=frames$ths$tJac)
 
@@ -66,16 +67,16 @@ simple_clm <-
   start <- ordinal:::set.start(rho, start=start, get.start=missing(start),
                      threshold=threshold, link=link, frames=frames)
   rho$par <- as.vector(start) ## remove attributes
-  
+
   ## Set pfun, dfun and gfun in rho:
   ordinal:::setLinks(rho, link)
 
   ## Possibly return the environment rho without fitting:
   if(!doFit) return(rho)
-  
+
   ## Fit the clm:
-  if(control$method == "Newton") 
-    fit <- ordinal:::clm.fit.env(rho, control)
+  if(control$method == "Newton")
+    fit <- ordinal:::clm.fit.NR(rho, control)
   else
     fit <- ordinal:::clm.fit.optim(rho, control$method, control$ctrl)
 ### NOTE: we could add arg non.conv = c("error", "warn", "message") to
@@ -84,7 +85,7 @@ simple_clm <-
   ## Modify and return results:
   res <- ordinal:::eclm.finalize(fit, weights=wts,
                        coef.names=frames$coef.names,
-                       aliased=frames$aliased) 
+                       aliased=frames$aliased)
   res$link <- link
   res$start <- start
   if(control$method == "Newton" &&
@@ -97,26 +98,26 @@ simple_clm <-
   res$terms <- mt
   res$xlevels <- .getXlevels(mt, mf)
   res$tJac <- frames$ths$tJac
-  res$y.levels <- levels(frames$y)
+  res$y.levels <- frames$ylevels
   res$info <- with(res, {
     data.frame("link" = link,
                "threshold" = threshold,
-               "nobs" = nobs, 
+               "nobs" = nobs,
                "logLik" = formatC(logLik, digits=2, format="f"),
                "AIC" = formatC(-2*logLik + 2*edf, digits=2,
                  format="f"),
                "niter" = paste(niter[1], "(", niter[2], ")", sep=""),
-### NOTE: iterations to get starting values for scale models are not
+### NOTE: iterations to get starting values for scale models *are*
 ### included here.
                "max.grad" = formatC(maxGradient, digits=2,
-                 format="e") 
+                 format="e")
                ## BIC is not part of output since it is not clear what
-               ## the no. observations are. 
+               ## the no. observations are.
                )
   })
   class(res) <- c("sclm", "clm")
   ## add model.frame to results list?
   if(model) res$model <- mf
-  
+
   return(res)
 }

@@ -17,7 +17,7 @@ importFrom(stats,
            nobs,
            logLik,
            profile,
-           vcov, 
+           vcov,
            extractAIC,
            anova,
            fitted## ,
@@ -34,6 +34,8 @@ export(clmm.control)
 export(slice)
 export(convergence)
 export(drop.coef)
+export(nominal_test)
+export(scale_test)
 
 export(gnorm, glogis, gcauchy,
        pgumbel, dgumbel, ggumbel, qgumbel, rgumbel,
@@ -58,6 +60,9 @@ S3method(predict, clm)
 S3method(coef, clm)
 S3method(nobs, clm)
 S3method(coef, summary.clm)
+
+S3method(scale_test, clm)
+S3method(nominal_test, clm)
 
 S3method(profile, clm)
 S3method(confint, clm)

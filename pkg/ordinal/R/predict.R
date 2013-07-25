@@ -1,8 +1,8 @@
 predict.clm <-
   function(object, newdata, se.fit = FALSE, interval = FALSE,
-           level = 0.95, 
-           type = c("prob", "class", "cum.prob", "linear.predictor"),
-           na.action = na.pass, ...) 
+           level = 0.95,
+           type = c("prob", "class", "cum.prob", "linear.predictor", "eta"),
+           na.action = na.pass, ...)
 ### result - a list of predictions (fit)
 ### FIXME: restore names of the fitted values
 ###
@@ -22,21 +22,21 @@ predict.clm <-
 ### Get newdata object; fill in response if missing and always for
 ### type=="class":
   has.response <- TRUE
-  if(type == "class" && missing(newdata)) 
+  if(type == "class" && missing(newdata))
     ## newdata <- update(object, method="model.frame")$mf
     newdata <- model.frame(object)
   ## newdata supplied or type=="class":
   if(!(missing(newdata) || is.null(newdata)) || type=="class") {
     if(!(missing(newdata) || is.null(newdata)) &&
        sum(unlist(object$aliased)) > 0)
-      warning("predictions from column rank-deficient fit may be misleading") 
+      warning("predictions from column rank-deficient fit may be misleading")
     newdata <- as.data.frame(newdata)
     ## Test if response is in newdata:
     resp <- response.name(object$terms)
     ## remove response from newdata if type == "class"
     if(type == "class") newdata <- newdata[!names(newdata) %in% resp]
     has.response <- resp %in% names(newdata) ##  FALSE for type == "class"
-    if(!has.response) { 
+    if(!has.response) {
       ## fill in response variable in newdata if missing:
       ylev <- object$y.levels
       nlev <- length(ylev)
@@ -65,16 +65,19 @@ predict.clm <-
       X <- X[, !c(FALSE, object$aliased$beta), drop=FALSE]
     ## handle offset (from predict.lm):
     offset <- rep(0, nrow(X))
-    if(!is.null(off.num <- attr(object$terms, "offset"))) 
+    if(!is.null(off.num <- attr(object$terms, "offset")))
       for(i in off.num) offset <- offset +
         eval(attr(object$terms, "variables")[[i + 1]], newdata)
     y <- model.response(mf)
+    if(any(!levels(y) %in%  object$y.levels))
+        stop(gettextf("response factor '%s' has new levels",
+                      response.name(object$terms)))
 ### make NOMINAL model.matrix:
     if(is.nom <- !is.null(object$nom.terms)) {
       ## allows NAs to pass through to fit, se.fit, lwr and upr:
       nom.mf <- model.frame(object$nom.terms, newdata,
                             na.action=na.pass,
-                            xlev=object$nom.xlevels)  
+                            xlev=object$nom.xlevels)
       ## model.frame will warn, but here we also throw an error:
       if(nrow(nom.mf) != nrow(newdata))
         stop("length of variable(s) found do not match nrow(newdata)")
@@ -85,7 +88,7 @@ predict.clm <-
       NOMint <- match("(Intercept)", colnames(NOM), nomatch = 0L)
       if(NOMint <= 0) NOM <- cbind("(Intercept)" = rep(1, n), NOM)
       alias <- t(matrix(object$aliased$alpha,
-                        nrow=length(object$y.levels) - 1))[,1] 
+                        nrow=length(object$y.levels) - 1))[,1]
       if(sum(alias) > 0)
         NOM <- NOM[, !c(FALSE, alias), drop=FALSE]
     }
@@ -107,7 +110,7 @@ predict.clm <-
       if(sum(object$aliased$zeta) > 0)
         S <- S[, !c(FALSE, object$aliased$zeta), drop=FALSE]
       Soff <- rep(0, nrow(S))
-      if(!is.null(off.num <- attr(object$S.terms, "offset"))) 
+      if(!is.null(off.num <- attr(object$S.terms, "offset")))
         for(i in off.num) Soff <- Soff +
           eval(attr(object$S.terms, "variables")[[i + 1]], newdata)
     }
@@ -130,17 +133,19 @@ predict.clm <-
   ##   stop(gettextf("design matrix has %d columns, but expecting %d (number of parameters)",
   ##                 ncol(env$B1), length(env$par)))
 ## Get predictions:
-  pred <- 
-    switch(type,
-           "prob" = prob.predict.clm(env=env, cov=cov, se.fit=se.fit,
-             interval=interval, level=level), 
-           "class" = prob.predict.clm(env=env, cov=cov, se.fit=se.fit,
-             interval=interval, level=level), 
-           "cum.prob" = cum.prob.predict.clm(env=env, cov=cov,
+  pred <-
+      switch(type,
+             "prob" = prob.predict.clm(env=env, cov=cov, se.fit=se.fit,
+             interval=interval, level=level),
+             "class" = prob.predict.clm(env=env, cov=cov, se.fit=se.fit,
+             interval=interval, level=level),
+             "cum.prob" = cum.prob.predict.clm(env=env, cov=cov,
              se.fit=se.fit, interval=interval, level=level),
-           "linear.predictor" = lin.pred.predict.clm(env=env, cov=cov,
+             "linear.predictor" = lin.pred.predict.clm(env=env, cov=cov,
+             se.fit=se.fit, interval=interval, level=level),
+             "eta" = eta.pred.predict.clm(env=env, cov=cov,
              se.fit=se.fit, interval=interval, level=level)
-           )
+             )
 ### Arrange predictions in matrices if response is missing from
 ### newdata arg or type=="class":
   if(!has.response || type == "class") {
@@ -184,6 +189,16 @@ prob.predict.clm <-
   return(pred)
 }
 
+eta.pred.predict.clm <-
+    function(env, cov, se.fit=FALSE, interval=FALSE, level=0.95)
+{
+    ## eclm.nll(env)
+    pred <- list(eta = c(with(env, B1 %*% par[1:n.psi])))
+    if(se.fit || interval)
+        stop('se and interval not supported for type = "eta"')
+    pred
+}
+
 lin.pred.predict.clm <-
   function(env, cov, se.fit=FALSE, interval=FALSE, level=0.95)
 ### get predictions on the scale of the linear predictor
@@ -213,7 +228,7 @@ cum.prob.predict.clm <-
 {
   ## evaluate nll and grad to set dpi.psi in env:
   eclm.nll(env)
-  pred <- list(cprob1=env$pfun(env$eta1), cprob2=env$pfun(env$eta2)) 
+  pred <- list(cprob1=env$pfun(env$eta1), cprob2=env$pfun(env$eta2))
   if(se.fit || interval) {
     se <- get.se(env, cov, type="gamma")
     if(se.fit) {
@@ -235,7 +250,7 @@ get.se <- function(rho, cov, type=c("eta", "gamma", "prob")) {
 ### Computes standard errors of predicted probabilities (prob),
 ### cumulative probabilities (gamma) or values of the linear
 ### predictor (eta) for linear (k<=0) or location-scale models
-### (k>0). 
+### (k>0).
   rho$type <- match.arg(type)
   rho$cov <- cov
   eclm.nll(rho) ## just to be safe
