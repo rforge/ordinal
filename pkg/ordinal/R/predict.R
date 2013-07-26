@@ -1,7 +1,7 @@
 predict.clm <-
   function(object, newdata, se.fit = FALSE, interval = FALSE,
            level = 0.95,
-           type = c("prob", "class", "cum.prob", "linear.predictor", "eta"),
+           type = c("prob", "class", "cum.prob", "linear.predictor"),
            na.action = na.pass, ...)
 ### result - a list of predictions (fit)
 ### FIXME: restore names of the fitted values
@@ -142,21 +142,26 @@ predict.clm <-
              "cum.prob" = cum.prob.predict.clm(env=env, cov=cov,
              se.fit=se.fit, interval=interval, level=level),
              "linear.predictor" = lin.pred.predict.clm(env=env, cov=cov,
-             se.fit=se.fit, interval=interval, level=level),
-             "eta" = eta.pred.predict.clm(env=env, cov=cov,
-             se.fit=se.fit, interval=interval, level=level)
+             se.fit=se.fit, interval=interval, level=level) ##,
+             ## "eta" = eta.pred.predict.clm(env=env, cov=cov,
+             ## se.fit=se.fit, interval=interval, level=level)
              )
 ### Arrange predictions in matrices if response is missing from
 ### newdata arg or type=="class":
   if(!has.response || type == "class") {
-    pred <- lapply(pred, function(x) {
-      x <- matrix(unlist(x), ncol=nlev, byrow=TRUE)
-      dimnames(x) <- list(1:nrow(x), ylev)
-      x
-    })
-    if(type == "class")
       pred <- lapply(pred, function(x) {
-        factor(max.col(x), levels=seq_along(ylev), labels=ylev) })
+          x <- matrix(unlist(x), ncol=nlev, byrow=TRUE)
+          dimnames(x) <- list(1:nrow(x), ylev)
+          x
+      })
+      ## if(type == "eta")
+      ##     pred <- lapply(pred, function(x) {
+      ##         x <- x[, -nlev, drop=FALSE]
+      ##         colnames(x) <- names(object$alpha)
+      ##     })
+      if(type == "class")
+          pred <- lapply(pred, function(x) {
+              factor(max.col(x), levels=seq_along(ylev), labels=ylev) })
   }
 ### Filter missing values (if relevant):
   if(missing(newdata) && !is.null(object$na.action))
@@ -194,8 +199,17 @@ eta.pred.predict.clm <-
 {
     ## eclm.nll(env)
     pred <- list(eta = c(with(env, B1 %*% par[1:n.psi])))
-    if(se.fit || interval)
-        stop('se and interval not supported for type = "eta"')
+    if(se.fit || interval) {
+        se <- get.se(env, cov, type="lp")
+        if(se.fit) {
+            pred$se.eta <- se[[1]]
+        }
+        if(interval) {
+            a <- (1 - level)/2
+            pred$lwr1 <- env$eta1 + qnorm(a) * se[[1]]
+            pred$upr1 <- env$eta1 - qnorm(a) * se[[1]]
+        }
+    }
     pred
 }
 
@@ -207,7 +221,7 @@ lin.pred.predict.clm <-
   eclm.nll(env)
   pred <- list(eta1=env$eta1, eta2=env$eta2)
   if(se.fit || interval) {
-    se <- get.se(env, cov, type="eta")
+    se <- get.se(env, cov, type="lp")
     if(se.fit) {
       pred$se.eta1 <- se[[1]]
       pred$se.eta2 <- se[[2]]
@@ -246,10 +260,10 @@ cum.prob.predict.clm <-
   return(pred)
 }
 
-get.se <- function(rho, cov, type=c("eta", "gamma", "prob")) {
+get.se <- function(rho, cov, type=c("lp", "gamma", "prob")) {
 ### Computes standard errors of predicted probabilities (prob),
 ### cumulative probabilities (gamma) or values of the linear
-### predictor (eta) for linear (k<=0) or location-scale models
+### predictor (lp) for linear (k<=0) or location-scale models
 ### (k>0).
   rho$type <- match.arg(type)
   rho$cov <- cov
@@ -258,7 +272,7 @@ get.se <- function(rho, cov, type=c("eta", "gamma", "prob")) {
 ### First compute d[eta, gamma, prob] / d par; then compute variance
 ### covariance matrix of the observations and extract SEs as the
 ### square root of the diagonal elements:
-    if(type %in% c("eta", "gamma")) {
+    if(type %in% c("lp", "gamma")) {
       D1 <- B1
       D2 <- B2
       if(k > 0) {
@@ -269,8 +283,8 @@ get.se <- function(rho, cov, type=c("eta", "gamma", "prob")) {
         D1 <- D1*dfun(eta1)
         D2 <- D2*dfun(eta2)
       }
-      se <- list(se1=sqrt(diag(D1 %*% cov %*% D1)),
-                 se2=sqrt(diag(D2 %*% cov %*% D2)))
+      se <- list(se1=sqrt(diag(D1 %*% cov %*% t(D1))),
+                 se2=sqrt(diag(D2 %*% cov %*% t(D2))))
     }
     if(type == "prob") {
       p1 <- dfun(eta1)
