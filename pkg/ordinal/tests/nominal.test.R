@@ -1,19 +1,19 @@
 library(ordinal)
 
-data(housing, package="MASS")
+if(require(MASS)) {
+    fm1 <- clm(Sat ~ Infl + Type + Cont, data=housing, weights=Freq)
+    scale_test(fm1)
+    nominal_test(fm1)
 
-fm1 <- clm(Sat ~ Infl + Type + Cont, data=housing, weights=Freq)
-scale_test(fm1)
-nominal_test(fm1)
-
-fm2 <- update(fm1, scale=~Cont)
-scale_test(fm2)
-nominal_test(fm2)
-fm3 <- update(fm1, nominal=~ Cont)
-fm3$Theta
-anova(fm2, fm3)
-fm3$alpha.mat
-summary(fm3)
+    fm2 <- update(fm1, scale=~Cont)
+    scale_test(fm2)
+    nominal_test(fm2)
+    fm3 <- update(fm1, nominal=~ Cont)
+    fm3$Theta
+    anova(fm2, fm3)
+    fm3$alpha.mat
+    summary(fm3)
+}
 
 #################################
 ### Testing nominal_test and scale_test:

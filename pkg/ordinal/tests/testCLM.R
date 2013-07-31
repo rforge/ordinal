@@ -5,7 +5,7 @@
 
 library(ordinal)
 options(contrasts = c("contr.treatment", "contr.poly"))
-data(soup, package="ordinal")
+
 ## More manageable data set:
 (tab26 <- with(soup, table("Product" = PROD, "Response" = SURENESS)))
 dimnames(tab26)[[2]] <- c("Sure", "Not Sure", "Guess", "Guess", "Not Sure", "Sure")
@@ -69,20 +69,22 @@ update(m1, ~.-prod, scale = ~ 1,
 mT1 <- update(m1, threshold = "symmetric")
 mT2 <- update(m1, threshold = "equidistant")
 anova(m1, mT1, mT2)
+
 ## Extend example from polr in package MASS:
 ## Fit model from polr example:
-data(housing, package = "MASS")
-fm1 <- clm(Sat ~ Infl + Type + Cont, weights = Freq, data = housing)
-fm1
-summary(fm1)
-## With probit link:
-summary(update(fm1, link = "probit"))
-## Allow scale to depend on Cont-variable
-summary(fm2 <- update(fm1, scale =~ Cont))
-summary(fm3 <- update(fm1, location =~.-Cont, nominal =~ Cont))
-summary(fm4 <- update(fm2, location =~.-Cont, nominal =~ Cont))
-anova(fm1, fm2, fm3, fm4)
-## which seems to improve the fit
+if(require(MASS)) {
+    fm1 <- clm(Sat ~ Infl + Type + Cont, weights = Freq, data = housing)
+    fm1
+    summary(fm1)
+    ## With probit link:
+    summary(update(fm1, link = "probit"))
+    ## Allow scale to depend on Cont-variable
+    summary(fm2 <- update(fm1, scale =~ Cont))
+    summary(fm3 <- update(fm1, location =~.-Cont, nominal =~ Cont))
+    summary(fm4 <- update(fm2, location =~.-Cont, nominal =~ Cont))
+    anova(fm1, fm2, fm3, fm4)
+    ## which seems to improve the fit
+}
 
 #################################
 ## Better handling of ill-defined variance-covariance matrix of the
