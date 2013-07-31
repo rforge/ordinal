@@ -17,7 +17,8 @@
 ## 4. Random effects implementation and mixed model formulae from lme4
 
 if(getRversion() >= '2.15.1')
-  utils:::globalVariables(c("ths", "link", "threshold", "optRes", "Niter"))
+  utils:::globalVariables(c("ths", "link", "threshold", "optRes",
+                            "Niter", "tJac", "y.levels"))
 
 clmm <-
   function(formula, data, weights, start, subset,
@@ -26,7 +27,6 @@ clmm <-
              "cauchit"), ##, "Aranda-Ordaz", "log-gamma"), ## lambda,
            doFit = TRUE, control = list(), nAGQ = 1L,
            threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...)
-### FIXME: Make clmm work with zero-weights as clm does.
 {
 ### Extract the matched call and initial testing:
   mc <- match.call(expand.dots = FALSE)
@@ -38,58 +38,64 @@ clmm <-
   ## set control parameters:
   control <- getCtrlArgs(control, list(...))
   nAGQ <- as.integer(round(nAGQ))
-  ## Extract y, X, Zt, offset (off), weights (wts):
-  frames <- clmm.model.frame(mc, contrasts)
+  formulae <- clmm.formulae(formula=formula)
+  ## mf, y, X, wts, off, terms:
+  frames <- clmm.frames(modelcall=mc, formulae=formulae, contrasts)
+### FIXME: What should 'method="model.frame"' return? Do we want Zt
+### included here as well?
   if(control$method == "model.frame") return(frames)
   ## Test rank deficiency and possibly drop some parameters:
   ## X is guarantied to have an intercept at this point.
   frames$X <- drop.coef(frames$X, silent=FALSE)
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
-  ths <- makeThresholds(frames$ylevels, threshold)
-
+  ths <- makeThresholds(levels(frames$y), threshold)
   ## Set rho environment:
   rho <- with(frames, {
     clm.newRho(parent.frame(), y=y, X=X, weights=wts,
                offset=off, tJac=ths$tJac) })
-
-### NOTE: alpha.names, beta.names, random.names, tau.names?
-### nalpha, nbeta, nrandom, ntau
-  nbeta <- rho$nbeta <- ncol(frames$X) - 1 ## no. fixef parameters
-  nalpha <- rho$nalpha <- ths$nalpha ## no. threshold parameters
-  ntau <- rho$ntau <- length(frames$grList) ## no. variance parameters
+  ## compute grouping factor list, and Zt and ST matrices and
+  retrms <- getREterms(fullmf = frames$mf, formulae$formula)
+### FIXME: save (the evaluated) formula in frames, so we only need the
+### frames argument to getREterms() ?
+  use.ssr <- (retrms$ssr && !control$useMatrix)
 
   ## Set inverse link function and its two first derivatives (pfun,
   ## dfun and gfun) in rho:
   setLinks(rho, link)
 
-  ## Set starting values for the parameters:
-  if(missing(start)) start <- clmm.start(frames, link, threshold)
-  stopifnot(is.numeric(start) &&
-            length(start) == (nalpha + nbeta + ntau))
-  rho$par <- start
+  ## Compute list of dimensions for the model fit:
+  rho$dims <- getDims(frames=frames, ths=ths, retrms=retrms)
 
-  ## Update rho with RE information:
-  ## only use clmm.fit.ssr if useMatrix=FALSE and there is a single
-  ## random effects term:
-  use.ssr <- (ntau == 1L && !control$useMatrix)
+  ## Update model environment with r.e. information:
   if(use.ssr) {
-    rho.clm2clmm.ssr(rho=rho, grList=frames$grList,
-                     ctrl=control$ctrl)
-### FIXME: call set.AGQ AFTER modification of rho and include AGQ-specific tests in
-### set.AGQ. Simply 'return(invisible())' if ssr=FALSE.
-    set.AGQ(rho, nAGQ)
+      rho.clm2clmm.ssr(rho=rho, retrms = retrms, ctrl=control$ctrl)
+      ## Set starting values for the parameters:
+      if(missing(start)) start <- c(fe.start(frames, link, threshold), 0)
+      rho$par <- start
+      nbeta <- rho$nbeta <- ncol(frames$X) - 1 ## no. fixef parameters
+      nalpha <- rho$nalpha <- ths$nalpha ## no. threshold parameters
+      ntau <- rho$ntau <- length(retrms$gfList) ## no. variance parameters
+      stopifnot(is.numeric(start) &&
+                length(start) == (nalpha + nbeta + ntau))
+  } else {
+      rho.clm2clmm(rho=rho, retrms=retrms, ctrl=control$ctrl)
+      if(missing(start)) {
+          rho$fepar <- fe.start(frames, link, threshold)
+          rho$ST <- STstart(rho$ST)
+          start <- c(rho$fepar, ST2par(rho$ST))
+      } else {
+          stopifnot(is.list(start) && length(start) == 2)
+          stopifnot(length(start[[1]]) == retrms$dims$nfepar &&
+                    length(start[[2]]) == retrms$dims$nSTpar)
+          rho$fepar <- start[[1]]
+          rho$ST <- par2ST(start[[2]], rho$ST)
+      }
   }
-  else
-    rho.clm2clmm(rho=rho, Zt=frames$Zt, grList=frames$grList,
-                 ctrl=control$ctrl)
-  ## Stop if arguments are incompatible:
-  if(nAGQ != 1 && ntau > 1)
-    stop("Quadrature methods are not available with more than one random effects term",
-         call.=FALSE)
-  if(nAGQ != 1 && control$useMatrix)
-    stop("Quadrature methods are not available with 'useMatrix = TRUE'",
-         call.=FALSE)
+### FIXME: set starting values in a more elegant way.
+
+  ## Set AGQ parameters:
+  set.AGQ(rho, nAGQ, control, use.ssr)
 
   ## Possibly return the environment, rho without fitting:
   if(!doFit)  return(rho)
@@ -98,6 +104,7 @@ clmm <-
   fit <-
     if(use.ssr) clmm.fit.ssr(rho, control = control$optCtrl, Hess)
     else clmm.fit.env(rho, control = control$optCtrl, Hess)
+### FIXME: set up clmm.fit.ssr to return the same things as clmm.fit.env.
 
   ## Modify and return results:
   fit$nAGQ <- nAGQ
@@ -105,17 +112,9 @@ clmm <-
   fit$start <- start
   fit$threshold <- threshold
   fit$call <- match.call()
-  fit$formula <- frames$formula
-  fit$tJac <- ths$tJac
-  fit$contrasts <- attr(frames$X, "contrasts")
-  fit$na.action <- attr(frames$mf, "na.action")
-  fit$terms <- frames$terms
-### FIXME: Should the terms object contain only the fixed effects
-### terms?
-  fit$xlevels <- .getXlevels(fit$terms, frames$mf)
-  fit$y.levels <- levels(frames$y)
-  res <- clmm.finalize(fit=fit, frames=frames,
-                       alpha.names=ths$alpha.names)
+  fit$formula <- formulae$formula
+  fit$gfList <- retrms$gfList
+  res <- clmm.finalize(fit=fit, frames=frames, ths=ths)
 
   ## add model.frame to results list?
   if(model) res$model <- frames$mf
@@ -123,275 +122,501 @@ clmm <-
   return(res)
 }
 
-clmm.model.frame <- function(mc, contrasts) {
-### mc - the matched call
-### contrasts - contrasts for the fixed model terms
-
-  ## Evaluate the formula in the enviroment in which clmm was called
-  ## (parent.frame(2)) to get them evaluated properly:
-  form <- eval.parent(mc$formula, 2)
-  ## get the environment of the formula. If this does not have an
-  ## environment (it could be a character), then use the parent frame.
-  form.envir <-
-    if(!is.null(env <- environment(form))) env
-    else parent.frame(2)
-  ## ensure 'formula' is a formula-object:
-  form <- try(formula(deparse(form), env = form.envir), silent=TRUE)
-  ## report error if the formula cannot be interpreted
-  if(class(form) == "try-error")
-    stop("unable to interpret 'formula'")
-  environment(form) <- form.envir
-
-  ## Construct a formula with all (fixed and random) variables
-  ## (fullForm) and a formula with only fixed-effects variables
-  ## (fixedForm):
-  fixedForm <- nobars(form) ## ignore terms with '|'
-  fullForm <- subbars(form)      # substitute `+' for `|'
-
-  ## Set the appropriate environments:
-  environment(fullForm) <- environment(fixedForm) <- form.envir
-
-  ## Extract full model.frame (fullmf):
-  m <- match(c("data", "subset", "weights", "na.action", "offset"),
-             names(mc), 0)
-  mf <- mc[c(1, m)]
-  mf$formula <- fullForm
-  mf$drop.unused.levels <- TRUE
-  mf[[1]] <- as.name("model.frame")
-  fixedmf <- mf ## save call for later modification and evaluation
-  fullmf <- eval(mf, envir = parent.frame(2)) ## '2' to get out of
-  ## clmm.model.frames and clmm
-### FIXME: What if data is a matrix?
-
-  ## Extract model response:
-  y <- model.response(fullmf)
-  if(!is.factor(y)) stop("response needs to be a factor")
-
-  ## Extract X:
-  ## get X from fullmf to handle e.g., NAs and subset correctly
-  fixedmf$formula <- fixedForm
-  fixedmf <- eval(fixedmf, envir = parent.frame(2))
-  fixedTerms <- attr(fixedmf, "terms")
-  X <- model.matrix(fixedTerms, fullmf, contrasts)
-  n <- nrow(X)
-  ## remove intercept from X:
-  Xint <- match("(Intercept)", colnames(X), nomatch = 0)
-  if(Xint <= 0) {
-    X <- cbind("(Intercept)" = rep(1, n), X)
-    warning("an intercept is needed and assumed")
-  } ## intercept in X is garanteed.
-
-  ## Make grList:
-  barList <- expandSlash(findbars(form[[3]]))
-  if (!length(barList))
-    stop("No random effects terms specified in formula")
-  names(barList) <- unlist(lapply(barList,
-                                  function(x) deparse(x[[3]])))
-  ## get list of grouping factors from model.frame:
-  grList <- lapply(barList, function(x)
-             eval(substitute(as.factor(fac)[,drop = TRUE],
-                             list(fac = x[[3]])), fullmf))
-  ## order random terms with decreasing no. levels:
-  grList <- grList[rev(order(sapply(grList, nlevels)))]
-
-  ## test that only random effects on the intercept are specified:
-  grChar <- unlist(lapply(barList, function(x) as.character(x[[2]])))
-  if(any(grChar != "1"))
-    stop(gettextf("random terms have to be on the form '(1|factor)'"),
-         call. = FALSE)
-
-  ## test that all variables for the random effects are factors and
-  ## have at least 3 levels:
-  stopifnot(all(sapply(grList, is.factor)))
-  stopifnot(all(sapply(grList, nlevels) > 2))
-
-  ## generate transpose of ranef model matrix:
-  Zt <- do.call(rBind, lapply(grList, as, "sparseMatrix"))
-
-  ## extract weights and offset:
-  n <- nrow(X)
-  if(is.null(wts <- model.weights(fullmf))) wts <- rep(1, n)
-  if(is.null(off <- model.offset(fullmf))) off <- rep(0, n)
-
-  ## check weights and offset:
-  ## if (any(wts <= 0))
-  ##   stop(gettextf("negative weights or weights of zero are not allowed"))
-  if(length(wts) && length(wts) != NROW(y))
-    stop(gettextf("number of weights is %d should equal %d
-(number of observations)", length(wts), NROW(y)))
-  if(length(off) && length(off) != NROW(y))
-    stop(gettextf("number of offsets is %d should equal %d
-(number of observations)", length(off), NROW(y)))
-
-  ## ylevels are the levels of y with positive weights
-  ylevels <- levels(droplevels(y[wts > 0]))
-  ## check that y has at least two levels:
-  if(length(ylevels) == 1L)
-      stop(gettextf("response has only 1 level ('%s'); expecting at least two levels",
-                    ylevels), call.=FALSE)
-  if(!length(ylevels))
-      stop("response should be a factor with at least two levels")
-
-  ## set fixef terms attribute of fullmf:
-  attr(fullmf, "terms") <- fixedTerms
-  res <- list(y = y, ylevels=ylevels, X = X, Zt = Zt, wts = as.double(wts),
-              off = as.double(off), mf = fullmf, terms = fixedTerms,
-              grList = grList, formula = form)
-  ## Note: X is with dimnames and an intercept is garanteed.
-  return(res)
+clmm.formulae <- function(formula) {
+    ## Evaluate the formula in the enviroment in which clmm was called
+    ## (parent.frame(2)) to get it evaluated properly:
+    form <- eval.parent(formula, 2)
+    ## get the environment of the formula. If this does not have an
+    ## environment (it could be a character), then use the calling environment.
+    form.envir <-
+        if(!is.null(env <- environment(form))) env
+        else parent.frame(2)
+    ## ensure 'formula' is a formula-object:
+    form <- try(formula(deparse(form), env = form.envir), silent=TRUE)
+    ## report error if the formula cannot be interpreted
+    if(class(form) == "try-error")
+        stop("unable to interpret 'formula'")
+    environment(form) <- form.envir
+    ## Construct a formula with all (fixed and random) variables
+    ## (fullForm) and a formula with only fixed-effects variables
+    ## (fixedForm):
+    fixedForm <- nobars(form) ## ignore terms with '|'
+    fullForm <- subbars(form)      # substitute `+' for `|'
+    ## Set the appropriate environments:
+    environment(fullForm) <- environment(fixedForm) <-
+        environment(form) <- form.envir
+    list(formula = form, fullForm = fullForm, fixedForm = fixedForm)
 }
 
-rho.clm2clmm <- function(rho, Zt, grList, ctrl)
-### update environment, rho returned by clm.
+clmm.frames <- function(modelcall, formulae, contrasts) {
+    ## Extract full model.frame (fullmf):
+    m <- match(c("data", "subset", "weights", "na.action", "offset"),
+               names(modelcall), 0)
+    mf <- modelcall[c(1, m)]
+    mf$formula <- formulae$fullForm
+    mf$drop.unused.levels <- TRUE
+    mf[[1]] <- as.name("model.frame")
+    fixedmf <- mf ## save call for later modification and evaluation
+    fullmf <- eval(mf, envir = parent.frame(2)) ## '2' to get out of
+    ## clmm.frames and clmm
+### FIXME: What if data is a matrix?
+    fixedmf$formula <- formulae$fixedForm
+    fixedmf <- eval(fixedmf, envir = parent.frame(2))
+    attr(fullmf, "terms") <- attr(fixedmf, "terms")
+    ## return:
+    list(mf = fullmf,
+         y = getY(fullmf),
+         X = getX(fullmf, fixedmf, contrasts),
+         wts = getWeights(fullmf),
+         off = getOffset(fullmf),
+         terms = attr(fixedmf, "terms")
+         )
+}
+
+getY <- function(mf) {
+### Extract model response:
+    y <- model.response(mf)
+    if(!is.factor(y)) stop("response needs to be a factor")
+    y
+}
+
+getX <- function(fullmf, fixedmf, contrasts) {
+    fixedTerms <- attr(fixedmf, "terms")
+    X <- model.matrix(fixedTerms, fullmf, contrasts)
+    n <- nrow(X)
+    ## remove intercept from X:
+    Xint <- match("(Intercept)", colnames(X), nomatch = 0)
+    if(Xint <= 0) {
+        X <- cbind("(Intercept)" = rep(1, n), X)
+        warning("an intercept is needed and assumed")
+    } ## intercept in X is garanteed.
+    X
+}
+
+getZt <- function(retrms) {
+    ZtList <- lapply(retrms, '[[', "Zt")
+    Zt <- do.call(rBind, ZtList)
+    Zt@Dimnames <- vector("list", 2)
+    Zt
+}
+
+getREterms <- function(fullmf, formula) {
+    barlist <- expandSlash(findbars(formula[[3]]))
+### FIXME: make sure 'formula' is appropriately evaluated and returned
+### by clmm.formulae
+    if(!length(barlist)) stop("No random effects terms specified in formula")
+    names(barlist) <- unlist(lapply(barlist, function(x) deparse(x[[3]])))
+    ## list of grouping factors for the random terms:
+    rel <- lapply(barlist, function(x) {
+        ff <- eval(substitute(as.factor(fac)[,drop = TRUE],
+                              list(fac = x[[3]])), fullmf)
+        ## per random term transpose indicator matrix:
+        tim <- as(ff, "sparseMatrix")
+        ## per random term  model matrix:
+        mm <- model.matrix(eval(substitute(~ expr,
+                                           list(expr = x[[2]]))), fullmf)
+        Zt = do.call(rBind, lapply(seq_len(ncol(mm)), function(j) {
+            tim@x <- mm[,j]
+            tim } ))
+        ST <- matrix(0, ncol(mm), ncol(mm),
+                     dimnames = list(colnames(mm), colnames(mm)))
+        list(f = ff, Zt = Zt, ST = ST)
+    })
+    ## single simple random effect on the intercept?
+    ssr <- (length(barlist) == 1 && as.character(barlist[[1]][[2]]) == "1")
+    ## order terms by decreasing number of levels in the factor but don't
+    ## change the order if this is already true:
+    nlev <- sapply(rel, function(re) nlevels(re$f))
+    if (any(diff(nlev)) > 0) rel <- rel[rev(order(nlev))]
+    nlev <- nlev[rev(order(nlev))]
+    ## separate r.e. terms from the factor list:
+    retrms <- lapply(rel, "[", -1)
+    names(retrms) <- NULL
+    ## list of grouping factors:
+    gfl <- lapply(rel, "[[", "f")
+    ## which r.e. terms are associated with which grouping factors:
+    attr(gfl, "assign") <- seq_along(gfl)
+    ## only save unique g.f. and update assign attribute:
+    fnms <- names(gfl)
+    ## check for repeated factors:
+    if (length(fnms) > length(ufn <- unique(fnms))) {
+        ## check that the lengths of the number of levels coincide
+        gfl <- gfl[match(ufn, fnms)]
+        attr(gfl, "assign") <- match(fnms, ufn)
+        names(gfl) <- ufn
+    }
+    ## test that all variables for the random effects are factors and
+    ## have at least 3 levels:
+    stopifnot(all(sapply(gfl, is.factor)))
+    stopifnot(all(sapply(gfl, nlevels) > 2))
+    ## no. r.e. per level for each of the r.e. terms
+    qi <- unlist(lapply(rel, function(re) ncol(re$ST)))
+    dims <- list(n = nrow(fullmf), ## no. observations
+                 nlev.re = nlev, ## no. levels for each r.e. term
+                 nlev.gf = sapply(gfl, nlevels), ## no. levels for each grouping factor
+                 qi = qi,
+                 nretrms = length(rel), ## no. r.e. terms
+                 ngf = length(gfl), ## no. unique grouping factors
+                 ## total no. random effects:
+                 q = sum(nlev * qi), ## = sum(sapply(rel, function(re) nrow(re$Zt)))
+                 ## no. r.e. var-cov parameters:
+                 nSTpar = sum(sapply(qi, function(q) q * (q + 1) / 2))
+                 )
+    ## c(retrms=retrms, list(gfList = gfl, dims = dims, ssr = ssr))
+    list(retrms=retrms, gfList = gfl, dims = dims, ssr = ssr)
+}
+
+fe.start <- function(frames, link, threshold) {
+    ## get starting values from clm:
+    fit <- with(frames,
+                clm.fit(y=y, X=X, weights=wts, offset=off, link=link,
+                        threshold=threshold))
+    fit$par
+}
+
+getDims <- function(frames, ths, retrms)
+### Collect and compute all relevant dimensions in a list
+{
+    dims <- retrms$dims ## n is also on retrms$dims
+    dims$n <- nrow(frames$mf)
+    dims$nbeta <- ncol(frames$X) - 1
+    dims$nalpha <- ths$nalpha
+    dims$nfepar <- dims$nalpha + dims$nbeta
+    dims
+}
+
+rho.clm2clmm <- function(rho, retrms, ctrl)
+### update environment, rho returned by clm.newRho().
 {
 ### FIXME: write default list of control arguments?
-  rho$ctrl = ctrl
-  rho$nlev <- as.vector(sapply(grList, nlevels))
-  rho$Zt <- Zt
-  rho$random.names <- rownames(Zt)
-  dimnames(rho$Zt) <- list(NULL, NULL)
-  rho$nrandom <- sum(rho$nlev) ## no. random effects
-  rho$ntau <- length(rho$nlev) ## no. random terms
-  rho$tau <- rep(0, rho$ntau) ## with(rho, exp(par[nalpha + nbeta + 1:s]))
-  rho$varVec <- rep.int(rho$tau, rho$nlev)
-  rho$tau.names <- names(grList)
-  rho$Vt <- crossprod(Diagonal(x = rho$varVec), rho$Zt)
-  ## rho$Lambda <- Diagonal(x = rep.int(rho$tau, rho$nlev))
-  ## rho$Vt <- crossprod(rho$Lambda, rho$Zt)
-  rho$L <- Cholesky(tcrossprod(rho$Vt), LDL = TRUE, super = FALSE,
-                    Imult = 1)
-  rho$Niter <- 0L
-  rho$u <- rho$uStart <- rep(0, rho$nrandom)
-  rho$.f <- if(package_version(packageDescription("Matrix")$Version) >
-               "0.999375-30") 2 else 1
+    ## control arguments are used when calling update.u(rho)
+    rho$ctrl = ctrl
+    ## compute Zt design matrix:
+    rho$Zt <- getZt(retrms$retrms)
+    rho$ST <- lapply(retrms$retrms, `[[`, "ST")
+    rho$allST1 <- all(sapply(rho$ST, ncol) == 1)
+    ## Lambda <- getLambda(rho$ST, rho$dims$nlev.re)
+    ## Vt <- crossprod(Lambda, rho$Zt)
+    ## rho$L <- Cholesky(tcrossprod(Vt),
+    ##                   LDL = TRUE, super = FALSE, Imult = 1)
+    rho$L <- Cholesky(tcrossprod(crossprod(getLambda(rho$ST, rho$dims$nlev.re), rho$Zt)),
+                      LDL = TRUE, super = FALSE, Imult = 1)
+    rho$Niter <- 0L
+    rho$u <- rho$uStart <- rep(0, rho$dims$q)
+    rho$.f <- if(package_version(packageDescription("Matrix")$Version) >
+                 "0.999375-30") 2 else 1
+}
+
+getLambda <- function(ST, nlev) {
+### ST: a list of ST matrices
+### nlev: a vector of no. random effects levels
+    .local <- function(ST, nlev) {
+        if(ncol(ST) == 1) .symDiagonal(n=nlev,
+               x = rep(as.vector(ST[1, 1]), nlev)) else
+        kronecker(as(ST, "sparseMatrix"), .symDiagonal(n=nlev))
+        ## This would make sense if the columns in Z (rows in Zt) were ordered differently:
+        ## kronecker(Diagonal(n=nlev), ST)
+### NOTE: .symDiagonal() appears to be faster than Diagonal() here.
+    }
+    stopifnot(length(ST) == length(nlev))
+    res <- if(length(ST) == 1) .local(ST[[1]], nlev) else
+    .bdiag(lapply(seq_along(ST), function(i) .local(ST[[i]], nlev[i])))
+    ## coerce to diagonal matrix if relevant:
+    if(all(sapply(ST, ncol) == 1)) as(res, "diagonalMatrix") else
+    as(res, "CsparseMatrix")
+### QUESTION: Are there any speed gains by coerce'ing Lambda to
+### 'diagonalMatrix' or 'CsparseMatrix'?
+### QUESTION: What is the best way to form the kronecker product in .local()?
+}
+
+getNLA <- function(rho, par, which=rep(TRUE, length(par))) {
+### negative log-likelihood by the Laplace approximation
+    if(!missing(par)) {
+        setPar.clmm(rho, par, which)
+        if(any(!is.finite(par)))
+            stop(gettextf(paste(c("Non-finite parameters not allowed:",
+                                  formatC(par, format="g")), collapse=" ")))
+    }
+    if(!update.u(rho)) return(Inf)
+    if(any(rho$D < 0)) return(Inf)
+    logDetD <- c(suppressWarnings(determinant(rho$L)$modulus)) -
+        rho$dims$q * log(2*pi) / 2
+    rho$nll + logDetD
+}
+
+nll.u <- function(rho) { ## negative log-likelihood
+    if(rho$allST1) { ## are all ST matrices scalars?
+        rho$varVec <- rep.int(unlist(rho$ST), rho$dims$nlev.re)
+        b.expanded <- as.vector(crossprod(rho$Zt, rho$varVec * rho$u))
+### NOTE: Working with Lambda when it is diagonal will slow things
+### down significantly.
+    } else {
+        rho$ZLt <- crossprod(getLambda(rho$ST, rho$dims$nlev.re), rho$Zt)
+        b.expanded <- as.vector(crossprod(rho$ZLt, rho$u))
+    }
+    rho$eta1Fix <- drop(rho$B1 %*% rho$fepar)
+    rho$eta2Fix <- drop(rho$B2 %*% rho$fepar)
+    rho$eta1 <- as.vector(rho$eta1Fix + b.expanded + rho$o1)
+    rho$eta2 <- as.vector(rho$eta2Fix + b.expanded + rho$o2)
+    rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
+    if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
+        nll <- Inf
+    else
+        nll <- -sum(rho$wts * log(rho$fitted)) -
+            sum(dnorm(x=rho$u, mean=0, sd=1, log=TRUE))
+    nll
+}
+
+nllFast.u <- function(rho) { ## negative log-likelihood
+  ## Does not update X %*% beta - fixed effect part.
+    if(rho$allST1) {
+        rho$varVec <- rep.int(unlist(rho$ST), rho$dims$nlev.re)
+        b.expanded <- as.vector(crossprod(rho$Zt, rho$varVec * rho$u))
+    } else {
+        rho$ZLt <- crossprod(getLambda(rho$ST, rho$dims$nlev.re), rho$Zt)
+        b.expanded <- as.vector(crossprod(rho$ZLt, rho$u))
+    }
+  rho$eta1 <- as.vector(rho$eta1Fix + b.expanded + rho$o1)
+  rho$eta2 <- as.vector(rho$eta2Fix + b.expanded + rho$o2)
+  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
+  if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
+    nll <- Inf
+  else
+    nll <- -sum(rho$wts * log(rho$fitted)) -
+      sum(dnorm(x=rho$u, mean=0, sd=1, log=TRUE))
+  nll
+}
+
+grad.u <- function(rho){ ## gradient of nll wrt. u (random effects)
+### should only be called with up to date values of eta1, eta2, par
+    ## compute phi1:
+    rho$p1 <- rho$dfun(rho$eta1)
+    rho$p2 <- rho$dfun(rho$eta2)
+    rho$wtpr <- rho$wts/rho$fitted
+    phi1 <- as.vector(rho$wtpr * (rho$p2 - rho$p1))
+    if(rho$allST1)
+        (rho$Zt %*% phi1) * rho$varVec + rho$u
+    else
+        rho$ZLt %*% phi1 + rho$u
+}
+
+hess.u <- function(rho) { ## Hessian of nll wrt. u (random effects)
+### should only be called with up-to-date values of eta1, eta2, par,
+### p1, p2
+    g1 <- rho$gfun(rho$eta1) ## does not need to be saved in rho
+    g2 <- rho$gfun(rho$eta2) ## does not need to be saved in rho
+    phi2 <- rho$wts * ( ((rho$p1 - rho$p2) / rho$fitted)^2 -
+                       ( (g1 - g2) / rho$fitted) )
+    ## This may happen if the link function [pfun, dfun and gfun]
+    ## evaluates its arguments inaccurately:
+    if(any(phi2 < 0))  return(FALSE)
+    if(rho$allST1)
+        Vt <- crossprod(Diagonal(x = rho$varVec),
+                        tcrossprod(rho$Zt, Diagonal(x = sqrt(phi2))))
+    else
+        Vt <- rho$ZLt %*% Diagonal(x = sqrt(phi2))
+    rho$L <- update(rho$L, Vt, mult = 1)
+    return(TRUE)
+}
+
+getPar.clmm <- function(rho)
+### Extract vector of parameters from model-environment rho
+  c(rho$fepar, ST2par(rho$ST))
+
+setPar.clmm <- function(rho, par, which=rep(TRUE, length(par))) {
+### Set parameters in model environment rho.
+    which <- as.logical(as.vector(which))
+    oldpar <- getPar.clmm(rho)
+    stopifnot(length(which) == length(oldpar))
+    stopifnot(sum(which) == length(par))
+    ## over-wright selected elements of oldpar:
+    oldpar[which] <- as.vector(par)
+    ## assign oldpar to rho$fepar and rho$ST:
+    rho$fepar <- oldpar[1:rho$dims$nfepar]
+    rho$ST <- par2ST(oldpar[-(1:rho$dims$nfepar)], rho$ST)
+}
+
+ST2par <- function(STlist) {
+### Compute parameter vector from list of ST matrices.
+    unlist(lapply(STlist, function(ST) {
+        ## if(ncol(ST) == 1) as.vector(ST) else
+        as.vector(c(diag(ST), ST[lower.tri(ST)]))
+    }))
+}
+
+par2ST <- function(STpar, STlist) {
+### Fill in parameters in list of ST matrices. Reverse of ST2par().
+    nc <- sapply(STlist, ncol)
+    asgn <- rep(1:length(nc), sapply(nc, function(qi) qi * (qi + 1) / 2))
+    STparList <- split(STpar, asgn)
+    stopifnot(length(asgn) == length(ST2par(STlist)))
+
+    for(i in 1:length(STlist)) {
+        par <- STparList[[i]]
+        if(nc[i] > 1) {
+            diag(STlist[[i]]) <- par[1:nc[i]]
+            STlist[[i]][lower.tri(STlist[[i]])] <- par[-(1:nc[i])]
+        } else {
+            STlist[[i]][] <- par
+        }
+    }
+  STlist
+}
+
+STatBoundary <- function(STpar, STlist, tol=1e-3) {
+### Compute dummy vector of which ST parameters are at the
+### boundary of the parameters space (variance-parameters that are
+### zero).
+    STcon <- STconstraints(STlist)
+    stopifnot(length(STpar) == length(STcon))
+    as.integer(STcon == 1 & STpar <= tol)
+}
+
+paratBoundary <- function(rho, tol=1e-3)
+### Compute dummy vector of which parameters are at the boundary of
+### the parameter space.
+    c(rep(0, rho$dims$nfepar),
+      STatBoundary(ST2par(rho$ST), rho$ST, tol))
+
+paratBoundary2 <- function(rho, tol=1e-3) {
+    STcon <- STconstraints(rho$ST)
+    c(rep(0L, rho$dims$nfepar),
+      as.integer(STcon == 1 & ST2par(rho$ST) < tol))
+}
+
+STconstraints <- function(STlist) {
+### Compute indicator vector of which variance parameters are constrained above zero. The
+### variance parameters are non-negative, while the covariance parameters are not
+### constrained.
+###
+### This function can also be used to generate starting values for the covar. parameters.
+    nc <- sapply(STlist, ncol)
+    unlist(lapply(nc, function(qi) {
+        c(rep(1L, qi), rep(0L, qi * (qi - 1) / 2))
+    } ))
+}
+
+parConstraints <- function(rho)
+### Returns a dummy vector of the same length as getPar.clmm(rho)
+### indicating which parameters are contrained to be non-negative.
+    c(rep(0, rho$dims$nfepar), STconstraints(rho$ST))
+
+STstart <- function(STlist) par2ST(STconstraints(STlist), STlist)
+
+isNested <- function(f1, f2)
+### Borrowed from lme4/R/lmer.R
+### Checks if f1 is nested within f2.
+{
+    f1 <- as.factor(f1)
+    f2 <- as.factor(f2)
+    stopifnot(length(f1) == length(f2))
+    sm <- as(new("ngTMatrix",
+                 i = as.integer(f2) - 1L,
+                 j = as.integer(f1) - 1L,
+                 Dim = c(length(levels(f2)),
+                 length(levels(f1)))),
+             "CsparseMatrix")
+    all(diff(sm@p) < 2)
+}
+
+set.AGQ <- function(rho, nAGQ, control, ssr) {
+    ## Stop if arguments are incompatible:
+    if(nAGQ != 1 && !ssr)
+        stop("Quadrature methods are not available with more than one random effects term",
+             call.=FALSE)
+    if(nAGQ != 1 && control$useMatrix)
+        stop("Quadrature methods are not available with 'useMatrix = TRUE'",
+             call.=FALSE)
+    rho$nAGQ <- nAGQ
+    if(nAGQ %in% 0:1) return(invisible())
+    ghq <- gauss.hermite(abs(nAGQ))
+    rho$ghqns <- ghq$nodes
+    rho$ghqws <-
+        if(nAGQ > 0) ghq$weights ## AGQ
+        else log(ghq$weights) + (ghq$nodes^2)/2 ## GHQ
 }
 
 clmm.fit.env <-
   function(rho, control = list(), Hess = FALSE)
+### Fit the clmm by optimizing the Laplace likelihood.
+### Returns a list with elements:
+###
+### coefficients
+### ST
+### logLik
+### Niter
+### dims
+### u
+### optRes
+### fitted.values
+### L
+### Zt
+### ranef
+### condVar
+### gradient
+### (Hessian)
 {
-  ## Fit the model with Laplace:
-  fit <- ucminf(rho$par, function(par) getNLA(rho, par),
-                control = control)
+    ## Compute lower bounds on the parameter vector
+    lwr <- c(-Inf, 0)[parConstraints(rho) + 1]
+    ## Fit the model with Laplace:
+    fit <- nlminb(getPar.clmm(rho), function(par) getNLA(rho, par),
+                  lower=lwr)
+### FIXME: Add control parameters here.
+### FIXME: Make it possible to use the ucminf optimizer with
+### log-transformed std-par instead.
 
-  ## Ensure random mode estimation at optimum:
-  nllFast.u(rho)
-  update.u(rho)
-
-  ## Format ranef modes and condVar:
-  ranef <- rep.int(rho$tau, rho$nlev) * rho$u
-  condVar <- as.vector(diag(solve(rho$L)) *
-                       rep.int(rho$tau^2, rho$nlev))
-  names(ranef) <- names(condVar) <-
-    as.vector(unlist(rho$random.names))
-  ranef <- split(x=-ranef, f=rep.int(rho$tau.names, rho$nlev))
-  condVar <- split(x=condVar, f=rep.int(rho$tau.names, rho$nlev))
-### NOTE: parameterization of random effects should change sign; this
+    ## Ensure parameters in rho are set at the optimum:
+    setPar.clmm(rho, fit$par)
+    ## Ensure random mode estimation at optimum:
+    nllFast.u(rho)
+    update.u(rho)
+### FIXME: parameterization of random effects should change sign; this
 ### would avoid changing the sign at this point.
 
-  ## Prepare list of results:
-  res <- list(coefficients = fit$par,
-              optRes = fit,
-              logLik = -fit$value,
-              fitted.values = rho$fitted,
-              ranef = ranef,
-              condVar = condVar,
-              Niter = rho$Niter)
-
-  ## Compute hessian?
-  if(Hess)
-    res$Hessian <-
-      hessian(function(par) getNLA(rho, par), x = fit$par,
-              method.args = list(r = 2, show.details = TRUE))
-
-  return(res)
-}
-
-getNLA <- function(rho, par) {
-### negative log-likelihood by the Laplace approximation
-  if(!missing(par)) rho$par <- par
-  if(any(!is.finite(rho$par)))
-    stop(gettextf(paste(c("Non-finite parameters not allowed:",
-                          formatC(rho$par, format="g")), collapse=" ")))
-  if(!update.u(rho)) return(Inf)
-  if(any(rho$D < 0)) return(Inf)
-  logDetD <- c(suppressWarnings(determinant(rho$L)$modulus)) -
-    rho$nrandom * log(2*pi) / 2
-  rho$nll + logDetD
-}
-
-nll.u <- function(rho) { ## negative log-likelihood
-### Not allowing for scale, and flexible link functions
-  ## if(any(diff(rho$par[1:rho$nalpha]) < 0))
-  ##   return(Inf)
-### FIXME: adjust for threshold functions!
-  rho$tau <- with(rho, exp(par[nalpha + nbeta + 1:ntau]))
-  rho$varVec <- rep.int(rho$tau, rho$nlev)
-  ## rho$b <- rho$varVec * rho$u
-  b.exploded <- as.vector(crossprod(rho$Zt, rho$varVec * rho$u))
-  rho$eta1Fix <- drop(rho$B1 %*% rho$par[1:(rho$nalpha + rho$nbeta)])
-  rho$eta2Fix <- drop(rho$B2 %*% rho$par[1:(rho$nalpha + rho$nbeta)])
-### FIXME: possibly it should be '- b.exploded' ?
-  rho$eta1 <- as.vector(rho$eta1Fix + b.exploded + rho$o1)
-  rho$eta2 <- as.vector(rho$eta2Fix + b.exploded + rho$o2)
-  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
-  if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
-    nll <- Inf
-  else
-    nll <- -sum(rho$wts * log(rho$fitted)) -
-      sum(dnorm(x=rho$u, mean=0, sd=1, log=TRUE))
-  nll
-}
-
-nllFast.u <- function(rho) { ## negative log-likelihood
-### Not allowing for scale, and flexible link functions
-  ## If the thresholds are not increasing, return Inf:
-  ## if(any(diff(rho$par[1:rho$nalpha]) < 0))
-  ##   return(Inf)
-### FIXME: adjust for threshold functions!
-  rho$varVec <- rep.int(rho$tau, rho$nlev)
-  b.exploded <- as.vector(crossprod(rho$Zt, rho$varVec * rho$u))
-### FIXME: possibly it should be '- b.exploded' ?
-  rho$eta1 <- as.vector(rho$eta1Fix + b.exploded + rho$o1)
-  rho$eta2 <- as.vector(rho$eta2Fix + b.exploded + rho$o2)
-  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
-  if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
-    nll <- Inf
-  else
-    nll <- -sum(rho$wts * log(rho$fitted)) -
-      sum(dnorm(x=rho$u, mean=0, sd=1, log=TRUE))
-  nll
-}
-
-grad.u <- function(rho){
-### should only be called with up to date values of eta1, eta2, par
-  ## compute phi1:
-  rho$p1 <- rho$dfun(rho$eta1)
-  rho$p2 <- rho$dfun(rho$eta2)
-  rho$wtpr <- rho$wts/rho$fitted
-  phi1 <- as.vector(rho$wtpr * (rho$p2 - rho$p1))
-  return( (rho$Zt %*% phi1) * rho$varVec + rho$u )
-}
-
-hess.u <- function(rho) {
-### should only be called with up-to-date values of eta1, eta2, par,
-### p1, p2
-  g1 <- rho$gfun(rho$eta1) ## does not need to be saved
-  g2 <- rho$gfun(rho$eta2) ## does not need to be saved
-  ## phi2 <- ((rho$p1 - rho$p2)^2 / rho$fitted - g1 + g2) * rho$wtpr
-  phi2 <- rho$wts * ( ((rho$p1 - rho$p2) / rho$fitted)^2 -
-                     ( (g1 - g2) / rho$fitted) )
-  ## rho$Lambda <- Diagonal(x = rho$varVec)
-  ## rho$Vt <- crossprod(rho$Lambda,
-  ##                     tcrossprod(rho$Zt, Diagonal(x = sqrt(phi2))))
-  ## This may happen if the link function [pfun, dfun and gfun]
-  ## evaluates its arguments inaccurately:
-  if(any(phi2 < 0))  return(FALSE)
-  rho$Vt <- crossprod(Diagonal(x = rho$varVec),
-                      tcrossprod(rho$Zt, Diagonal(x = sqrt(phi2))))
-  rho$L <- update(rho$L, rho$Vt, mult = 1)
-  return(TRUE)
-  ## return(update(rho$L, rho$Vt, mult = 1))
-  ## return(tcrossprod(rho$Vt) + Diagonal(rho$nrandom)) ## Hessian
+    names(rho$ST) <- names(rho$dims$nlev.re)
+    ## Prepare list of results:
+    res <- list(coefficients = fit$par[1:rho$dims$nfepar],
+### FIXME: Should 'coef' contain only fepar?
+                ST = rho$ST,
+                logLik = -fit$objective,
+                Niter = rho$Niter,
+                dims = rho$dims,
+### FIXME: Should we evaluate hess.u(rho) to make sure rho$L contains
+### the right values corresponding to the optimum?
+                u = rho$u,
+                optRes = fit,
+                fitted.values = rho$fitted,
+                L = rho$L,
+                Zt = rho$Zt
+                )
+    ## save ranef and condVar in res:
+    if(rho$allST1) {
+        res$ranef <- - rep.int(unlist(rho$ST), rho$dims$nlev.re) * rho$u
+        res$condVar <- as.vector(diag(solve(rho$L)) *
+                                 rep.int(unlist(rho$ST)^2, rho$dims$nlev.re))
+    } else {
+        Lambda <- getLambda(rho$ST, rho$dims$nlev.re)
+        res$ranef <- - Lambda %*% rho$u
+        res$condVar <- tcrossprod(Lambda %*% solve(rho$L), Lambda)
+    }
+    ## Add gradient vector and optionally Hessian matrix:
+    bound <- as.logical(paratBoundary2(rho))
+    optpar <- fit$par[!bound]
+    if(Hess) {
+        gH <- deriv12(function(par) getNLA(rho, par, which=!bound),
+                      x=optpar)
+        res$gradient <- gH$gradient
+        res$Hessian <- gH$Hessian
+    } else {
+        res$gradient <- grad.ctr(function(par) getNLA(rho, par, which=!bound),
+                                 x=optpar)
+    }
+### NOTE: This is the Hessian evaluated for all parameters that are
+### not at the boundary at the parameter space. The likelihood for
+### models with boundary parameters is still defined as a function of
+### all the parameters, so standard errors will differ whether or not
+### boundary terms are included or not.
+    return(res)
 }
 
 update.u <- function(rho)
@@ -462,61 +687,61 @@ the random effects"
 }
 
 clmm.finalize <-
-  function(fit, frames, alpha.names = ths$alpha.names)
+  function(fit, frames, ths)
 {
-  ## get coefficient names and lengths:
-  beta.names <- colnames(frames$X)[-1]
-  random.names <- sapply(frames$grList, levels)
-  tau.names <- names(frames$grList)
-  nalpha <- length(alpha.names)
-  nbeta <- length(beta.names)
-  ntau <- length(tau.names)
-  fit$nlev <- sapply(frames$grList, nlevels)
+    fit$tJac <- ths$tJac
+    fit$contrasts <- attr(frames$X, "contrasts")
+    fit$na.action <- attr(frames$mf, "na.action")
+    fit$terms <- frames$terms
+### FIXME: Should the terms object contain only the fixed effects
+### terms?
+    fit$xlevels <- .getXlevels(frames$terms, frames$mf)
+    fit$y.levels <- levels(frames$y)
+    fit <- within(fit, {
+        ## extract coefficients from 'fit':
+        names(coefficients) <- names(gradient) <-
+            c(ths$alpha.names, colnames(frames$X)[-1])
+        alpha <- coefficients[1:dims$nalpha]
+        beta <- if(dims$nbeta > 0)
+            coefficients[dims$nalpha + 1:dims$nbeta] else numeric(0)
+### QUESTION: How does lmerTest get the Hessian of varcov-parameters
+### when some are at the boundary?
+        ## set various fit elements:
+        edf <- dims$edf <- dims$nfepar + dims$nSTpar
+        dims$nobs <- sum(frames$wts)
+        dims$df.residual <- dims$nobs - dims$edf
+        Theta <- alpha %*% t(tJac)
+        nm <- paste(y.levels[-length(y.levels)], y.levels[-1], sep="|")
+        dimnames(Theta) <- list("", nm)
+        rm(nm)
 
-  ## test appropriate length of coefficients:
-  stopifnot(length(fit$coefficients) == nalpha + nbeta + ntau)
+        info <-
+            data.frame("link" = link,
+                       "threshold" = threshold,
+                       "nobs" = dims$nobs,
+                       "logLik" = formatC(logLik, digits=2, format="f"),
+                       "AIC" = formatC(-2*logLik + 2*dims$edf, digits=2,
+                       format="f"),
+                       ## "niter" = paste(optRes$info["neval"], "(", Niter, ")",
+                       ## sep=""),
+                       "niter" = paste(optRes$iterations, "(", Niter, ")",
+                       sep=""),
+                       "max.grad" = formatC(max(abs(gradient)), digits=2,
+                       format="e")
+                       ## BIC is not part of output since it is not clear what
+                       ## the no. observations are.
+                       )
+    })
+    bound <- as.logical(paratBoundary2(fit))
+    dn <- c(names(fit$coefficients),
+            paste("ST", seq_len(fit$dims$nSTpar), sep=""))[!bound]
+    names(fit$gradient) <- dn
+    if(!is.null(fit$Hessian))
+        dimnames(fit$Hessian) <- list(dn, dn)
 
-  fit <- within(fit, {
-    ## extract coefficients from 'fit':
-    alpha <- coefficients[1:nalpha]
-    names(alpha) <- alpha.names
-    beta <- if(nbeta > 0) coefficients[nalpha + 1:nbeta]
-    else numeric(0)
-    names(beta) <- beta.names
-    tau <- coefficients[nalpha + nbeta + 1:ntau]
-    stDev <- exp(tau)
-    names(stDev) <- tau.names
-    names(tau) <- paste("log", tau.names, sep = ".")
-    coefficients <- c(alpha, beta, tau)
-    if(exists("Hessian", inherits = FALSE)) {
-      dimnames(Hessian) <- list(names(coefficients),
-                                names(coefficients))
-    }
-    varMat <- matrix(c(stDev^2, stDev),
-                     nrow = length(stDev), ncol=2)
-    dimnames(varMat) <- list(tau.names, c("Var", "Std.Dev"))
-    ## set various fit elements:
-    edf <- length(coefficients) ## estimated degrees of freedom
-    nobs <- sum(frames$wts)
-    n <- length(frames$wts)
-    df.residual = nobs - edf
-    info <-
-      data.frame("link" = link,
-                 "threshold" = threshold,
-                 "nobs" = nobs,
-                 "logLik" = formatC(logLik, digits=2, format="f"),
-                 "AIC" = formatC(-2*logLik + 2*edf, digits=2,
-                   format="f"),
-                 "niter" = paste(optRes$info["neval"], "(", Niter, ")",
-                   sep=""),
-                 "max.grad" = formatC(optRes$info["maxgradient"], digits=2,
-                   format="e")
-                 ## BIC is not part of output since it is not clear what
-                 ## the no. observations are.
-                 )
-  })
-  ## set class and return fit:
-  class(fit) <- "clmm"
-  return(fit)
+    ## set class and return fit:
+    class(fit) <- "clmm"
+    return(fit)
 }
+
 

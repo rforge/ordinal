@@ -4,6 +4,9 @@ importFrom(graphics,
            plot)
 ## importFrom(ucminf, ucminf)
 import(Matrix)
+## importFrom(nlme,
+##            ranef,
+##            VarCorr)
 importFrom(numDeriv,
            hessian,
            grad)
@@ -36,6 +39,11 @@ export(convergence)
 export(drop.coef)
 export(nominal_test)
 export(scale_test)
+
+## NOTE: Also exporting ranef.clmm and VarCorr.clmm to make sure the
+## clmm-methods work after loading nlme (or lme4):
+export(ranef, ranef.clmm, condVar, VarCorr, VarCorr.clmm)
+## export(ranef, ranef.clmm, condVar, condVar.clmm, VarCorr, VarCorr.clmm)
 
 export(gnorm, glogis, gcauchy,
        pgumbel, dgumbel, ggumbel, qgumbel, rgumbel,
@@ -81,10 +89,16 @@ S3method(print, summary.clmm)
 S3method(logLik, clmm)
 S3method(extractAIC, clmm)
 S3method(anova, clmm)
+S3method(nobs, clmm)
 ## S3method(profile, clmm)
 ## S3method(confint, profile.clmm)
 ## S3method(plot, profile.clmm)
 ## S3method(update, clmm)
+## S3method(fixef, clmm)
+S3method(ranef, clmm)
+S3method(condVar, clmm)
+S3method(VarCorr, clmm)
+
 
 ##################################################################
 ### clm2 stuff:
