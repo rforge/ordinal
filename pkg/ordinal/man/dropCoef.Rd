@@ -39,7 +39,6 @@ drop.coef(X, silent = FALSE)
 }
 \examples{
 
-data(soup, package = "ordinal")
 X <- model.matrix( ~ PRODID * DAY, data = soup)
 ncol(X)
 newX <- drop.coef(X)

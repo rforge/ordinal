@@ -98,7 +98,6 @@
 \examples{
 
 ## simple model:
-data(wine)
 fm1 <- clm(rating ~ contact + temp, data=wine)
 summary(fm1)
 

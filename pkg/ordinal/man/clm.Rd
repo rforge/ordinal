@@ -252,22 +252,17 @@ clm(formula, scale, nominal, data, weights, start, subset, doFit = TRUE,
 }
 \examples{
 
-data(wine)
 fm1 <- clm(rating ~ temp * contact, data = wine)
 fm1 ## print method
 summary(fm1)
 fm2 <- update(fm1, ~.-temp:contact)
 anova(fm1, fm2)
 
-dropterm(fm1, test = "Chi")
 drop1(fm1, test = "Chi")
 add1(fm1, ~.+judge, test = "Chi")
-addterm(fm1, ~.+judge, test = "Chi")
 
 fm2 <- step(fm1)
 summary(fm2)
-fm3 <- stepAIC(fm1)
-summary(fm3)
 
 coef(fm1)
 vcov(fm1)
@@ -312,16 +307,21 @@ par(mfrow = c(3, 3))
 plot(slice.fm1)
 ## see more at '?slice.clm'
 
-## Example from MASS::polr:
-data(housing, package = "MASS")
-fm1 <- clm(Sat ~ Infl + Type + Cont, weights = Freq, data = housing)
-summary(fm1)
-
 ## Another example:
-data(soup, package = "ordinal")
-
 fm.soup <- clm(SURENESS ~ PRODID, data = soup)
 summary(fm.soup)
+
+if(require(MASS)) { ## dropterm, addterm, stepAIC, housing
+    fm1 <- clm(rating ~ temp * contact, data = wine)
+    dropterm(fm1, test = "Chi")
+    addterm(fm1, ~.+judge, test = "Chi")
+    fm3 <- stepAIC(fm1)
+    summary(fm3)
+
+    ## Example from MASS::polr:
+    fm1 <- clm(Sat ~ Infl + Type + Cont, weights = Freq, data = housing)
+    summary(fm1)
+}
 
 }
 \keyword{models}
