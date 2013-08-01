@@ -356,8 +356,8 @@ nll.u <- function(rho) { ## negative log-likelihood
     }
     rho$eta1Fix <- drop(rho$B1 %*% rho$fepar)
     rho$eta2Fix <- drop(rho$B2 %*% rho$fepar)
-    rho$eta1 <- as.vector(rho$eta1Fix + b.expanded + rho$o1)
-    rho$eta2 <- as.vector(rho$eta2Fix + b.expanded + rho$o2)
+    rho$eta1 <- as.vector(rho$eta1Fix - b.expanded + rho$o1)
+    rho$eta2 <- as.vector(rho$eta2Fix - b.expanded + rho$o2)
     rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
     if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
         nll <- Inf
@@ -376,8 +376,8 @@ nllFast.u <- function(rho) { ## negative log-likelihood
         rho$ZLt <- crossprod(getLambda(rho$ST, rho$dims$nlev.re), rho$Zt)
         b.expanded <- as.vector(crossprod(rho$ZLt, rho$u))
     }
-  rho$eta1 <- as.vector(rho$eta1Fix + b.expanded + rho$o1)
-  rho$eta2 <- as.vector(rho$eta2Fix + b.expanded + rho$o2)
+  rho$eta1 <- as.vector(rho$eta1Fix - b.expanded + rho$o1)
+  rho$eta2 <- as.vector(rho$eta2Fix - b.expanded + rho$o2)
   rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
   if(any(!is.finite(rho$fitted)) || any(rho$fitted <= 0))
     nll <- Inf
@@ -393,7 +393,7 @@ grad.u <- function(rho){ ## gradient of nll wrt. u (random effects)
     rho$p1 <- rho$dfun(rho$eta1)
     rho$p2 <- rho$dfun(rho$eta2)
     rho$wtpr <- rho$wts/rho$fitted
-    phi1 <- as.vector(rho$wtpr * (rho$p2 - rho$p1))
+    phi1 <- as.vector(rho$wtpr * (rho$p1 - rho$p2))
     if(rho$allST1)
         (rho$Zt %*% phi1) * rho$varVec + rho$u
     else
@@ -591,12 +591,12 @@ clmm.fit.env <-
                 )
     ## save ranef and condVar in res:
     if(rho$allST1) {
-        res$ranef <- - rep.int(unlist(rho$ST), rho$dims$nlev.re) * rho$u
+        res$ranef <- rep.int(unlist(rho$ST), rho$dims$nlev.re) * rho$u
         res$condVar <- as.vector(diag(solve(rho$L)) *
                                  rep.int(unlist(rho$ST)^2, rho$dims$nlev.re))
     } else {
         Lambda <- getLambda(rho$ST, rho$dims$nlev.re)
-        res$ranef <- - Lambda %*% rho$u
+        res$ranef <- Lambda %*% rho$u
         res$condVar <- tcrossprod(Lambda %*% solve(rho$L), Lambda)
     }
     ## Add gradient vector and optionally Hessian matrix:
