@@ -364,7 +364,7 @@ getNAGQinR <- function(rho, par) {
             ## PRnn <- (pfun(eta1Tmp, lambda) - pfun(eta2Tmp, lambda))^weights
             ## This is likely a computationally more safe solution:
           PRnn <- exp(weights * log(pfun(eta1Tmp, lambda) -
-                                    pfun(eta2Tmp, lambda))) 
+                                    pfun(eta2Tmp, lambda)))
         else
             ## PRnn <- (pfun(eta1Tmp) - pfun(eta2Tmp))^weights
             PRnn <- exp(weights * log(pfun(eta1Tmp) - pfun(eta2Tmp)))
@@ -389,20 +389,20 @@ getNAGQinC <- function(rho, par) {
     if(any(rho$D < 0)) return(Inf)
     with(rho, {
         .C("getNAGQ",
-           nll = double(1),
-           as.integer(grFac),
-           as.double(stDev),
+           nll = double(1), ## nll
+           as.integer(grFac), ## grFac
+           as.double(stDev), ## stDev
            as.double(eta1Fix),
            as.double(eta2Fix),
            as.double(o1),
            as.double(o2),
-           as.double(sigma),
+           as.double(sigma), ## Sigma
            as.double(weights),
-           length(sigma),
-           length(uStart),
+           length(sigma), ## nx - no. obs
+           length(uStart), ## nu - no. re
            as.double(ghqns),
-           as.double(log(ghqws)),
-           as.double(ghqns^2),
+           as.double(log(ghqws)), ## lghqws
+           as.double(ghqns^2), ## ghqns2
            as.double(u),
            as.double(D),
            as.integer(abs(nAGQ)),

@@ -86,10 +86,10 @@ clmm <-
           start <- c(rho$fepar, ST2par(rho$ST))
       } else {
           stopifnot(is.list(start) && length(start) == 2)
-          stopifnot(length(start[[1]]) == retrms$dims$nfepar &&
-                    length(start[[2]]) == retrms$dims$nSTpar)
-          rho$fepar <- start[[1]]
-          rho$ST <- par2ST(start[[2]], rho$ST)
+          stopifnot(length(start[[1]]) == rho$dims$nfepar)
+          stopifnot(length(start[[2]]) == rho$dims$nSTpar)
+          rho$fepar <- as.vector(start[[1]])
+          rho$ST <- par2ST(as.vector(start[[2]]), rho$ST)
       }
   }
 ### FIXME: set starting values in a more elegant way.
@@ -114,7 +114,7 @@ clmm <-
   fit$call <- match.call()
   fit$formula <- formulae$formula
   fit$gfList <- retrms$gfList
-  res <- clmm.finalize(fit=fit, frames=frames, ths=ths)
+  res <- clmm.finalize(fit=fit, frames=frames, ths=ths, use.ssr)
 
   ## add model.frame to results list?
   if(model) res$model <- frames$mf
@@ -211,17 +211,25 @@ getREterms <- function(fullmf, formula) {
         ff <- eval(substitute(as.factor(fac)[,drop = TRUE],
                               list(fac = x[[3]])), fullmf)
         ## per random term transpose indicator matrix:
-        tim <- as(ff, "sparseMatrix")
-        ## per random term  model matrix:
+        Zti <- as(ff, "sparseMatrix")
+        ## per random term model matrix:
         mm <- model.matrix(eval(substitute(~ expr,
                                            list(expr = x[[2]]))), fullmf)
         Zt = do.call(rBind, lapply(seq_len(ncol(mm)), function(j) {
-            tim@x <- mm[,j]
-            tim } ))
+            Zti@x <- mm[,j]
+            Zti } ))
         ST <- matrix(0, ncol(mm), ncol(mm),
                      dimnames = list(colnames(mm), colnames(mm)))
         list(f = ff, Zt = Zt, ST = ST)
+### FIXME: return the i'th element of Lambda here.
     })
+### FIXME: If the model is nested (all gr.factors are nested), then
+### order the columns of Zt, such that they come in blocks
+### corresponding to the levels of the coarsest grouping factor. Each
+### block of Zt-columns contain first the j'th level of the 1st gr.fac.
+### followed by columns for the 2nd gr.fac.
+###
+### Make sure that columns of Zt are grouped such that levels
     ## single simple random effect on the intercept?
     ssr <- (length(barlist) == 1 && as.character(barlist[[1]][[2]]) == "1")
     ## order terms by decreasing number of levels in the factor but don't
@@ -560,7 +568,7 @@ clmm.fit.env <-
     lwr <- c(-Inf, 0)[parConstraints(rho) + 1]
     ## Fit the model with Laplace:
     fit <- nlminb(getPar.clmm(rho), function(par) getNLA(rho, par),
-                  lower=lwr)
+                  lower=lwr, control=control)
 ### FIXME: Add control parameters here.
 ### FIXME: Make it possible to use the ucminf optimizer with
 ### log-transformed std-par instead.
@@ -687,7 +695,7 @@ the random effects"
 }
 
 clmm.finalize <-
-  function(fit, frames, ths)
+  function(fit, frames, ths, use.ssr)
 {
     fit$tJac <- ths$tJac
     fit$contrasts <- attr(frames$X, "contrasts")
@@ -732,7 +740,7 @@ clmm.finalize <-
                        ## the no. observations are.
                        )
     })
-    bound <- as.logical(paratBoundary2(fit))
+    bound <- if(use.ssr)  rep(FALSE, fit$dims$edf) else as.logical(paratBoundary2(fit))
     dn <- c(names(fit$coefficients),
             paste("ST", seq_len(fit$dims$nSTpar), sep=""))[!bound]
     names(fit$gradient) <- dn

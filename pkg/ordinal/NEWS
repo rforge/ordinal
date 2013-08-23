@@ -173,4 +173,11 @@ March 04 2010:
 - predict.clm now allows type="eta".
 
 2013-08-22:
-- exporting S3 print method for convergence.clm objects
+- Exporting S3 print method for convergence.clm objects.
+
+2013-08-23:
+- Fixing an issue in the Hessian computation for boundary fits with
+  useMatrix=FALSE and a single scalar random-effects term.
+- Allowing control parameters to be passed on to nlminb (when it is
+  used). A bug was fixed in getCtrlArgs and clmm.control now includes
+  method="nlminb".
