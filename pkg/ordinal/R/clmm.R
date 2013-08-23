@@ -205,7 +205,10 @@ getREterms <- function(fullmf, formula) {
 ### FIXME: make sure 'formula' is appropriately evaluated and returned
 ### by clmm.formulae
     if(!length(barlist)) stop("No random effects terms specified in formula")
+    term.names <- unlist(lapply(barlist, function(x) deparse(x)))
     names(barlist) <- unlist(lapply(barlist, function(x) deparse(x[[3]])))
+### NOTE: Deliberately naming the barlist elements by grouping factors
+### and not by r.e. terms.
     ## list of grouping factors for the random terms:
     rel <- lapply(barlist, function(x) {
         ff <- eval(substitute(as.factor(fac)[,drop = TRUE],
@@ -223,6 +226,17 @@ getREterms <- function(fullmf, formula) {
         list(f = ff, Zt = Zt, ST = ST)
 ### FIXME: return the i'th element of Lambda here.
     })
+    ## For each term test if Z has more columns than rows to detect
+    ## unidentifiability:
+    for(i in seq_along(barlist)) {
+        Zti <- rel[[i]][["Zt"]]
+        if(nrow(Zti) >= ncol(Zti))
+            stop(gettextf("no. random effects >= no. observations for term: (%s)",
+                          term.names[i]), call.=FALSE)
+    }
+### FIXME: It would be better to test the rank of the Zt matrix, but
+### also computationally more intensive.
+###
 ### FIXME: If the model is nested (all gr.factors are nested), then
 ### order the columns of Zt, such that they come in blocks
 ### corresponding to the levels of the coarsest grouping factor. Each

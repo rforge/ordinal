@@ -181,3 +181,5 @@ March 04 2010:
 - Allowing control parameters to be passed on to nlminb (when it is
   used). A bug was fixed in getCtrlArgs and clmm.control now includes
   method="nlminb".
+- Adding test for no. random effects >= no. observations for each
+  r.e. term.
