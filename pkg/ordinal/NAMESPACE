@@ -58,6 +58,7 @@ S3method(summary, clm)
 S3method(print, summary.clm)
 
 S3method(convergence, clm)
+S3method(print, convergence.clm)
 
 S3method(slice, clm)
 S3method(plot, slice.clm)

@@ -171,3 +171,6 @@ March 04 2010:
   output.
 - weights, offset and S.offset can now be missing or NULL in clm.fit.
 - predict.clm now allows type="eta".
+
+2013-08-22:
+- exporting S3 print method for convergence.clm objects

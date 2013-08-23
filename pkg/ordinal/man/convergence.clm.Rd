@@ -1,6 +1,7 @@
 \name{convergence}
 \alias{convergence}
 \alias{convergence.clm}
+\alias{print.convergence.clm}
 \title{Check convergence of cumulative link models}
 \description{
   Check the accuracy of the parameter estimates of cumulative link
