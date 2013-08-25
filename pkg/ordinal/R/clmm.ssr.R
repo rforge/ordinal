@@ -205,12 +205,8 @@ getNLA.ssr <- function(rho, par) {
   }
     rho$neval <- rho$neval + 1L
   if(!update.uC(rho)) return(Inf)
-  if(any(rho$D < 0)) return(Inf)
-  logDetD <- if(any(rho$D == 0)) 0 else sum(log(rho$D))
-### FIXME: Not sure why the elements if D can get zero here - they
-### should just approach 1 (in which case sum(log(rho$D)) == 0)
-### Probably there is an error in the C code here since
-### clmm2(..., doFit="R") does not produce the error.
+  if(any(rho$D <= 0)) return(Inf)
+  logDetD <- sum(log(rho$D))
   rho$negLogLik - rho$nrandom*log(2*pi)/2 + logDetD/2
 }
 
@@ -246,7 +242,7 @@ update.uC <- function(rho) {
        fitted = as.double(fitted), ## pre. pr
        funValue = double(1),
        gradValues = as.double(uStart),
-       hessValues = as.double(uStart),
+       hessValues = as.double(rep(1, length(uStart))),
        length(fitted),
        length(uStart),
        maxGrad = double(1),

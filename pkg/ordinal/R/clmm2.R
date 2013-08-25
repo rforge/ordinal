@@ -113,7 +113,7 @@ update.u2.v3 <- function(rho) {
                    pr = as.double(pr),
                    funValue = double(1),
                    gradValues = as.double(uStart),
-                   hessValues = as.double(uStart),
+                   hessValues = as.double(rep(1, length(uStart))),
                    length(pr),
                    length(uStart),
                    maxGrad = double(1),

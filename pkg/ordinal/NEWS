@@ -197,3 +197,5 @@ March 04 2010:
 - refining test of no. random effects > no. observations.
 - removing ucminf control settings from clmm.control when fitting with
   nlminb.
+- fixing bug with C version of NRalgv3 (conditional mode update):
+  Hessian (D) values are now initialized to 1 rather than 0.
