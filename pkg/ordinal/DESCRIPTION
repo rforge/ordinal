@@ -1,8 +1,8 @@
 Package: ordinal
 Type: Package
 Title: Regression Models for Ordinal Data
-Version: 2013.8-23
-Date: 2013-08-23
+Version: 2013.8-25
+Date: 2013-08-25
 Author: Rune Haubo B Christensen
 Maintainer: Rune Haubo B Christensen <rhbc@dtu.dk>
 LazyData: yes

@@ -16,6 +16,7 @@ rho.clm2clmm.ssr <- function(rho, retrms, ctrl)
     rho$tau.names <- names(gfList)
     rho$nrandom <- sum(rho$nlev) ## no. random effects
     rho$Niter <- 0L
+    rho$neval <- 0L
     rho$u <- rho$uStart <- rep(0, rho$nrandom)
     rho$linkInt <- switch(rho$link,
                           logit = 1L,
@@ -37,21 +38,45 @@ rho.clm2clmm.ssr <- function(rho, retrms, ctrl)
 ## }
 
 clmm.fit.ssr <-
-  function(rho, control = list(), Hess = FALSE)
+  function(rho, control = list(), method=c("nlminb", "ucminf"),
+           Hess = FALSE)
 ### Fit a clmm with a single simple random effects term using AGQ, GHQ
 ### or Laplace.
 {
+    optim.error <- function(fit, method)
+        if(inherits(fit, "try-error"))
+            stop("optimizer ", method, " terminated with an error", call.=FALSE)
+### FIXME: Could have an argument c(warn, fail, ignore) to optionally
+### return the fitted model despite the optimizer failing.
+
+    method <- match.arg(method)
     ## Set appropriate objective function:
     obj.fun <-
         if(rho$nAGQ < 0) getNGHQ.ssr
         else if(rho$nAGQ > 1) getNAGQ.ssr
         else getNLA.ssr ## nAGQ %in% c(0, 1)
 
-    ## Fit the model with Laplace:
-    ## fit <- ucminf(rho$par, function(par) obj.fun(rho, par),
-    ##               control = control)
-    fit <- nlminb(rho$par, function(par) obj.fun(rho, par))
-    ##              control = control)
+    ## Fit the model:
+    if(method == "ucminf") {
+        fit <- try(ucminf(rho$par, function(par) obj.fun(rho, par),
+                          control = control), silent=TRUE)
+        ## Check if optimizer converged without error:
+        optim.error(fit, method)
+        ## Save return value:
+        value <- fit$value
+    } else if(method == "nlminb") {
+        ## hack to remove ucminf control settings:
+        keep <- !names(control) %in% c("grad", "grtol")
+        control <- if(length(keep)) control[keep] else list()
+        fit <- try(nlminb(rho$par, function(par) obj.fun(rho, par),
+                          control = control), silent=TRUE)
+        ## Check if optimizer converged without error:
+        optim.error(fit, method)
+        ## Save return value:
+        value <- fit$objective
+    }
+    else stop("unkown optimization method: ", method)
+    ## Extract parameters from optimizer results:
     rho$par <- fit$par
 
     ## Ensure random mode estimation at optimum:
@@ -73,15 +98,12 @@ clmm.fit.ssr <-
     res <- list(coefficients = fit$par[1:rho$dims$nfepar],
                 ST = rho$ST,
                 optRes = fit,
-                ## logLik = -fit$value,
-                logLik = -fit$objective,
+                logLik = -value,
                 fitted.values = rho$fitted,
                 ranef = ranef,
                 condVar = condVar,
-                Niter = rho$Niter,
                 dims = rho$dims,
                 u = rho$u)
-
     ## Add gradient vector and optionally Hessian matrix:
     ## bound <- as.logical(paratBoundary2(rho))
     ## optpar <- fit$par[!bound]
@@ -96,6 +118,9 @@ clmm.fit.ssr <-
         res$gradient <- grad.ctr(function(par) obj.fun(rho, par),
                                  x=fit$par)
     }
+    ## Setting Niter and neval after gradient and Hessian evaluations:
+    res$Niter <- rho$Niter
+    res$neval <- rho$neval
     return(res)
 }
 
@@ -103,8 +128,13 @@ clmm.fit.ssr <-
 getNGHQ.ssr <- function(rho, par) {
 ### negative log-likelihood by standard Gauss-Hermite quadrature
 ### implemented in C:
-  if(!missing(par))
-    rho$par <- par
+    if(!missing(par)) {
+        rho$par <- par
+        if(any(!is.finite(par)))
+            stop(gettextf(paste(c("Non-finite parameters occured:",
+                                  formatC(par, format="g")), collapse=" ")))
+    }
+    rho$neval <- rho$neval + 1L
   nllBase.uC(rho) ## Update tau, eta1Fix and eta2Fix
   with(rho, {
     .C("getNGHQ",
@@ -131,9 +161,14 @@ getNGHQ.ssr <- function(rho, par) {
 getNAGQ.ssr <- function(rho, par) {
 ### negative log-likelihood by adaptive Gauss-Hermite quadrature
 ### implemented in C:
-  if(!missing(par))
-    rho$par <- par
-  if(!update.uC(rho)) return(Inf)
+    if(!missing(par)) {
+        rho$par <- par
+        if(any(!is.finite(par)))
+            stop(gettextf(paste(c("Non-finite parameters occured:",
+                                  formatC(par, format="g")), collapse=" ")))
+    }
+    rho$neval <- rho$neval + 1L
+    if(!update.uC(rho)) return(Inf)
   if(any(rho$D < 0)) return(Inf)
   with(rho, {
     .C("getNAGQ",
@@ -162,11 +197,21 @@ getNAGQ.ssr <- function(rho, par) {
 getNLA.ssr <- function(rho, par) {
 ### negative log-likelihood by the Laplace approximation
 ### (with update.u2 in C or R):
-  if(!missing(par)) rho$par <- par
+  if(!missing(par)) {
+      rho$par <- par
+      if(any(!is.finite(par)))
+          stop(gettextf(paste(c("Non-finite parameters occured:",
+                                formatC(par, format="g")), collapse=" ")))
+  }
+    rho$neval <- rho$neval + 1L
   if(!update.uC(rho)) return(Inf)
   if(any(rho$D < 0)) return(Inf)
-  logDetD <- sum(log(rho$D)) - rho$nrandom * log(2*pi)
-  rho$negLogLik + logDetD / 2
+  logDetD <- if(any(rho$D == 0)) 0 else sum(log(rho$D))
+### FIXME: Not sure why the elements if D can get zero here - they
+### should just approach 1 (in which case sum(log(rho$D)) == 0)
+### Probably there is an error in the C code here since
+### clmm2(..., doFit="R") does not produce the error.
+  rho$negLogLik - rho$nrandom*log(2*pi)/2 + logDetD/2
 }
 
 nllBase.uC <- function(rho) {

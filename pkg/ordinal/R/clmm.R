@@ -54,8 +54,8 @@ clmm <-
   rho <- with(frames, {
     clm.newRho(parent.frame(), y=y, X=X, weights=wts,
                offset=off, tJac=ths$tJac) })
-  ## compute grouping factor list, and Zt and ST matrices and
-  retrms <- getREterms(fullmf = frames$mf, formulae$formula)
+  ## compute grouping factor list, and Zt and ST matrices:
+  retrms <- getREterms(frames = frames, formulae$formula)
 ### FIXME: save (the evaluated) formula in frames, so we only need the
 ### frames argument to getREterms() ?
   use.ssr <- (retrms$ssr && !control$useMatrix)
@@ -102,9 +102,10 @@ clmm <-
 
   ## Fit the clmm:
   fit <-
-    if(use.ssr) clmm.fit.ssr(rho, control = control$optCtrl, Hess)
-    else clmm.fit.env(rho, control = control$optCtrl, Hess)
-### FIXME: set up clmm.fit.ssr to return the same things as clmm.fit.env.
+      if(use.ssr) clmm.fit.ssr(rho, control = control$optCtrl,
+                               method=control$method, Hess)
+      else clmm.fit.env(rho, control = control$optCtrl,
+                        method=control$method, Hess)
 
   ## Modify and return results:
   fit$nAGQ <- nAGQ
@@ -114,6 +115,7 @@ clmm <-
   fit$call <- match.call()
   fit$formula <- formulae$formula
   fit$gfList <- retrms$gfList
+  fit$control <- control
   res <- clmm.finalize(fit=fit, frames=frames, ths=ths, use.ssr)
 
   ## add model.frame to results list?
@@ -200,7 +202,10 @@ getZt <- function(retrms) {
     Zt
 }
 
-getREterms <- function(fullmf, formula) {
+getREterms <- function(frames, formula) {
+### NOTE: Need to parse mf - not just fullmf because we need the model
+### fits for an identifiability check below.
+    fullmf <- frames$mf
     barlist <- expandSlash(findbars(formula[[3]]))
 ### FIXME: make sure 'formula' is appropriately evaluated and returned
 ### by clmm.formulae
@@ -221,19 +226,35 @@ getREterms <- function(fullmf, formula) {
         Zt = do.call(rBind, lapply(seq_len(ncol(mm)), function(j) {
             Zti@x <- mm[,j]
             Zti } ))
+### FIXME: can we drop rows from Zt when g has missing values in terms
+### of the form (1 + g | f)?
         ST <- matrix(0, ncol(mm), ncol(mm),
                      dimnames = list(colnames(mm), colnames(mm)))
         list(f = ff, Zt = Zt, ST = ST)
 ### FIXME: return the i'th element of Lambda here.
     })
-    ## For each term test if Z has more columns than rows to detect
+    ## For each r.e. term, test if Z has more columns than rows to detect
     ## unidentifiability:
     for(i in seq_along(barlist)) {
         Zti <- rel[[i]][["Zt"]]
-        if(nrow(Zti) >= ncol(Zti))
-            stop(gettextf("no. random effects >= no. observations for term: (%s)",
-                          term.names[i]), call.=FALSE)
+        if(nrow(Zti) > ncol(Zti) ||
+           (all(frames$wts == 1) && nrow(Zti) == ncol(Zti)))
+            stop(gettextf("no. random effects (=%d) >= no. observations (=%d) for term: (%s)",
+                          nrow(Zti), ncol(Zti), term.names[i]), call.=FALSE)
     }
+    ## Test if total no. random effects >= total nobs:
+    q <- sum(sapply(rel, function(x) nrow(x$Zt)))
+    if(all(frames$wts == 1) && q >= nrow(fullmf))
+        stop(gettextf("no. random effects (=%d) >= no. observations (=%d)",
+                      q, nrow(fullmf)), call.=FALSE)
+### NOTE: q > nrow(fullmf) is (sometimes) allowed if some frames$wts > 1
+###
+### NOTE: if all(frames$wts == 1) we cannot have observation-level
+### random effects so we error if nrow(Zti) >= ncol(Zti)
+###
+### FIXME: Could probably also throw an error if q >= sum(frames$wts),
+### but I am not sure about that.
+###
 ### FIXME: It would be better to test the rank of the Zt matrix, but
 ### also computationally more intensive.
 ###
@@ -243,7 +264,6 @@ getREterms <- function(fullmf, formula) {
 ### block of Zt-columns contain first the j'th level of the 1st gr.fac.
 ### followed by columns for the 2nd gr.fac.
 ###
-### Make sure that columns of Zt are grouped such that levels
     ## single simple random effect on the intercept?
     ssr <- (length(barlist) == 1 && as.character(barlist[[1]][[2]]) == "1")
     ## order terms by decreasing number of levels in the factor but don't
@@ -273,6 +293,7 @@ getREterms <- function(fullmf, formula) {
     stopifnot(all(sapply(gfl, nlevels) > 2))
     ## no. r.e. per level for each of the r.e. terms
     qi <- unlist(lapply(rel, function(re) ncol(re$ST)))
+    stopifnot(q == sum(nlev * qi))
     dims <- list(n = nrow(fullmf), ## no. observations
                  nlev.re = nlev, ## no. levels for each r.e. term
                  nlev.gf = sapply(gfl, nlevels), ## no. levels for each grouping factor
@@ -323,7 +344,8 @@ rho.clm2clmm <- function(rho, retrms, ctrl)
     ##                   LDL = TRUE, super = FALSE, Imult = 1)
     rho$L <- Cholesky(tcrossprod(crossprod(getLambda(rho$ST, rho$dims$nlev.re), rho$Zt)),
                       LDL = TRUE, super = FALSE, Imult = 1)
-    rho$Niter <- 0L
+    rho$Niter <- 0L ## no. conditional mode updates
+    rho$neval <- 0L ## no. evaluations of the log-likelihood function
     rho$u <- rho$uStart <- rep(0, rho$dims$q)
     rho$.f <- if(package_version(packageDescription("Matrix")$Version) >
                  "0.999375-30") 2 else 1
@@ -359,6 +381,7 @@ getNLA <- function(rho, par, which=rep(TRUE, length(par))) {
             stop(gettextf(paste(c("Non-finite parameters not allowed:",
                                   formatC(par, format="g")), collapse=" ")))
     }
+    rho$neval <- rho$neval + 1L
     if(!update.u(rho)) return(Inf)
     if(any(rho$D < 0)) return(Inf)
     logDetD <- c(suppressWarnings(determinant(rho$L)$modulus)) -
@@ -559,7 +582,8 @@ set.AGQ <- function(rho, nAGQ, control, ssr) {
 }
 
 clmm.fit.env <-
-  function(rho, control = list(), Hess = FALSE)
+  function(rho, control = list(), method=c("nlminb", "ucminf"),
+           Hess = FALSE)
 ### Fit the clmm by optimizing the Laplace likelihood.
 ### Returns a list with elements:
 ###
@@ -578,30 +602,37 @@ clmm.fit.env <-
 ### gradient
 ### (Hessian)
 {
+    method <- match.arg(method)
+    if(method == "ucminf")
+        warning("cannot use ucminf optimizer for this model, using nlminb instead")
     ## Compute lower bounds on the parameter vector
     lwr <- c(-Inf, 0)[parConstraints(rho) + 1]
+    ## hack to remove ucminf control settings:
+    keep <- !names(control) %in% c("grad", "grtol")
+    control <- if(length(keep)) control[keep] else list()
     ## Fit the model with Laplace:
-    fit <- nlminb(getPar.clmm(rho), function(par) getNLA(rho, par),
-                  lower=lwr, control=control)
-### FIXME: Add control parameters here.
+    fit <- try(nlminb(getPar.clmm(rho), function(par) getNLA(rho, par),
+                      lower=lwr, control=control), silent=TRUE)
 ### FIXME: Make it possible to use the ucminf optimizer with
 ### log-transformed std-par instead.
+
+    ## Check if optimizer converged without error:
+    if(inherits(fit, "try-error"))
+        stop("optimizer ", method, " failed to converge", call.=FALSE)
+### FIXME: Could have an argument c(warn, fail, ignore) to optionally
+### return the fitted model despite the optimizer failing.
 
     ## Ensure parameters in rho are set at the optimum:
     setPar.clmm(rho, fit$par)
     ## Ensure random mode estimation at optimum:
     nllFast.u(rho)
     update.u(rho)
-### FIXME: parameterization of random effects should change sign; this
-### would avoid changing the sign at this point.
 
     names(rho$ST) <- names(rho$dims$nlev.re)
     ## Prepare list of results:
     res <- list(coefficients = fit$par[1:rho$dims$nfepar],
-### FIXME: Should 'coef' contain only fepar?
                 ST = rho$ST,
                 logLik = -fit$objective,
-                Niter = rho$Niter,
                 dims = rho$dims,
 ### FIXME: Should we evaluate hess.u(rho) to make sure rho$L contains
 ### the right values corresponding to the optimum?
@@ -625,6 +656,11 @@ clmm.fit.env <-
     bound <- as.logical(paratBoundary2(rho))
     optpar <- fit$par[!bound]
     if(Hess) {
+### NOTE: This is the Hessian evaluated for all parameters that are
+### not at the boundary at the parameter space. The likelihood for
+### models with boundary parameters is still defined as a function of
+### all the parameters, so standard errors will differ whether or not
+### boundary terms are included or not.
         gH <- deriv12(function(par) getNLA(rho, par, which=!bound),
                       x=optpar)
         res$gradient <- gH$gradient
@@ -633,12 +669,13 @@ clmm.fit.env <-
         res$gradient <- grad.ctr(function(par) getNLA(rho, par, which=!bound),
                                  x=optpar)
     }
-### NOTE: This is the Hessian evaluated for all parameters that are
-### not at the boundary at the parameter space. The likelihood for
-### models with boundary parameters is still defined as a function of
-### all the parameters, so standard errors will differ whether or not
-### boundary terms are included or not.
-    return(res)
+### FIXME: We should check that the (forward) gradient for variances at the
+### boundary are not < -1e-5 (wrt. -logLik/nll/getNLA)
+    ## Setting Niter and neval after gradient and Hessian evaluations:
+    res$Niter <- rho$Niter
+    res$neval <- rho$neval
+    ## return value:
+    res
 }
 
 update.u <- function(rho)
@@ -746,7 +783,7 @@ clmm.finalize <-
                        format="f"),
                        ## "niter" = paste(optRes$info["neval"], "(", Niter, ")",
                        ## sep=""),
-                       "niter" = paste(optRes$iterations, "(", Niter, ")",
+                       "niter" = paste(neval, "(", Niter, ")",
                        sep=""),
                        "max.grad" = formatC(max(abs(gradient)), digits=2,
                        format="e")

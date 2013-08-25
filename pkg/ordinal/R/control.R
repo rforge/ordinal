@@ -28,7 +28,7 @@ if(method %in% c("ucminf", "nlminb", "optim"))
 }
 
 clmm.control <-
-  function(method = c("ucminf", "nlminb", "model.frame"),
+  function(method = c("nlminb", "ucminf", "model.frame"),
            ..., trace = 0, maxIter = 50, gradTol = 1e-4,
            maxLineIter = 50, useMatrix = FALSE,
            innerCtrl = c("warnOnly", "noWarn", "giveError"))

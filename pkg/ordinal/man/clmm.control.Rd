@@ -8,7 +8,7 @@
   Set control parameters for cumulative link mixed models
 }
 \usage{
-clmm.control(method = c("ucminf", "nlminb", "model.frame"), ..., trace = 0,
+clmm.control(method = c("nlminb", "ucminf", "model.frame"), ..., trace = 0,
 maxIter = 50, gradTol = 1e-4, maxLineIter = 50,  useMatrix = FALSE,
 innerCtrl = c("warnOnly", "noWarn", "giveError"))
 }

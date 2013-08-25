@@ -113,3 +113,26 @@ grad.ctr <- function(fun, x, delta=1e-4, ...) {
     })
 }
 
+grad.ctr4 <- function(fun, x, delta=1e-4, ...) {
+### - checking finiteness of x and fun-values
+### - taking care to avoid floating point errors
+### - not using h=x*delta rather than h=delta (important for small or
+###   large x?)
+    if(!all(is.finite(x)))
+        stop("Cannot compute gradient: non-finite argument")
+    ans <- x ## return values
+    for(i in seq_along(x)) {
+        xadd <- xsub <- x ## reset fun arguments
+        xadd[i] <- x[i] + delta
+        xsub[i] <- x[i] - delta
+        ans[i] <- (fun(xadd, ...) - fun(xsub, ...)) / (xadd[i] - xsub[i])
+### NOTE: xadd[i] - xsub[i] != 2*delta with floating point arithmetic.
+    }
+    if(!all(is.finite(ans))) {
+        warning("cannot compute gradient: non-finite function values occured")
+        ans[!is.finite(ans)] <- Inf
+    }
+    ans
+}
+
+

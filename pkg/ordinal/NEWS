@@ -183,3 +183,17 @@ March 04 2010:
   method="nlminb".
 - Adding test for no. random effects >= no. observations for each
   r.e. term.
+
+2013-08-25
+- changing default optimizer from ucminf to nlminb
+- adding grad.ctr4 to the list of gradient functions
+- explicitly computing the number of objective function evaluations
+  rather than relying on the optimizer's count.
+- wrapping calls to optimizers in try() to catch errors that occur
+  here
+- adding test for non-finite parameter values in *.ssr objective
+  functions.
+- adding list of control parameters to list of clmm output.
+- refining test of no. random effects > no. observations.
+- removing ucminf control settings from clmm.control when fitting with
+  nlminb.
