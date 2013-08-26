@@ -41,49 +41,49 @@ simple_clm <-
     warning("an intercept is needed and assumed in 'formula'",
             call.=FALSE)
   } ## intercept in X is guaranteed.
-  wts <- ordinal:::getWeights(mf)
-  off <- ordinal:::getOffset(mf)
+  wts <- getWeights(mf)
+  off <- getOffset(mf)
   ylevels <- levels(droplevels(y[wts > 0]))
   frames <- list(y=y, ylevels=ylevels, X=X)
 
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
-  frames$ths <- ordinal:::makeThresholds(ylevels, threshold)
+  frames$ths <- makeThresholds(ylevels, threshold)
   ## test for column rank deficiency in design matrices:
-  frames <- ordinal:::drop.cols(frames, silent=TRUE)
+  frames <- drop.cols(frames, silent=TRUE)
 
   ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted:
-  rho <- ordinal:::eclm.newRho(parent.frame(), y=frames$y, X=frames$X,
+  rho <- eclm.newRho(parent.frame(), y=frames$y, X=frames$X,
                      NOM=NULL, S=NULL,
                      weights=wts, offset=off, S.offset=NULL,
                      tJac=frames$ths$tJac)
 
   ## Set appropriate logLik and deriv functions in rho:
-  rho$clm.nll <- ordinal:::clm.nll
-  rho$clm.grad <- ordinal:::clm.grad
-  rho$clm.hess <- ordinal:::clm.hess
+  rho$clm.nll <- clm.nll
+  rho$clm.grad <- clm.grad
+  rho$clm.hess <- clm.hess
 
   ## Set starting values for the parameters:
-  start <- ordinal:::set.start(rho, start=start, get.start=missing(start),
+  start <- set.start(rho, start=start, get.start=missing(start),
                      threshold=threshold, link=link, frames=frames)
   rho$par <- as.vector(start) ## remove attributes
 
   ## Set pfun, dfun and gfun in rho:
-  ordinal:::setLinks(rho, link)
+  setLinks(rho, link)
 
   ## Possibly return the environment rho without fitting:
   if(!doFit) return(rho)
 
   ## Fit the clm:
   if(control$method == "Newton")
-    fit <- ordinal:::clm.fit.NR(rho, control)
+    fit <- clm.fit.NR(rho, control)
   else
-    fit <- ordinal:::clm.fit.optim(rho, control$method, control$ctrl)
+    fit <- clm.fit.optim(rho, control$method, control$ctrl)
 ### NOTE: we could add arg non.conv = c("error", "warn", "message") to
 ### allow non-converged fits to be returned.
 
   ## Modify and return results:
-  res <- ordinal:::eclm.finalize(fit, weights=wts,
+  res <- eclm.finalize(fit, weights=wts,
                        coef.names=frames$coef.names,
                        aliased=frames$aliased)
   res$link <- link

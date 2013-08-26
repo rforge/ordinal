@@ -199,3 +199,8 @@ March 04 2010:
   nlminb.
 - fixing bug with C version of NRalgv3 (conditional mode update):
   Hessian (D) values are now initialized to 1 rather than 0.
+
+2013-08-26:
+- registrering global variables.
+- removing use of ':::'.
+

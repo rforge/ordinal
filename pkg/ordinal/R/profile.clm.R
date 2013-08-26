@@ -351,6 +351,12 @@ profile.clm.zeta <-
 ##   return(val)
 ## }
 
+format.perc <- function(probs, digits)
+### function lifted from stats:::format.perc to avoid using ':::'
+    paste(format(100 * probs, trim = TRUE, scientific = FALSE,
+                 digits = digits), "%")
+
+
 confint.clm <-
   function(object, parm, level = 0.95,
            type = c("profile", "Wald"), trace = FALSE, ...)
@@ -367,7 +373,7 @@ confint.clm <-
   if(type == "Wald") {
     a <- (1 - level)/2
     a <- c(a, 1 - a)
-    pct <- stats:::format.perc(a, 3)
+    pct <- format.perc(a, 3)
     fac <- qnorm(a)
     coefs <- coef(object)
     ses <- coef(summary(object))[, 2]

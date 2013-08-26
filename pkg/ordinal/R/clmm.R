@@ -17,8 +17,8 @@
 ## 4. Random effects implementation and mixed model formulae from lme4
 
 if(getRversion() >= '2.15.1')
-  utils:::globalVariables(c("ths", "link", "threshold", "optRes",
-                            "Niter", "tJac", "y.levels"))
+    utils::globalVariables(c("ths", "link", "threshold", "optRes",
+                             "neval", "Niter", "tJac", "y.levels"))
 
 clmm <-
   function(formula, data, weights, start, subset,
