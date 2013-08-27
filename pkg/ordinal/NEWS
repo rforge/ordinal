@@ -204,3 +204,6 @@ March 04 2010:
 - registrering global variables.
 - removing use of ':::'.
 
+2013-08-27:
+- documenting list of control parameters in clmm objects.
+
