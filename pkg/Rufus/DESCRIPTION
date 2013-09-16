@@ -1,0 +1,21 @@
+Package: Rufus
+Title: Rune's Utility Functions
+Description: This package contains various utility functions.
+Version: 0.1-0
+Authors@R: person(given="Rune Haubo Bojesen", family="Christensen",
+    email="rhbc@dtu.dk", role=c("aut", "cre"))
+Depends:
+    R (>= 3.0.1),
+    Rcpp (>= 0.10.4)
+Suggests:
+    testthat (>= 0.2),
+    ordinal
+LinkingTo: Rcpp
+License: GPL (>= 2)
+LazyData: true
+Collate:
+    'deriv.R'
+    'drop.coef.R'
+    'gumbel.R'
+    'gfun.R'
+    'pkg-package.R'

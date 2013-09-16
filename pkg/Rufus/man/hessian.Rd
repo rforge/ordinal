@@ -1,0 +1,63 @@
+\name{hessian}
+\alias{hessian}
+\title{Compute Hessian with finite difference}
+\usage{
+  hessian(fun, x, delta = 1e-04, fx = NULL, ...)
+}
+\arguments{
+  \item{fun}{function for which to compute the gradient.}
+
+  \item{x}{numeric vector of values at which to compute the
+  gradient.}
+
+  \item{delta}{the amount to subtract and add to \code{x}
+  when computing the central difference.}
+
+  \item{fx}{optional value of \code{fun(x, ...)}.}
+
+  \item{...}{additional arguments to \code{fun}.}
+}
+\value{
+  the second derivative matrix.
+}
+\description{
+  This function computes the 2nd derivative aka Hessian of
+  a function with vector-valued input and scalar output
+  using a central finite difference method.
+}
+\details{
+  The function has to return a single scalar numerical
+  value and take as argument a numeric vector of the same
+  length as \code{x}. The function also has to be evaluable
+  in a neighborhood around \code{x}, i.e. at \code{x -
+  delta} and at \code{x + delta} for all elements in
+  \code{x}.
+}
+\examples{
+## Make a function:
+f <- function(x) sum(dnorm(x))
+
+## compute the Hessian (2nd derivative):
+hessian(fun=f, x=1:2)
+
+## Compare with analytical Hessian:
+df <- deriv3(~ dnorm(x1) + dnorm(x2), c("x1", "x2"), func=TRUE)
+dH <- function(x1, x2)
+    matrix(unlist(attributes(df(x1, x2))[[2]]), ncol=2)
+
+dH(1, 2) - hessian(f, 1:2)
+
+stopifnot(
+    isTRUE(all.equal(dH(1, 2), Rufus::hessian(f, 1:2), tol=1e-6))
+    )
+
+}
+\author{
+  Rune Haubo Bojesen Christensen
+}
+\seealso{
+  Other derivatives: \code{\link{deriv12}},
+  \code{\link{gradient}}
+}
+\keyword{utilities}
+

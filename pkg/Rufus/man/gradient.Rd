@@ -1,0 +1,59 @@
+\name{gradient}
+\alias{gradient}
+\title{Compute gradient of a functions.}
+\usage{
+  gradient(fun, x, delta = 1e-04, ...)
+}
+\arguments{
+  \item{fun}{function for which to compute the gradient.}
+
+  \item{x}{numeric vector of values at which to compute the
+  gradient.}
+
+  \item{delta}{the amount to subtract and add to \code{x}
+  when computing the central difference.}
+
+  \item{...}{additional arguments to \code{fun}.}
+}
+\value{
+  a numeric vector of gradients of the same length as
+  \code{x}.
+}
+\description{
+  This function computes the gradient (first derivative) of
+  a function using a central finite difference method.
+}
+\details{
+  The function has to return a single scalar numerical
+  value and take as argument a numeric vector of the same
+  length as \code{x}. The function also has to be evaluable
+  in a neighborhood around \code{x}, i.e.~at \code{x -
+  delta} and at \code{x + delta} for all elements in
+  \code{x}.
+}
+\examples{
+## Make a function:
+f <- function(x) sum(dnorm(x))
+
+## compute the gradient:
+gradient(fun=f, x=1:4)
+
+## Compare with analytical gradient:
+df <- deriv(~ dnorm(x1) + dnorm(x2), c("x1", "x2"), func=TRUE)
+dg <- function(x1, x2) as.vector(attributes(df(x1, x2))[[1]])
+
+gradient(f, 1:2) - dg(1, 2)
+
+stopifnot(
+    isTRUE(all.equal(dg(1, 2), gradient(f, 1:2)))
+    )
+}
+\author{
+  Rune Haubo Bojesen Christensen
+}
+\seealso{
+  Other derivatives: \code{\link{deriv12}},
+  \code{\link{hessian}}
+}
+\keyword{utilities}
+
