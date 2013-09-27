@@ -36,6 +36,7 @@ deriv12 <- function(fun, x, delta=1e-4, fx=NULL, ...) {
 myhess <- function(fun, x, fx=NULL, delta=1e-4, ...) {
     nx <- length(x)
     fx <- if(!is.null(fx)) fx else fun(x, ...)
+    stopifnot(length(fx) == 1)
     H <- array(NA, dim=c(nx, nx))
     for(j in 1:nx) {
         ## Diagonal elements:
@@ -52,13 +53,12 @@ myhess <- function(fun, x, fx=NULL, delta=1e-4, ...) {
             xas[c(i, j)] <- x[c(i, j)] + c(delta, -delta)
             xsa[c(i, j)] <- x[c(i, j)] + c(-delta, delta)
             xss[c(i, j)] <- x[c(i, j)] - c(delta, delta)
-            H[i, j] <- (fun(xaa, ...) - fun(xas, ...) -
-                        fun(xsa, ...) + fun(xss, ...)) /
-                            (4 * delta^2)
+            H[j, i] <- H[i, j] <-
+                (fun(xaa, ...) - fun(xas, ...) -
+                 fun(xsa, ...) + fun(xss, ...)) /
+                     (4 * delta^2)
         }
     }
-    ## Fill in lower triangle:
-    H[lower.tri(H)] <- t(H)[lower.tri(H)]
     H
 }
 
@@ -112,6 +112,8 @@ grad.ctr <- function(fun, x, delta=1e-4, ...) {
         (fun(xadd, ...) - fun(xsub, ...)) / (2 * delta)
     })
 }
+
+grad <- grad.ctr
 
 grad.ctr4 <- function(fun, x, delta=1e-4, ...) {
 ### - checking finiteness of x and fun-values

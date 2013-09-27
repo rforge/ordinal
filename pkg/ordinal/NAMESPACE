@@ -8,9 +8,9 @@ import(Matrix)
 ## importFrom(nlme,
 ##            ranef,
 ##            VarCorr)
-importFrom(numDeriv,
-           hessian,
-           grad)
+## importFrom(numDeriv,
+##            hessian,
+##            grad)
 importFrom(MASS,
            ginv,
            addterm,

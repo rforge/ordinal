@@ -317,8 +317,8 @@ numeric, logical or one of c('no', 'R', 'C')")
                     ," is too close to boundary.\n",
                     " Fit model with link == 'logistic' to get Hessian")
         else {
-            rhoM$Hessian <- hessian(function(x) ObjFun(rhoM, x),
-                                    method.args = list(r=2), rhoM$par)
+            rhoM$Hessian <- myhess(function(x) ObjFun(rhoM, x),
+                                    rhoM$par)
             rhoM$par <- rhoM$optRes[[1]]
         }
     }

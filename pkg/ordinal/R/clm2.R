@@ -49,7 +49,7 @@ clm2.control <-
 
 newRho <- function(parent, XX, X, Z, y, weights, Loffset, Soffset, ## OK
                    link, lambda, theta, threshold, Hess, control)
-### FIXME: Could remove theta argument? 
+### FIXME: Could remove theta argument?
 {
     rho <- new.env(parent = parent)
     rho$X <- X
@@ -469,7 +469,7 @@ finalizeRho <- function(rho) { ## OK
                             ," is too close to boundary.\n",
                             " Fit model with link == 'logistic' to get Hessian")
                 else {
-                    rho$Hessian <- hessian(function(par) getNll(rho, par),
+                    rho$Hessian <- myhess(function(par) getNll(rho, par),
                                            rho$par)
                     getNll(rho, rho$optRes[[1]]) # to reset the variables:
                                         # (par, pr)
@@ -763,7 +763,7 @@ vcov.clm2 <- function(object, ...)
   dn <- names(object$coefficients)
   H <- object$Hessian
   ## To handle NaNs in the Hessian resulting from parameter
-  ## unidentifiability:  
+  ## unidentifiability:
   if(any(His.na <- !is.finite(H))) {
     H[His.na] <- 0
     VCOV <- ginv(H)
