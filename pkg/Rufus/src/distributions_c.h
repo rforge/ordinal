@@ -1,5 +1,5 @@
-#ifndef _R2MISC_DISTRIBUTIONS_C_H_
-#define _R2MISC_DISTRIBUTIONS_C_H_
+#ifndef _RUFUS_DISTRIBUTIONS_C_H_
+#define _RUFUS_DISTRIBUTIONS_C_H_
 /* That ifndef, etc. is an idiom to prevent the body of the header
  * being read more than once.
  */
@@ -13,6 +13,9 @@ extern "C" {
   /* That stanza allows the same header file to be used by C and C++
    * programs. There is a matching stanza at the end of this header
    * file.
+   */
+
+  /* The d_[pdg][dist] functions are exported, cf. './init.c' 
    */
 
   /* Additional scalar cumulative probability functions */

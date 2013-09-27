@@ -1,5 +1,5 @@
-#ifndef _ORDINAL4_DISTRIBUTIONS_C_H_
-#define _ORDINAL4_DISTRIBUTIONS_C_H_
+#ifndef _RUFUS_DISTRIBUTIONS_C_H_
+#define _RUFUS_DISTRIBUTIONS_C_H_
 /* That ifndef, etc. is an idiom to prevent the body of the header
  * being read more than once.
  */
