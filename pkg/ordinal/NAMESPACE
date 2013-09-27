@@ -1,8 +1,9 @@
 useDynLib(ordinal, .registration = TRUE)
 
+
 importFrom(graphics,
            plot)
-## importFrom(ucminf, ucminf)
+importFrom(ucminf, ucminf)
 import(Matrix)
 ## importFrom(nlme,
 ##            ranef,

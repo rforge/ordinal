@@ -1,13 +1,13 @@
 Package: ordinal
 Type: Package
 Title: Regression Models for Ordinal Data
-Version: 2013.8-26
-Date: 2013-08-26
-Author: Rune Haubo B Christensen
-Maintainer: Rune Haubo B Christensen <rhbc@dtu.dk>
-LazyData: yes
-Depends: R (>= 2.13.0), ucminf, Matrix
-Imports: numDeriv, MASS
+Version: 2013.9-26
+Authors@R: person(given="Rune Haubo Bojesen", family="Christensen",
+    email="rhbc@dtu.dk", role=c("aut", "cre"))
+LazyData: true
+ByteCompile: yes
+Depends: R (>= 2.13.0), Matrix
+Imports: numDeriv, ucminf, MASS
 Suggests: lme4, nnet, xtable
 Description: This package implements cumulative link (mixed) models also known as ordered regression models, proportional odds models, proportional hazards models for grouped survival times and ordered logit/probit/... models. Estimation is via maximum likelihood and mixed models are fitted with the Laplace approximation and adaptive Gauss-Hermite quadrature. Multiple random effect terms are allowed and they may be nested, crossed or partially nested/crossed. Restrictions of symmetry and equidistance can be imposed on the thresholds (cut-points). Standard model methods are available (summary, anova, drop-methods, step, confint, predict etc.) in addition to profile methods and slice methods for visualizing the likelihood function and checking convergence.
 License: GPL (>= 2)

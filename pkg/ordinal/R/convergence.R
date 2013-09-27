@@ -182,7 +182,7 @@ conv.check <-
         return(res)
     }
     if(!is.null(Theta.ok) && !Theta.ok) {
-        res$code <- -3
+        res$code <- -3L
         res$messages <-
             "not all thresholds are increasing: fit is invalid"
         return(res)
@@ -197,10 +197,10 @@ conv.check <-
     }
     ## Add condition number to res:
     res$cond.H <- max(evd) / min(evd)
-    ## Compute step:
+    ## Compute Newton step:
     step <- c(backsolve(ch, backsolve(ch, g, transpose=TRUE)))
+    ## Compute var-cov:
     res$vcov[] <- chol2inv(ch)
-    control$relTol <- control$gradTol
     if(max(abs(step)) > control$relTol) {
         res$code <- c(res$code, 1L)
         corDec <- as.integer(min(cor.dec(step)))
@@ -217,7 +217,6 @@ conv.check <-
                     "very large eigenvalue",
                     "\n - Rescale variables?", sep=""))
     }
-    min(evd) / max(evd)
     if((min(evd) / max(evd)) < tol) {
         res$code <- c(res$code, 3L)
         if(!5L %in% res$code) {
