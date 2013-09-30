@@ -1,3 +1,7 @@
+## This file contains:
+## A implementation of simple CLMs (simple_clm), i.e., CLMs without
+## scale and nominal effects.
+
 simple_clm <-
   function(formula, data, weights, start, subset, offset,
            doFit = TRUE, na.action, contrasts, model = TRUE,

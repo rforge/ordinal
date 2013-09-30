@@ -1,3 +1,9 @@
+## This file contains:
+## [pdg]lgamma functions for the log-gamma distribution [lgamma].
+## Here glgamma is the gradient of the density function, dlgamma.
+## The log-gamma distribution is
+## used as a flexible link function in clm2() and clmm2().
+
 plgamma <- function(q, lambda, lower.tail = TRUE)
     .C("plgamma",
        q = as.double(q),

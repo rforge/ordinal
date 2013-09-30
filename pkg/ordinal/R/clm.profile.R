@@ -1,3 +1,6 @@
+## This file contains:
+## profile and confint methods for clm objects.
+
 profile.clm <-
   function(fitted, which.beta = seq_len(nbeta),
            which.zeta = seq_len(nzeta), alpha = 0.001,

@@ -1,3 +1,7 @@
+## This file contains:
+## Functions for finite difference computations of derivatives
+## (gradient and Hessian) of user-specified functions.
+
 deriv12 <- function(fun, x, delta=1e-4, fx=NULL, ...) {
 ### Compute gradient and Hessian at the same time (to save computing
 ### time)

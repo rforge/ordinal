@@ -1,5 +1,6 @@
-## This file contains functions for fitting CLMMs with a single simple
-## RE term (ssr).
+## This file contains:
+## Functions for fitting CLMMs with a single simple random-effects
+## term (ssr).
 
 rho.clm2clmm.ssr <- function(rho, retrms, ctrl)
 ### Version of rho.clm2clmm that is set up to use the C

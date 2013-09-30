@@ -1,3 +1,8 @@
+## This file contains:
+## Implementation of ranef and condVar methods for clmm objects to
+## extract the conditional model of the random-effects and their
+## conditional variances.
+
 ## fixef.clmm <- function(object, ...)  coef(object, ...)
 ## object$coefficients
 ### FIXME: This function needs to change such that a *named* vector is

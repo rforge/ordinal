@@ -1,3 +1,5 @@
+## This file contains:
+## Functions to compute starting values for clmm()s.
 
 clmm.start <- function(frames, link, threshold) {
   ## get starting values from clm:

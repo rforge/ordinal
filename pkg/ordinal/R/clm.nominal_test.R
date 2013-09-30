@@ -1,3 +1,8 @@
+## This file contains:
+## Implementation of of nominal_test.clm() and scale_test.clm() for
+## automatic testing of nominal and scale effects in clm()s. These
+## functions work in a fashion similar to add1().
+
 nominal_test <- function(object, ...) {
   UseMethod("nominal_test")
 }

@@ -1,3 +1,7 @@
+## This file contains:
+## The main clm function and some auxiliary functions to generate the
+## model frame and handle the model environment.
+
 clm <-
   function(formula, scale, nominal, data, weights, start, subset,
            doFit = TRUE, na.action, contrasts, model = TRUE,
@@ -393,7 +397,6 @@ eclm.newRho <-
   ## return:
   return(rho)
 }
-
 
 eclm.finalize <- function(fit, weights, coef.names, aliased)
 ### destinguishing between par and coef where the former does not

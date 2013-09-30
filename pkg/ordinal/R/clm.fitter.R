@@ -1,3 +1,9 @@
+## This file contains:
+## Functions to fit/estimate CLMs (clm.fit.NR, clm.fit.optim) and
+## functions implementing the negative log-likelihood, its gradient
+## and hessian (.nll, .grad, .hess). These functions are rarely to be
+## called directly from outside the package.
+
 clm.fit.NR <-
   function(rho, control = list())
 ### The main work horse: Where the actual fitting of the clm goes on.

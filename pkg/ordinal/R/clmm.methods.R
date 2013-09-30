@@ -1,3 +1,6 @@
+## This file contains:
+## Implementation of various methods for clmm objects.
+
 formatVC <- function(varc, digits = max(3, getOption("digits") - 2))
 ### "format()" the 'VarCorr' matrix of the random effects -- for
 ### show()ing

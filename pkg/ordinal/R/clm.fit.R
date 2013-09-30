@@ -1,3 +1,6 @@
+## This file contains:
+## The function clm.fit() - an lm.fit or glm.fit equivalent for CLMs.
+
 clm.fit <-
   function(y, X, S, N, weights = rep(1, nrow(X)),
            offset = rep(0, nrow(X)), S.offset = rep(0, nrow(X)),

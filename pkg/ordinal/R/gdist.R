@@ -1,3 +1,11 @@
+## This file contains:
+## Gradients of densities of common distribution functions on the form
+## g[dist], where "dist" can be one of "logis", "norm", and
+## "cauchy". These functions are used in Newton-Raphson algorithms
+## when fitting CLMs and CLMMs in clm(), clm2(), clmm() and
+## clmm2(). Similar gradients are implemented for the gumbel,
+## log-gamma, and Aranda-Ordaz distributions.
+
 glogis <- function(x)
 ### gradient of dlogis
     .C("glogis",

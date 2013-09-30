@@ -1,3 +1,6 @@
+## This file contains:
+## Implementation of various methods for clm objects.
+
 print.clm <-
   function(x, digits = max(3, getOption("digits") - 3), ...)
 {

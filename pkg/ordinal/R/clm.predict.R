@@ -1,3 +1,6 @@
+## This file contains:
+## The predict method for clm objects.
+
 predict.clm <-
   function(object, newdata, se.fit = FALSE, interval = FALSE,
            level = 0.95,

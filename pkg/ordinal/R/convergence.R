@@ -1,3 +1,8 @@
+## This file contains:
+## Functions to assess and check convergence of CLMs. Some
+## functions/methods are exported and some are used internally in
+## clm().
+
 convergence <- function(object, ...) {
   UseMethod("convergence")
 }

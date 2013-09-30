@@ -1,3 +1,8 @@
+## This file contains:
+## [pdg]AO functions for the Aranda-Ordaz distribution. Here gAO is
+## the gradient of the density function, dAO. The AO distribution is
+## used as a flexible link function in clm2() and clmm2().
+
 pAOR <- function(q, lambda, lower.tail = TRUE) {
     if(lambda < 1e-6)
         stop("'lambda' has to be positive. lambda = ", lambda, " was supplied")

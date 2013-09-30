@@ -1,3 +1,7 @@
+## This file contains:
+## Functions that can drop columns from rank-deficient design
+## matrices. One is exported and others used internally.
+
 drop.coef <- function(X, silent = FALSE)
 ### works if ncol(X) >= 0 and nrow(X) >= 0
 {

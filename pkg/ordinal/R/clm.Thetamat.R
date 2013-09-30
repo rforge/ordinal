@@ -1,3 +1,7 @@
+## This file contains:
+## Functions (getThetamat) to compute a table of threshold
+## coefficients from model fits (clm()s) with nominal effects.
+
 getThetamat <-
   function(terms, alpha, assign, contrasts, xlevels, tJac)
 ### Compute matrix of thresholds for all combinations of levels of

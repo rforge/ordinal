@@ -1,3 +1,6 @@
+## This file contains:
+## Functions to compute starting values for CLMs in clm().
+
 set.start <-
   function(rho, start=NULL, get.start=TRUE, threshold, link, frames)
 {

@@ -1,3 +1,7 @@
+## This file contains:
+## Functions that are still experimental; they might be deleted or
+## might at a later stage be promoted.
+
 convergence.clmm <-
   function(object, digits = max(3, getOption("digits") - 3), ...)
 ### Results: data.frame with columns:

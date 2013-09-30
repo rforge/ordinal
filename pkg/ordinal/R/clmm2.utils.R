@@ -1,3 +1,6 @@
+## This file contains:
+## Utility functions for fitting CLMMs with clmm2().
+
 ### FIXME: Could make use of getFittedC throughout this file...
 
 .negLogLikMfastR <- function(rho) { ## negative log-likelihood

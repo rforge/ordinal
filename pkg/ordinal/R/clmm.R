@@ -1,20 +1,5 @@
-## This file contains
-
-
-
-## Important sourses of inspiration for the ordinal package:
-##
-## 1: The presentation by Douglas Bates at DSC in Copenhagen for
-## inspiring me to use an environment with values that gets updated
-## during the fitting process.
-## 2. MASS::polr was an important source for my initial understanding
-## of CLMs. There is very little (if anything at all) in the current
-## implementation that resembles that of MASS::polr, but for instance
-## the naming of the thresholds in print and summary output is quite
-## similar to that of MASS::polr.
-## 3. Function gauss.hermite adopted with only minor modifications
-## from package statMod(?)
-## 4. Random effects implementation and mixed model formulae from lme4
+## This file contains:
+## Implementation of Cumulative Link Mixed Models in clmm().
 
 if(getRversion() >= '2.15.1')
     utils::globalVariables(c("ths", "link", "threshold", "optRes",

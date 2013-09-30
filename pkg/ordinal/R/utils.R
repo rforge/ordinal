@@ -1,3 +1,117 @@
+## This file contains:
+## Various utility functions.
+
+setLinks <- function(rho, link) {
+### The Aranda-Ordaz and log-gamma links are not supported in this
+### version of clm.
+  rho$pfun <- switch(link,
+                     logit = plogis,
+                     probit = pnorm,
+                     cloglog = function(x, lower.tail=TRUE) pgumbel(x,
+                                             lower.tail=lower.tail, max=FALSE),
+                     cauchit = pcauchy,
+                     loglog = pgumbel,
+                     "Aranda-Ordaz" = function(x, lambda) pAO(x, lambda),
+                     "log-gamma" = function(x, lambda) plgamma(x, lambda))
+  rho$dfun <- switch(link,
+                     logit = dlogis,
+                     probit = dnorm,
+                     cloglog = function(x) dgumbel(x, max=FALSE),
+                     cauchit = dcauchy,
+                     loglog = dgumbel,
+                     "Aranda-Ordaz" = function(x, lambda) dAO(x, lambda),
+                     "log-gamma" = function(x, lambda) dlgamma(x, lambda))
+  rho$gfun <- switch(link,
+                     logit = glogis,
+                     probit = gnorm,
+                     cloglog = function(x) ggumbel(x, max=FALSE),
+                     loglog = ggumbel,
+                     cauchit = gcauchy,
+                     "Aranda-Ordaz" = function(x, lambda) gAO(x, lambda), ## shouldn't happen
+                     "log-gamma" = function(x, lambda) glgamma(x, lambda)
+                     )
+  rho$link <- link
+}
+
+makeThresholds <- function(ylevels, threshold) { ## , tJac) {
+### Generate the threshold structure summarized in the transpose of
+### the Jacobian matrix, tJac. Also generating nalpha and alpha.names.
+
+### args:
+### y - response variable, a factor
+### threshold - one of "flexible", "symmetric" or "equidistant"
+  ## stopifnot(is.factor(y))
+  lev <- ylevels
+  ntheta <- length(lev) - 1
+
+  ## if(!is.null(tJac)) {
+  ##   stopifnot(nrow(tJac) == ntheta)
+  ##   nalpha <- ncol(tJac)
+  ##   alpha.names <- colnames(tJac)
+  ##   if(is.null(alpha.names) || anyDuplicated(alpha.names))
+  ##     alpha.names <- as.character(1:nalpha)
+  ##   dimnames(tJac) <- NULL
+  ## }
+  ## else { ## threshold structure identified by threshold argument:
+    if(threshold == "flexible") {
+      tJac <- diag(ntheta)
+      nalpha <- ntheta
+      alpha.names <- paste(lev[-length(lev)], lev[-1], sep="|")
+    }
+
+    if(threshold == "symmetric") {
+      if(!ntheta >=2)
+        stop("symmetric thresholds are only meaningful for responses with 3 or more levels",
+             call.=FALSE)
+      if(ntheta %% 2) { ## ntheta is odd
+        nalpha <- (ntheta + 1)/2 ## No. threshold parameters
+        tJac <- t(cbind(diag(-1, nalpha)[nalpha:1, 1:(nalpha-1)],
+                        diag(nalpha)))
+        tJac[,1] <- 1
+        alpha.names <-
+          c("central", paste("spacing.", 1:(nalpha-1), sep=""))
+      }
+      else { ## ntheta is even
+        nalpha <- (ntheta + 2)/2
+        tJac <- cbind(rep(1:0, each = ntheta / 2),
+                      rbind(diag(-1, ntheta / 2)[(ntheta / 2):1,],
+                            diag(ntheta / 2)))
+        tJac[,2] <- rep(0:1, each = ntheta / 2)
+        alpha.names <- c("central.1", "central.2",
+                         paste("spacing.", 1:(nalpha-2), sep=""))
+      }
+    }
+    ## Assumes latent mean is zero:
+    if(threshold == "symmetric2") {
+      if(!ntheta >=2)
+        stop("symmetric thresholds are only meaningful for responses with 3 or more levels",
+             call.=FALSE)
+      if(ntheta %% 2) { ## ntheta is odd
+        nalpha <- (ntheta - 1)/2 ## No. threshold parameters
+        tJac <- rbind(apply(-diag(nalpha), 1, rev),
+                      rep(0, nalpha),
+                      diag(nalpha))
+      }
+      else { ## ntheta is even
+        nalpha <- ntheta/2
+        tJac <- rbind(apply(-diag(nalpha), 1, rev),
+                      diag(nalpha))
+      }
+      alpha.names <- paste("spacing.", 1:nalpha, sep="")
+    }
+
+    if(threshold == "equidistant") {
+      if(!ntheta >=2)
+        stop("equidistant thresholds are only meaningful for responses with 3 or more levels",
+             call.=FALSE)
+      tJac <- cbind(1, 0:(ntheta-1))
+      nalpha <- 2
+      alpha.names <- c("threshold.1", "spacing")
+    }
+  ## }
+  return(list(tJac = tJac, nalpha = nalpha, alpha.names = alpha.names))
+}
+
 getFitted <- function(eta1, eta2, pfun, ...) {
   ## eta1, eta2: linear predictors
   ## pfun: cumulative distribution function
@@ -94,6 +208,55 @@ getFullForm <- function(form, ..., envir=parent.frame()) {
 ##   form <- paste("~", rhs)
 ##   return(as.formula(form, env=envir))
 ## }
+
+## getCtrlArgs <- function(control, extras) {
+## ### Recover control arguments from clmm.control and extras (...):
+## ###
+##   ## Collect control arguments in list:
+##   ctrl.args <- c(extras, control$method, control$useMatrix,
+##                  control$ctrl, control$optCtrl)
+##   ## Identify the two occurences "trace", delete them, and add trace=1
+##   ## or trace=-1 to the list of arguments:
+##   which.trace <- which(names(ctrl.args) == "trace")
+##   trace.sum <- sum(unlist(ctrl.args[which.trace]))
+##   ctrl.args <- ctrl.args[-which.trace]
+##   ## remove duplicated arguments:
+##   ctrl.args <- ctrl.args[!duplicated(names(ctrl.args))]
+##   if(trace.sum >= 1) ctrl.args$trace <- 1
+##   if(trace.sum >= 2 || trace.sum <= -1) ctrl.args$trace <- -1
+##   ## return the updated list of control parameters:
+##   do.call("clmm.control", ctrl.args)
+## }
+
+getCtrlArgs <- function(control, extras) {
+### Recover control arguments from clmm.control and extras (...):
+###
+    if(!is.list(control))
+        stop("'control' should be a list")
+    ## Collect control arguments in list:
+    ## 1) assuming 'control' is a call to clmm.control:
+        ctrl.args <-
+        if(setequal(names(control), names(clmm.control())))
+            c(extras, control["method"], control["useMatrix"],
+              control$ctrl, control$optCtrl)
+    ## assuming 'control' is specified with control=list( 'args'):
+        else
+            c(extras, control)
+### NOTE: having c(extras, control) rather than c(control, extras)
+### means that extras have precedence over control.
+    ## Identify the two occurences "trace", delete them, and add trace=1
+    ## or trace=-1 to the list of arguments:
+    which.trace <- which(names(ctrl.args) == "trace")
+    trace.sum <- sum(unlist(ctrl.args[which.trace]))
+    if(trace.sum)
+        ctrl.args <- ctrl.args[-which.trace]
+    ## remove duplicated arguments:
+    ctrl.args <- ctrl.args[!duplicated(names(ctrl.args))]
+    if(trace.sum >= 1) ctrl.args$trace <- 1
+    if(trace.sum >= 2 || trace.sum <= -1) ctrl.args$trace <- -1
+    ## return the updated list of control parameters:
+    do.call("clmm.control", ctrl.args)
+}
 
 Trace <- function(iter, stepFactor, val, maxGrad, par, first=FALSE) {
     t1 <- sprintf(" %3d:  %-5e:    %.3f:   %1.3e:  ",

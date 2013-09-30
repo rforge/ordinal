@@ -1,3 +1,7 @@
+## This file contains:
+## [pdqrg]gumbel functions for the gumbel distribution.
+## Here ggumbel is the gradient of the density function, dgumbel.
+
 pgumbel <-
   function(q, location = 0, scale = 1, lower.tail = TRUE, max = TRUE)
 ### CDF for Gumbel max and min distributions
