@@ -3,7 +3,7 @@ convergence.clmm <-
 ### Results: data.frame with columns:
 ### Estimate
 ### Std. Error
-### Gradient - gradient of the coefficients at optimizer termination 
+### Gradient - gradient of the coefficients at optimizer termination
 ### Error - the signed error in the coefficients at termination
 ### Rel. Error - the relative error in the coefficeints at termination
 ###
@@ -30,7 +30,7 @@ convergence.clmm <-
   g <- grad(function(p) obj.fun(rho, p), x=as.vector(coef(object)))
   h <- object$Hessian
   info <- summ$info[c("nobs", "logLik", "niter", "max.grad",
-                      "cond.H")] 
+                      "cond.H")]
   ## Compute approximate error in the coefficients:
   step <- solve(h, g)
   if(max(abs(step)) > 1e-2)
@@ -45,13 +45,13 @@ convergence.clmm <-
   info$logLik.Error <- formatC(logLik.err, digits=2, format="e")
   se <- sqrt(diag(vcov(object)))
   tab <- cbind(coef(object), se, g, step, cor.dec(step),
-               signif.digits(coef(object), step)) 
+               signif.digits(coef(object), step))
   dimnames(tab) <-
     list(names(coef(object)),
          c("Estimate", "Std.Err", "Gradient",
            "Error", "Cor.Dec", "Sig.Dig"))
   tab.print <- tab
-  for(i in 1:2) 
+  for(i in 1:2)
     tab.print[,i] <- format(c(tab[,i]), digits=digits)
   for(i in 3:4) tab.print[,i] <-
     format(c(tab[,i]), digits=max(1, digits - 1))
@@ -64,13 +64,13 @@ convergence.clmm <-
   cat(format(e.val, digits=digits), "\n", fill=TRUE)
   if(any(e.val <=0))
     cat("\nNegative eigen values occured so model did not converge\n")
-  return(invisible(tab))  
+  return(invisible(tab))
 }
 
 nll.u.ssr <- function(rho) {
   with(rho, {
     tau <- exp(par[nalpha + nbeta + 1:ntau])
-    eta1 <- drop(B1 %*% par[1:(nalpha + nbeta)]) + o1 - u[grFac] * tau 
+    eta1 <- drop(B1 %*% par[1:(nalpha + nbeta)]) + o1 - u[grFac] * tau
     eta2 <- drop(B2 %*% par[1:(nalpha + nbeta)]) + o2 - u[grFac] * tau
   })
   rho$pr <- getFittedC(rho$eta1, rho$eta2, rho$link)
@@ -80,25 +80,25 @@ nll.u.ssr <- function(rho) {
   else
     rho$nll <- Inf
   rho$nll
-}  
+}
 
 jnll.u.ssr <- function(rho)
 ### Compute the contributions to the joint nll for each level of grFac
 ### in a clmm with a single RE term.
-### result: a vector of jnll contributions for each level of grFac. 
+### result: a vector of jnll contributions for each level of grFac.
 {
-  ## evaluate the multinomial contribution (y|u) to the joint log 
-  ## likelihood: 
+  ## evaluate the multinomial contribution (y|u) to the joint log
+  ## likelihood:
   with(rho, {
     tau <- exp(par[nalpha + nbeta + 1:ntau])
-    eta1 <- drop(B1 %*% par[1:(nalpha + nbeta)]) + o1 - u[grFac] * tau 
+    eta1 <- drop(B1 %*% par[1:(nalpha + nbeta)]) + o1 - u[grFac] * tau
     eta2 <- drop(B2 %*% par[1:(nalpha + nbeta)]) + o2 - u[grFac] * tau
   })
   rho$pr <- getFittedC(rho$eta1, rho$eta2, rho$link)
   ## split the contributions according to grFac:
   y.u <- split(rho$wts * log(rho$pr), rho$grFac)
   ## compute the contribution to the joint logLik for each level of
-  ## grFac: 
+  ## grFac:
   nll.contrib <- sapply(seq_along(y.u), function(i) {
     -sum(y.u[[i]]) - dnorm(x=rho$u[i], mean=0, sd=1, log=TRUE) })
   return(nll.contrib)
@@ -113,8 +113,8 @@ slice.u <-
 ###
 ### result: a list of data.frames with components: "u", "jnll",
 ### "quad" and some attributes.
-### 
-### FIXME: make it possible to select one or more random effects. 
+###
+### FIXME: make it possible to select one or more random effects.
 {
   ## argument matching and testing:
   stopifnot(is.numeric(alpha) && alpha > 0)
@@ -123,7 +123,7 @@ slice.u <-
   ## get model environment:
   rho <- update(object, doFit=FALSE)
   if(rho$ntau != 1L)
-    stop("only models with a single RE term are allowed") 
+    stop("only models with a single RE term are allowed")
   rho$par <- as.vector(coef(object))
   ## update the conditional modes of the random effects:
   nllBase.uC(rho)
@@ -134,8 +134,8 @@ slice.u <-
   ## compute contributions to the Laplace likelihood:
   jnll <- jnll.u.ssr(rho)
   la.contrib <- -jnll - log(cond.hess/(2*pi)) / 2
-  
-  ## compute range of u-values at which to compute the joint nll: 
+
+  ## compute range of u-values at which to compute the joint nll:
   lim <- c(1, -1) * qnorm(alpha/2)
   lims <- outer(lim, rho$u, FUN="+")
   ## compute the u-values at which to evaluate the log.lik
@@ -146,9 +146,9 @@ slice.u <-
     rho$u <- uu
     -jnll.u.ssr(rho)
   }))
-  
+
   ## collect parameter sequences and relative logLik in a list of
-  ## data.frames: 
+  ## data.frames:
   res <- lapply(seq_along(u.vals), function(i) {
     structure(data.frame(u.vals[[ i ]], jll.mat[,i]),
               names = c("u", "jll"))
@@ -162,7 +162,7 @@ slice.u <-
 
   if(!quad.approx) return(res)
   ## compute quadratic approximation to the joint nll
-  for(i in seq_along(u.vals)) 
+  for(i in seq_along(u.vals))
     res[[ i ]]$quad <-
       jll.mat[,i] - (u.vals[[ i ]] - ranef[i])^2 / cond.hess[i] / 2
 
@@ -175,14 +175,14 @@ plot.slice.clmm <-
            ...)
 ### Plot the joint log-likelihood or joint likelihood functions with
 ### the quadratic/gaussian approximations (if quad elements are
-### present). 
+### present).
 {
-  
+
   if(ask) {
     oask <- devAskNewPage(TRUE)
     on.exit(devAskNewPage(oask))
   }
- 
+
   for(i in seq_along(x)) {
     z <- x[[ i ]]
     if(!Log) z[,2:3] <- exp(z[,2:3])
@@ -190,6 +190,6 @@ plot.slice.clmm <-
     if(!is.null(z$quad))
       lines(z[[1]], z[[3]], lty=2)
   }
-  
+
   return(invisible())
 }
