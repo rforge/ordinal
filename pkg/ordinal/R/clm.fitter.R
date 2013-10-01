@@ -10,9 +10,9 @@ clm.fit.NR <-
 ### Fitting the clm via modified Newton-Raphson with step halving.
 
 ### -------- Assumes the existence of the following functions:
-### eclm.nll - negative log-likelihood
-### eclm.grad - gradient of nll wrt. par
-### eclm.hess - hessian of nll wrt. par
+### clm.nll - negative log-likelihood
+### clm.grad - gradient of nll wrt. par
+### clm.hess - hessian of nll wrt. par
 ### Trace - for trace information
 {
     control <- do.call(clm.control, control)
@@ -192,25 +192,25 @@ clm.fit.optim <-
   optRes <-
     switch(method,
            "nlminb" = nlminb(rho$par,
-             function(par) eclm.nll(rho, par),
-             function(par) eclm.grad2(rho, par),
+             function(par) clm.nll(rho, par),
+             function(par) clm.grad_direct(rho, par),
              control=control),
            "ucminf" = ucminf(rho$par,
-             function(par) eclm.nll(rho, par),
-             function(par) eclm.grad2(rho, par),
+             function(par) clm.nll(rho, par),
+             function(par) clm.grad_direct(rho, par),
              control=control),
            "optim" = optim(rho$par,
-             function(par) eclm.nll(rho, par),
-             function(par) eclm.grad2(rho, par),
+             function(par) clm.nll(rho, par),
+             function(par) clm.grad_direct(rho, par),
              method="BFGS",
              control=control),
            )
   ## save results:
   rho$par <- optRes[[1]]
   res <- list(par = rho$par,
-              logLik = -eclm.nll(rho),
-              gradient = eclm.grad(rho),
-              Hessian = eclm.hess(rho),
+              logLik = -clm.nll(rho),
+              gradient = clm.grad(rho),
+              Hessian = clm.hess(rho),
               fitted = rho$fitted)
   res$maxGradient = max(abs(res$gradient))
   res$optRes <- optRes
@@ -226,7 +226,7 @@ clm.fit.optim <-
 }
 
 
-eclm.nll <- function(rho, par) {
+clm.nll <- function(rho, par) {
   if(!missing(par)) rho$par <- par
   with(rho, {
       if(k > 0)
@@ -246,52 +246,40 @@ eclm.nll <- function(rho, par) {
   else Inf
 }
 
-clm.nll <- function(rho) { ## negative log-likelihood
-### For linear models
-  with(rho, {
-    eta1 <- drop(B1 %*% par) + o1
-    eta2 <- drop(B2 %*% par) + o2
-  })
-### NOTE: getFitted is not found from within rho, so we have to
-### evalueate it outside of rho
-  rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
-  if(all(rho$fitted > 0))
-### NOTE: Need test here because some fitted <= 0 if thresholds are
-### not ordered increasingly.
-### It is assumed that 'all(is.finite(pr)) == TRUE'
-    -sum(rho$wts * log(rho$fitted))
-  else Inf
-}
+## clm.nll <- function(rho) { ## negative log-likelihood
+## ### For linear models
+##   with(rho, {
+##     eta1 <- drop(B1 %*% par) + o1
+##     eta2 <- drop(B2 %*% par) + o2
+##   })
+## ### NOTE: getFitted is not found from within rho, so we have to
+## ### evalueate it outside of rho
+##   rho$fitted <- getFittedC(rho$eta1, rho$eta2, rho$link)
+##   if(all(rho$fitted > 0))
+## ### NOTE: Need test here because some fitted <= 0 if thresholds are
+## ### not ordered increasingly.
+## ### It is assumed that 'all(is.finite(pr)) == TRUE'
+##     -sum(rho$wts * log(rho$fitted))
+##   else Inf
+## }
 
-clm.grad <- function(rho) { ## gradient of the negative log-likelihood
-### return: vector of gradients
-### For linear models
-  with(rho, {
-    p1 <- dfun(eta1)
-    p2 <- dfun(eta2)
-    wtpr <- wts/fitted
-    dpi.psi <- B1 * p1 - B2 * p2
-    -crossprod(dpi.psi, wtpr)
-### NOTE: It is assumed that all(fitted > 0) == TRUE and that
-### all(is.finite(c(p1, p2))) == TRUE
-  })
-}
+## clm.grad <- function(rho) { ## gradient of the negative log-likelihood
+## ### return: vector of gradients
+## ### For linear models
+##   with(rho, {
+##     p1 <- dfun(eta1)
+##     p2 <- dfun(eta2)
+##     wtpr <- wts/fitted
+##     dpi.psi <- B1 * p1 - B2 * p2
+##     -crossprod(dpi.psi, wtpr)
+## ### NOTE: It is assumed that all(fitted > 0) == TRUE and that
+## ### all(is.finite(c(p1, p2))) == TRUE
+##   })
+## }
 
-clm.hess <- function(rho) { ## hessian of the negative log-likelihood
-### return Hessian matrix
-### For linear models
-  with(rho, {
-    dg.psi <- crossprod(B1 * gfun(eta1) * wtpr, B1) -
-      crossprod(B2 * gfun(eta2) * wtpr, B2)
-    -dg.psi + crossprod(dpi.psi, (dpi.psi * wtpr / fitted))
-### NOTE: It is assumed that all(fitted > 0) == TRUE and that
-### all(is.finite(c(g1, g2))) == TRUE
-  })
-}
-
-eclm.grad <- function(rho) {
-### requires that eclm.nll has been called prior to
-### eclm.grad.
+clm.grad <- function(rho) {
+### requires that clm.nll has been called prior to
+### clm.grad.
   with(rho, {
     p1 <- dfun(eta1)
     p2 <- dfun(eta2)
@@ -300,42 +288,54 @@ eclm.grad <- function(rho) {
     if(k <= 0) return(-crossprod(C2, wtpr))
     C3 <- -(eta1 * p1 - eta2 * p2) * S
     return(-crossprod(cbind(C2, C3), wtpr))
-### NOTE: C2 and C3 are used by eclm.hess
+### NOTE: C2 and C3 are used by clm.hess
   })
 }
 
-eclm.grad2 <- function(rho, par) {
-### does not require that eclm.nll has been called prior to
-### eclm.grad.
-  eclm.nll(rho, par)
-  eclm.grad(rho)
+clm.grad_direct <- function(rho, par) {
+### does not require that clm.nll has been called prior to
+### clm.grad.
+    clm.nll(rho, par)
+    clm.grad(rho)
 }
 
-eclm.hess <- function(rho) {
-### requires that eclm.grad has been called prior to this.
-  with(rho, {
-    g1 <- gfun(eta1)
-    g2 <- gfun(eta2)
-    wtprpr <- wtpr/fitted ## Phi3
-    dg.psi <- crossprod(B1 * gfun(eta1) * wtpr / sigma^2, B1) -
-      crossprod(B2 * gfun(eta2) * wtpr / sigma^2, B2)
-    ## upper left:
-    D <- dg.psi - crossprod(C2, (C2 * wtprpr))
-    if(k <= 0) return(-D) ## no scale predictors
-    ## upper right (lower left transpose):
-    wtprsig <- wtpr/sigma
-    epg1 <- p1 + g1*eta1
-    epg2 <- p2 + g2*eta2
-    Et <- crossprod(B1, -wtprsig * epg1 * S) -
-      crossprod(B2, -wtprsig * epg2 * S) -
-        crossprod(C2, wtprpr * C3)
-    ## lower right:
-    F <- -crossprod(S, wtpr * ((eta1*p1 - eta2*p2)^2 / fitted -
-                               (eta1*epg1 - eta2*epg2)) * S)
-    ## combine and return hessian:
-    H <- rbind(cbind(D    , Et),
-               cbind(t(Et), F))
-    return(-H)
-  })
+## clm.hess <- function(rho) { ## hessian of the negative log-likelihood
+## ### return Hessian matrix
+## ### For linear models
+##   with(rho, {
+##     dg.psi <- crossprod(B1 * gfun(eta1) * wtpr, B1) -
+##       crossprod(B2 * gfun(eta2) * wtpr, B2)
+##     -dg.psi + crossprod(dpi.psi, (dpi.psi * wtpr / fitted))
+## ### NOTE: It is assumed that all(fitted > 0) == TRUE and that
+## ### all(is.finite(c(g1, g2))) == TRUE
+##   })
+## }
+
+clm.hess <- function(rho) {
+### requires that clm.grad has been called prior to this.
+    with(rho, {
+        g1 <- gfun(eta1)
+        g2 <- gfun(eta2)
+        wtprpr <- wtpr/fitted ## Phi3
+        dg.psi <- crossprod(B1 * gfun(eta1) * wtpr / sigma^2, B1) -
+            crossprod(B2 * gfun(eta2) * wtpr / sigma^2, B2)
+        ## upper left:
+        D <- dg.psi - crossprod(C2, (C2 * wtprpr))
+        if(k <= 0) return(-D) ## no scale predictors
+        ## upper right (lower left transpose):
+        wtprsig <- wtpr/sigma
+        epg1 <- p1 + g1*eta1
+        epg2 <- p2 + g2*eta2
+        Et <- crossprod(B1, -wtprsig * epg1 * S) -
+            crossprod(B2, -wtprsig * epg2 * S) -
+                crossprod(C2, wtprpr * C3)
+        ## lower right:
+        F <- -crossprod(S, wtpr * ((eta1*p1 - eta2*p2)^2 / fitted -
+                                   (eta1*epg1 - eta2*epg2)) * S)
+        ## combine and return hessian:
+        H <- rbind(cbind(D    , Et),
+                   cbind(t(Et), F))
+        return(-H)
+    })
 }
 

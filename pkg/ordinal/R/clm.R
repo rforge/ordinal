@@ -28,12 +28,8 @@ clm <-
   ## set control parameters:
   control <- do.call(clm.control, c(control, list(...)))
 
-  ## identify model as 'simple clm' or 'extended clm':
-  Class <- if(!missing(scale) || link == "cauchit")
-    c("eclm", "clm") else c("sclm", "clm")
-
   ## Compute: y, X, wts, off, mf:
-  frames <- eclm.model.frame(mc, contrasts)
+  frames <- clm.model.frame(mc, contrasts)
 
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
@@ -51,25 +47,20 @@ clm <-
   ## (X is with intercept at this point.)
   frames <- drop.cols(frames, drop.scale=FALSE, silent=TRUE)
 ### Note: intercept could be dropped from X and S in drop.cols?
-### Currently they are dropped in eclm.newRho instead.
+### Currently they are dropped in clm.newRho instead.
 
   ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted:
   rho <- with(frames, {
-      eclm.newRho(parent.frame(), y=y, X=X, NOM=frames$NOM, S=frames$S,
+      clm.newRho(parent.frame(), y=y, X=X, NOM=frames$NOM, S=frames$S,
                   weights=wts, offset=off, S.offset=frames$S.off,
                   tJac=ths$tJac)
   })
 
   ## Set appropriate logLik and deriv functions in rho:
-  if("eclm" %in% Class) {
-    rho$clm.nll <- eclm.nll
-    rho$clm.grad <- eclm.grad
-    rho$clm.hess <- eclm.hess
-  } else {
-    rho$clm.nll <- clm.nll
-    rho$clm.grad <- clm.grad
-    rho$clm.hess <- clm.hess
-  }
+  rho$clm.nll <- clm.nll
+  rho$clm.grad <- clm.grad
+  rho$clm.hess <- clm.hess
+### FIXME: move this function assignment into clm.newRho
 
   ## Set starting values for the parameters:
   start <- set.start(rho, start=start, get.start=missing(start),
@@ -89,9 +80,9 @@ clm <-
   fit <- clm.fit.optim(rho, control$method, control$ctrl)
 
   ## Modify and return results:
-  res <- eclm.finalize(fit, weights=frames$wts,
-                       coef.names=frames$coef.names,
-                       aliased=frames$aliased)
+  res <- clm.finalize(fit, weights=frames$wts,
+                      coef.names=frames$coef.names,
+                      aliased=frames$aliased)
   res$link <- link
   res$start <- start
   res$control <- control
@@ -175,11 +166,11 @@ clm <-
   res$par <- res$fitted <- res$niter <- NULL
   ## order elements of result alphabetically:
   res <- res[order(tolower(names(res)))]
-  class(res) <- Class
+  class(res) <- "clm"
   res
 }
 
-eclm.model.frame <- function(mc, contrasts) {
+clm.model.frame <- function(mc, contrasts) {
 ### mc - the matched call
 ### contrasts - contrasts for the model terms
 
@@ -306,39 +297,39 @@ eclm.model.frame <- function(mc, contrasts) {
   ## guaranteed. They may be column rank defecient.
 }
 
+## clm.newRho <-
+##   function(parent, y, X, weights, offset, tJac)
+## ### Set variables in rho: B1, B2, o1, o2 and wts.
+## {
+##   rho <- new.env(parent = parent)
+##
+##   ## Make B1, B2, o1, o2 based on y, X and tJac:
+##   ntheta <- nlevels(y) - 1
+##   n <- nrow(X)
+##   B2 <- 1 * (col(matrix(0, n, ntheta + 1)) == c(unclass(y)))
+##   rho$o1 <- c(1e5 * B2[, ntheta + 1]) - offset
+##   rho$o2 <- c(-1e5 * B2[,1]) - offset
+##   B1 <- B2[, -(ntheta + 1), drop = FALSE]
+##   B2 <- B2[, -1, drop = FALSE]
+##   ## adjust B1 and B2 for structured thresholds:
+##   rho$B1 <- B1 %*% tJac
+##   rho$B2 <- B2 %*% tJac
+##   ## update B1 and B2 with location effects (X):
+##   nbeta <- NCOL(X) - 1
+##   if(nbeta > 0) {
+##     rho$B1 <- cbind(rho$B1, -X[, -1, drop = FALSE])
+##     rho$B2 <- cbind(rho$B2, -X[, -1, drop = FALSE])
+##   }
+##   dimnames(rho$B1) <- NULL
+##   dimnames(rho$B2) <- NULL
+##
+##   rho$fitted <- numeric(length = n)
+##   rho$wts <- weights
+##
+##   return(rho)
+## }
+
 clm.newRho <-
-  function(parent, y, X, weights, offset, tJac)
-### Set variables in rho: B1, B2, o1, o2 and wts.
-{
-  rho <- new.env(parent = parent)
-
-  ## Make B1, B2, o1, o2 based on y, X and tJac:
-  ntheta <- nlevels(y) - 1
-  n <- nrow(X)
-  B2 <- 1 * (col(matrix(0, n, ntheta + 1)) == c(unclass(y)))
-  rho$o1 <- c(1e5 * B2[, ntheta + 1]) - offset
-  rho$o2 <- c(-1e5 * B2[,1]) - offset
-  B1 <- B2[, -(ntheta + 1), drop = FALSE]
-  B2 <- B2[, -1, drop = FALSE]
-  ## adjust B1 and B2 for structured thresholds:
-  rho$B1 <- B1 %*% tJac
-  rho$B2 <- B2 %*% tJac
-  ## update B1 and B2 with location effects (X):
-  nbeta <- NCOL(X) - 1
-  if(nbeta > 0) {
-    rho$B1 <- cbind(rho$B1, -X[, -1, drop = FALSE])
-    rho$B2 <- cbind(rho$B2, -X[, -1, drop = FALSE])
-  }
-  dimnames(rho$B1) <- NULL
-  dimnames(rho$B2) <- NULL
-
-  rho$fitted <- numeric(length = n)
-  rho$wts <- weights
-
-  return(rho)
-}
-
-eclm.newRho <-
   function(parent=parent.frame(), y, X, NOM=NULL, S=NULL, weights,
            offset, S.offset=NULL, tJac)
 ### Setting variables in rho: B1, B2, o1, o2, wts.
@@ -398,7 +389,7 @@ eclm.newRho <-
   return(rho)
 }
 
-eclm.finalize <- function(fit, weights, coef.names, aliased)
+clm.finalize <- function(fit, weights, coef.names, aliased)
 ### destinguishing between par and coef where the former does not
 ### contain aliased coefficients.
 {

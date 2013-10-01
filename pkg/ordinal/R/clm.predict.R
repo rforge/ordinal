@@ -120,12 +120,12 @@ predict.clm <-
 ### Construct model environment:
     tJac <- object$tJac
     dimnames(tJac) <- NULL
-    env <- eclm.newRho(parent.frame(), y=y, X=X,
-                       NOM=if(is.nom) NOM else NULL,
-                       S=if(is.scale) S else NULL,
-                       weights=rep(1, n), offset=offset,
-                       S.offset=if(is.scale) Soff else rep(0, n),
-                       tJac=tJac)
+    env <- clm.newRho(parent.frame(), y=y, X=X,
+                      NOM=if(is.nom) NOM else NULL,
+                      S=if(is.scale) S else NULL,
+                      weights=rep(1, n), offset=offset,
+                      S.offset=if(is.scale) Soff else rep(0, n),
+                      tJac=tJac)
     setLinks(env, link=object$link)
   } ## end !missing(newdata) or type == "class"
   else  env <- update(object, doFit=FALSE)
@@ -179,7 +179,7 @@ prob.predict.clm <-
 ### cov - vcov for the parameters
 {
   ## evaluate nll and grad to set dpi.psi in env:
-  eclm.nll(env)
+  clm.nll(env)
   pred <- list(fit = as.vector(env$fitted))
   if(se.fit || interval) {
     se.pr <- get.se(env, cov, type="prob")
@@ -200,7 +200,7 @@ prob.predict.clm <-
 eta.pred.predict.clm <-
     function(env, cov, se.fit=FALSE, interval=FALSE, level=0.95)
 {
-    ## eclm.nll(env)
+    ## clm.nll(env)
     pred <- list(eta = c(with(env, B1 %*% par[1:n.psi])))
     if(se.fit || interval) {
         se <- get.se(env, cov, type="lp")
@@ -221,7 +221,7 @@ lin.pred.predict.clm <-
 ### get predictions on the scale of the linear predictor
 {
   ## evaluate nll and grad to set dpi.psi in env:
-  eclm.nll(env)
+  clm.nll(env)
   pred <- list(eta1=env$eta1, eta2=env$eta2)
   if(se.fit || interval) {
     se <- get.se(env, cov, type="lp")
@@ -244,7 +244,7 @@ cum.prob.predict.clm <-
   function(env, cov, se.fit=FALSE, interval=FALSE, level=0.95)
 {
   ## evaluate nll and grad to set dpi.psi in env:
-  eclm.nll(env)
+  clm.nll(env)
   pred <- list(cprob1=env$pfun(env$eta1), cprob2=env$pfun(env$eta2))
   if(se.fit || interval) {
     se <- get.se(env, cov, type="gamma")
@@ -270,7 +270,7 @@ get.se <- function(rho, cov, type=c("lp", "gamma", "prob")) {
 ### (k>0).
   rho$type <- match.arg(type)
   rho$cov <- cov
-  eclm.nll(rho) ## just to be safe
+  clm.nll(rho) ## just to be safe
   with(rho, {
 ### First compute d[eta, gamma, prob] / d par; then compute variance
 ### covariance matrix of the observations and extract SEs as the
