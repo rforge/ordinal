@@ -5,7 +5,7 @@
 clm <-
   function(formula, scale, nominal, data, weights, start, subset,
            doFit = TRUE, na.action, contrasts, model = TRUE,
-           control = list(), ## tJac,
+           control = list(),
            link = c("logit", "probit", "cloglog", "loglog", "cauchit"),
            threshold = c("flexible", "symmetric", "symmetric2", "equidistant"), ...)
 ### deliberately no offset argument - include offset in the relevant
@@ -33,10 +33,6 @@ clm <-
 
   ## Compute the transpose of the Jacobian for the threshold function,
   ## tJac and the names of the threshold parameters, alpha.names:
-  ## if(missing(tJac)) tJac <- NULL
-  ## if(!is.null(tJac) && missing(start))
-  ##   stop("specify 'start' when supplying 'tJac'")
-  ## frames$ths <- makeThresholds(frames$ylevels, threshold, tJac)
   frames$ths <- makeThresholds(frames$ylevels, threshold)
 
   ## Return model.frame?
@@ -55,12 +51,6 @@ clm <-
                   weights=wts, offset=off, S.offset=frames$S.off,
                   tJac=ths$tJac)
   })
-
-  ## Set appropriate logLik and deriv functions in rho:
-  rho$clm.nll <- clm.nll
-  rho$clm.grad <- clm.grad
-  rho$clm.hess <- clm.hess
-### FIXME: move this function assignment into clm.newRho
 
   ## Set starting values for the parameters:
   start <- set.start(rho, start=start, get.start=missing(start),
@@ -83,6 +73,7 @@ clm <-
   res <- clm.finalize(fit, weights=frames$wts,
                       coef.names=frames$coef.names,
                       aliased=frames$aliased)
+  ## Save stuff in model object and check convergence:
   res$link <- link
   res$start <- start
   res$control <- control
@@ -385,6 +376,10 @@ clm.newRho <-
   ## initialize fitted values and weights:
   rho$fitted <- numeric(length = n)
   rho$wts <- weights[keep]
+  ## Setting likelihood, gradient and Hessian functions:
+  rho$clm.nll <- clm.nll
+  rho$clm.grad <- clm.grad
+  rho$clm.hess <- clm.hess
   ## return:
   return(rho)
 }

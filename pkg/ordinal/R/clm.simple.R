@@ -62,11 +62,6 @@ simple_clm <-
                     weights=wts, offset=off, S.offset=NULL,
                     tJac=frames$ths$tJac)
 
-  ## Set appropriate logLik and deriv functions in rho:
-  rho$clm.nll <- clm.nll
-  rho$clm.grad <- clm.grad
-  rho$clm.hess <- clm.hess
-
   ## Set starting values for the parameters:
   start <- set.start(rho, start=start, get.start=missing(start),
                      threshold=threshold, link=link, frames=frames)
