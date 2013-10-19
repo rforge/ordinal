@@ -6,7 +6,6 @@
 \usepackage{natbib}
 \usepackage{Sweave}
 \usepackage{url}
-\usepackage{subfigure}
 \usepackage{float}%Use `float.sty'
 \usepackage[left=3.5cm,right=3.5cm]{geometry}
 \usepackage{algorithmic}
