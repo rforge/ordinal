@@ -217,3 +217,8 @@ March 04 2010:
   standard
 - Removing distinction between (non-S3/4) sclm, eclm and clm model
   classes
+
+2013-10-31:
+- Now having 'methods' in depends since this is needed to run
+  clmm. This was most likely only a problem when using Rscript where
+  the methods package is not loaded by default.

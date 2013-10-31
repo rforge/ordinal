@@ -1,13 +1,14 @@
 Package: ordinal
 Type: Package
 Title: Regression Models for Ordinal Data
-Version: 2013.10-19
+Version: 2013.10-31
 Authors@R: person(given="Rune Haubo Bojesen", family="Christensen",
     email="rhbc@dtu.dk", role=c("aut", "cre"))
 LazyData: true
 ByteCompile: yes
 Depends:
-    R (>= 2.13.0)
+    R (>= 2.13.0),
+    methods
 Imports:
     ucminf,
     MASS,
