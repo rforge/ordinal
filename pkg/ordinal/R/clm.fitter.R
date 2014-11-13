@@ -17,7 +17,7 @@ clm.fit.NR <-
 {
     control <- do.call(clm.control, control)
     stepFactor <- 1
-    innerIter <- modif.iter <- 0L
+    innerIter <- modif.iter <- abs.iter <- 0L
     conv <- 2L  ## Convergence flag (iteration limit reached)
     nll <- rho$clm.nll(rho)
     if(!is.finite(nll))
@@ -46,6 +46,7 @@ clm.fit.NR <-
             }
         }
         abs.conv <- (maxGrad < control$gradTol)
+        if(abs.conv) abs.iter <- abs.iter + 1L
         hessian <- rho$clm.hess(rho)
         ## Compute cholesky factor of Hessian: ch = Ut U
         ch <- try(chol(hessian), silent=TRUE)
@@ -108,6 +109,9 @@ clm.fit.NR <-
         ## Assess convergence:
         ## (only attempt to sattisfy rel.conv if abs.conv is true and
         ## it is possible to take the full newton step)
+### FIXME: And if 'step' is not close to 1 or 1/2, but
+### small. Otherwise this just indicates that the parameter is
+### infinite.
         ## if(abs.conv && !step.ok) {
         if(abs.conv && stephalf) {
             conv <- 1L
@@ -121,6 +125,12 @@ clm.fit.NR <-
             conv <- 0L
             ## no need to step back as stephalf was false so the new
             ## par are just better.
+            break
+        }
+        if(abs.conv && abs.iter >= 5L) {
+            ## Cannot satisy rel.conv in 5 iterations after satisfying
+            ## abs.conv. Probably some parameters are unbounded.
+            conv <- 1L
             break
         }
         ## Step halving if nll increases:
@@ -165,8 +175,9 @@ clm.fit.NR <-
         cat("\nOptimization failed ", message, fill = TRUE)
     }
     ## return results:
+    gradient <- c(rho$clm.grad(rho))
     res <- list(par = rho$par,
-                gradient = c(rho$clm.grad(rho)), ##as.vector(gradient),
+                gradient = gradient, ##as.vector(gradient),
                 ## Hessian = hessian,
                 Hessian = rho$clm.hess(rho), ## ensure hessian is evaluated
                 ## at optimum
@@ -177,7 +188,7 @@ clm.fit.NR <-
                 ## 2: iteration limit reached
                 ## 3: step factor reduced below minium
                 message = message,
-                maxGradient = maxGrad,
+                maxGradient = max(abs(gradient)),
                 niter = c(outer = i-1, inner = innerIter),
                 fitted = rho$fitted)
     return(res)

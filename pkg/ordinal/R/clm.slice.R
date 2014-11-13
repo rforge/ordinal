@@ -23,7 +23,7 @@ slice.clm <-
   if(!all(parm %in% seq_along(par)))
     stop("invalid 'parm' argument")
   stopifnot(length(parm) > 0)
-  parm <- as.integer(parm)
+  parm <- as.integer(round(parm))
   ## parm is an integer vector indexing non-aliased coef.
   ml <- object$logLik
   parm.names <- par.names[parm]
@@ -84,7 +84,7 @@ plot.slice.clm <-
   ## Initiala argument matching and testing:
   type <- match.arg(type)
   stopifnot(is.numeric(parm))
-  parm <- as.integer(parm)
+  parm <- as.integer(round(parm))
   of <- attr(x, "original.fit")
   par <- coef(of)
   ml <- of$logLik

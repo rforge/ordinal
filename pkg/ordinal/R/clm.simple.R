@@ -46,7 +46,7 @@ simple_clm <-
             call.=FALSE)
   } ## intercept in X is guaranteed.
   wts <- getWeights(mf)
-  off <- getOffset(mf)
+  off <- getOffsetStd(mf)
   ylevels <- levels(droplevels(y[wts > 0]))
   frames <- list(y=y, ylevels=ylevels, X=X)
 
