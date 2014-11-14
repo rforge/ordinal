@@ -1,3 +1,7 @@
+## This file contains:
+## methods for computing, manipulating and extracting design matrices,
+## weights, offsets, model.frames and things like that.
+
 get_clmDesign <- function(fullmf, formulas, contrasts) {
 ### Compute design matrices for a clm object.
 ### clm-internal+external
