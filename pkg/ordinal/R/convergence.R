@@ -55,7 +55,9 @@ convergence.clm <-
         warning("convergence assessment may be unreliable ",
                 "due to large numerical error")
     ## Compute approximate error in the log-likelihood function:
-    env <- update(object, doFit=FALSE)
+    env <- get_clmRho(object)
+    ## Note: safer to get env this way.
+    ## env <- update(object, doFit=FALSE)
     env$par <- coef(object, na.rm=TRUE) - step
     new.logLik <- -env$clm.nll(env)
     new.max.grad <- max(abs(env$clm.grad(env)))
@@ -188,9 +190,6 @@ conv.check <-
     res$cond.H <- max(evd) / min(evd)
     ## Compute Newton step:
     ch <- try(chol(H), silent=TRUE)
-    step <- c(backsolve(ch, backsolve(ch, g, transpose=TRUE)))
-    ## Compute var-cov:
-    res$vcov[] <- chol2inv(ch)
     if(max.grad > control$gradTol) {
         res$code <- -1L
         res$messages <-
@@ -211,6 +210,13 @@ conv.check <-
             "Hessian is numerically singular: parameters are not uniquely determined"
         return(res)
     }
+### NOTE: Only do the following if 'ch <- try(chol(H), silent=TRUE)'
+### actually succedded:
+    step <- c(backsolve(ch, backsolve(ch, g, transpose=TRUE)))
+    ## Compute var-cov:
+    res$vcov[] <- chol2inv(ch)
+### NOTE: we want res$vcov to be present in all of the situations
+### below.
     if(max(abs(step)) > control$relTol) {
         res$code <- c(res$code, 1L)
         corDec <- as.integer(min(cor.dec(step)))

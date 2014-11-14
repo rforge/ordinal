@@ -21,7 +21,8 @@ convergence.clmm <-
   if(is.null(object$Hessian))
     stop("Model has to be fitted with 'Hess = TRUE'")
   summ <- summary(object)
-  rho <- update(object, doFit=FALSE)
+  rho <- get_clmRho(object)
+  ## rho <- update(object, doFit=FALSE)
   rho$par <- as.vector(coef(object))
   if(rho$ntau == 1L) {
     obj.fun <-
@@ -125,7 +126,8 @@ slice.u <-
   stopifnot(is.numeric(grid) && grid >= 1)
   grid <- as.integer(round(grid))
   ## get model environment:
-  rho <- update(object, doFit=FALSE)
+  rho <- get_clmRho(object)
+  ## rho <- update(object, doFit=FALSE)
   if(rho$ntau != 1L)
     stop("only models with a single RE term are allowed")
   rho$par <- as.vector(coef(object))
