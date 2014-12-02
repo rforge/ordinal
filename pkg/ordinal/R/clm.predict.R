@@ -71,7 +71,8 @@ predict.clm <-
 ### code clarity:
         offset <- rep(0, nrow(X))
         if(!is.null(off.num <- attr(object$terms, "offset")))
-            for(i in off.num) offset <- offset + eval(off.num[[i + 1]], newdata)
+            for(i in off.num) offset <- offset +
+                eval(attr(object$terms, "variables")[[i + 1]], newdata)
         y <- model.response(mf)
         if(any(!levels(y) %in%  object$y.levels))
             stop(gettextf("response factor '%s' has new levels",
