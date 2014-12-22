@@ -56,7 +56,7 @@ gradient <- function(fun, x, delta=1e-4, ...) {
 ##' @export
 ##' @family derivatives
 ##'
-##' @return alist with components
+##' @return a list with components
 ##' \item{gradient}{the first derivative vector}
 ##' \item{Hessian}{the second derivative matrix}
 ##' @author Rune Haubo Bojesen Christensen
