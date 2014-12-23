@@ -1,0 +1,7 @@
+This folder contains builds (tar.gz files) of tagged versions of the
+ordinal package.
+
+The files are build with
+
+    R CMD build --compact-vignettes="both" ../pkgname.tar.gz
+
