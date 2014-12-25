@@ -66,6 +66,11 @@ getThetamat <-
         ## minimal complete design matrix:
         X <- model.matrix(terms, data=mf.basic,
                           contrasts=contrasts[factor.varnm])
+### NOTE: get_clmDesign adds an intercept if its not there, so we need
+### to do that as well here. Otherwise 'X[, keep, drop=FALSE]' will
+### fail:
+        if(!"(Intercept)" %in% colnames(X))
+            X <- cbind("(Intercept)" = rep(1, nrow(X)), X)
 ### NOTE: There are no contrasts for numerical variables, but there
 ### may be for ordered factors.
         ## From threshold parameters to thresholds:
