@@ -312,7 +312,7 @@ model.matrix.clm <- function(object, type = c("design", "B"), ...) {
         contr <- c(object$contrasts, object$S.contrasts,
                    object$nom.contrasts)
         design <- get_clmDesign(fullmf=object$model,
-                                formulas=object$formulas,
+                                terms.list=object$terms.list,
                                 contrasts=contr)
         keep <- c("X", "NOM", "S")
         select <- match(keep, names(design), nomatch=0)

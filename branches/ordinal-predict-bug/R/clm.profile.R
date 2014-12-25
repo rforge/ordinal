@@ -636,7 +636,7 @@ profileAlt.clm <- ## using clm.fit()
 ### model-design-objects:
   ## mf <- update(fitted, method = "model.frame")
   contr <- c(fitted$contrasts, fitted$S.contrasts, fitted$nom.contrasts)
-  mf <- get_clmDesign(fitted$model, fitted$formulas, contr)
+  mf <- get_clmDesign(fitted$model, fitted$terms.list, contr)
   y <- mf$y
   X <- mf$X
   wts <- mf$wts
