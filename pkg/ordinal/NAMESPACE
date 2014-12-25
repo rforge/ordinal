@@ -87,6 +87,7 @@ S3method(logLik, clm)
 S3method(extractAIC, clm)
 S3method(model.matrix, clm)
 S3method(model.frame, clm)
+S3method(terms, clm)
 
 S3method(print, clmm)
 S3method(vcov, clmm)

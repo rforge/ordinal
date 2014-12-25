@@ -353,3 +353,12 @@ coef.summary.clm <- function(object, na.rm = FALSE, ...) {
 
 nobs.clm <- function(object, ...) object$nobs
 
+terms.clm <-
+    function(x, type=c("formula", "scale", "nominal", "all"), ...)
+{
+    type <- match.arg(type)
+    Terms <- x$terms.list
+    if(type == "all") return(Terms)
+    stopifnot(type %in% names(Terms))
+    Terms[[type]]
+}
