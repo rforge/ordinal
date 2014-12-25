@@ -127,7 +127,7 @@ get_clmDM <-
     Xint <- match("(Intercept)", colnames(X), nomatch = 0)
     if(check.intercept && Xint <= 0) {
         X <- cbind("(Intercept)" = rep(1, nrow(X)), X)
-        warning(gettext("an intercept is needed and assumed in '%s'", type),
+        warning(gettextf("an intercept is needed and assumed in '%s'", type),
                 call.=FALSE)
     } ## Intercept in X is guaranteed.
     res <- list(X=X)
