@@ -341,7 +341,7 @@ getContrasts <- function(terms, contrasts) {
 
 checkContrasts <- function(terms, contrasts) {
 ### Check that contrasts are not specified for absent factors and warn
-### if about them
+### about them
     term.labels <- attr(terms, "term.labels")
     nm.contr <- names(contrasts)
     notkeep <- nm.contr[!nm.contr %in% term.labels]
