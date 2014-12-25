@@ -54,7 +54,6 @@ get_clmDM <-
 {
     ## Get DM (=Design Matrix):
     type <- match.arg(type)
-    ## if(type=="scale") browser()
     terms <- terms(formulas[[type]], data=fullmf)
     X <- model.matrix(formulas[[type]], data=fullmf,
                       contrasts.arg=getContrasts(terms, contrasts))
