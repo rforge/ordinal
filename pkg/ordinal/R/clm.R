@@ -23,8 +23,11 @@ clm <-
   link <- match.arg(link)
   threshold <- match.arg(threshold)
   ## check for presence of formula:
-  if(missing(formula)) stop("Model needs a formula")
+  if(missing(formula)) stop("Model needs a formula", call.=FALSE)
   if(missing(contrasts)) contrasts <- NULL
+  if("offset" %in% names(as.list(match.call())))
+      stop("offset argument not allowed: ",
+           "specify 'offset' in formula or scale arguments instead")
   ## set control parameters:
   control <- do.call(clm.control, c(control, list(...)))
 

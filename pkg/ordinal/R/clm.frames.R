@@ -155,7 +155,8 @@ get_clm.mf <-
 
 get_clmY <- function(fullmf, wts) {
     y <- model.response(fullmf, "any") ## any storage mode
-    if(!is.factor(y)) stop("response needs to be a factor", call.=FALSE)
+    if(is.null(y)) stop("'formula' needs a response", call.=FALSE)
+    if(!is.factor(y)) stop("response in 'formula' needs to be a factor", call.=FALSE)
     ## ylevels are the levels of y with positive weights
     ylevels <- levels(droplevels(y[wts > 0]))
     ## check that y has at least two levels:
