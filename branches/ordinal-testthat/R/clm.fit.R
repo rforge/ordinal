@@ -46,7 +46,7 @@ clm.fit <-
   ## Get  threshold structure:
   frames$ths <- makeThresholds(frames$ylevels, threshold)
   ## Test for column rank deficiency in design matrices:
-  frames <- drop.cols(frames, silent=TRUE)
+  frames <- drop.cols(frames, silent=TRUE, drop.scale=FALSE)
 
   ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted...:
   rho <- clm.newRho(parent.frame(), y=frames$y, X=frames$X,
@@ -65,8 +65,9 @@ clm.fit <-
 
   ## Fit the model:
   fit <- if(control$method == "Newton") {
-      clm.fit.NR(rho, control) } else {
-          clm.fit.optim(rho, control$method, control$ctrl) }
+      clm.fit.NR(rho, control)
+  } else {
+      clm.fit.optim(rho, control$method, control$ctrl) }
 
   ## Format and return the fit:
   fit$control <- control

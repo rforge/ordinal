@@ -399,7 +399,7 @@ extractFromFrames <- function(frames, fullmf) {
     if(!is.null(frames$S))
         lst <- c(lst, list(S.contrasts=attr(frames$S, "contrasts"),
                            S.terms=frames$S.terms,
-                           xlevels=.getXlevels(frames$S.terms, fullmf)))
+                           S.xlevels=.getXlevels(frames$S.terms, fullmf)))
     if(!is.null(frames$NOM))
         lst <- c(lst, list(nom.contrasts=attr(frames$NOM, "contrasts"),
                            nom.terms=frames$nom.terms,
@@ -407,7 +407,7 @@ extractFromFrames <- function(frames, fullmf) {
     lst
 }
 
-formatTheta <- function(object, NOM, fullmf) {
+formatTheta <- function(object, NOM) {
     res <- object
     Theta.ok <- TRUE
 
@@ -418,8 +418,7 @@ formatTheta <- function(object, NOM, fullmf) {
                     assign=attr(NOM, "assign"),
                     contrasts=res$nom.contrasts,
                     tJac=res$tJac,
-                    xlevels=res$nom.xlevels,
-                    dataClasses=get_dataClasses(fullmf))
+                    xlevels=res$nom.xlevels)
     ## Test that thresholds are increasing:
         if(all(is.finite(unlist(Theta.list$Theta)))) {
         th.increasing <- apply(Theta.list$Theta, 1, function(th)

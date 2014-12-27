@@ -127,7 +127,7 @@ get_clmDM <-
     Xint <- match("(Intercept)", colnames(X), nomatch = 0)
     if(check.intercept && Xint <= 0) {
         X <- cbind("(Intercept)" = rep(1, nrow(X)), X)
-        warning(gettext("an intercept is needed and assumed in '%s'", type),
+        warning(gettextf("an intercept is needed and assumed in '%s'", type),
                 call.=FALSE)
     } ## Intercept in X is guaranteed.
     res <- list(X=X)
@@ -155,7 +155,8 @@ get_clm.mf <-
 
 get_clmY <- function(fullmf, wts) {
     y <- model.response(fullmf, "any") ## any storage mode
-    if(!is.factor(y)) stop("response needs to be a factor", call.=FALSE)
+    if(is.null(y)) stop("'formula' needs a response", call.=FALSE)
+    if(!is.factor(y)) stop("response in 'formula' needs to be a factor", call.=FALSE)
     ## ylevels are the levels of y with positive weights
     ylevels <- levels(droplevels(y[wts > 0]))
     ## check that y has at least two levels:
