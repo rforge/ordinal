@@ -3,8 +3,7 @@
 ## coefficients from model fits (clm()s) with nominal effects.
 
 getThetamat <-
-  function(terms, alpha, assign, contrasts, tJac, xlevels,
-           dataClasses)
+  function(terms, alpha, assign, contrasts, tJac, xlevels)
 ### Compute matrix of thresholds for all combinations of levels of
 ### factors in the nominal formula.
 ###
@@ -16,7 +15,6 @@ getThetamat <-
 ### contrasts: list of contrasts for the nominal effects
 ### tJac: threshold Jacobian with appropriate dimnames.
 ### xlevels: names of levels of factors among the nominal effects.
-### dataClasses: vector of data classes cf. help(.MFclass)
 ###
 ### Output:
 ### Theta: data.frame of thresholds
@@ -30,7 +28,7 @@ getThetamat <-
     all.varnm <- rownames(factor.table)
 ### NOTE: need to index with all.varnm not to include (weights) and
 ### possibly other stuff.
-    var.classes <- dataClasses[all.varnm]
+    var.classes <- attr(terms, "dataClasses")[all.varnm]
     numeric.var <- which(var.classes != "factor")
 ### NOTE: Logical variables are treated as numeric variables.
     numeric.terms <- factor.terms <- numeric(0)

@@ -20,7 +20,6 @@ clm <-
 {
   ## Initial argument matching and testing:
   mc <- match.call(expand.dots = FALSE)
-  call.envir <- parent.frame(n=1)
   link <- match.arg(link)
   threshold <- match.arg(threshold)
   ## check for presence of formula:
@@ -30,6 +29,7 @@ clm <-
   control <- do.call(clm.control, c(control, list(...)))
 
   ## Extract and process formulas:
+  call.envir <- parent.frame(n=1)
   formulas <- get_clmFormulas(mc, call.envir)
   ## Get full model.frame and terms objects:
   fullmf <- get_clm.mf(mc, formulas$fullForm, attr(formulas, "envir"),
@@ -102,7 +102,7 @@ clm <-
   ## Add Theta table to results list:
   Theta.ok <- TRUE ## convergence condition
   if(!is.null(design$NOM)) {
-      tmp <- formatTheta(res, design$NOM, fullmf)
+      tmp <- formatTheta(res, design$NOM)
       Theta.ok <- tmp$Theta.ok
       res <- c(res, tmp[!names(tmp) %in% "Theta.ok"])
   } else {

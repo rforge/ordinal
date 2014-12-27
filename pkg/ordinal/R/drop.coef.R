@@ -48,7 +48,6 @@ drop.coef2 <- function(X, tol = 1e-7, silent = FALSE, test.ans = FALSE)
   newX <- X[, qr.X$pivot[1:qr.X$rank], drop = FALSE]
   sel <- qr.X$pivot[-(1:qr.X$rank)]
   aliased[sel] <- 1
-  attributes(newX)
   attr(newX, "aliased") <- aliased
   attr(newX, "orig.colnames") <- colnames(X)
   ## Copy old attributes:
@@ -118,7 +117,7 @@ drop.cols <- function(mf, silent = FALSE, drop.scale=TRUE)
             mf$aliased$zeta <- attr(mf$S, "aliased")[-1]
         }
         return(mf)
-    }
+    } ## end !is.null(mf$NOM)
     ## drop columns from X assuming an intercept:
     mf$coef.names <- list(alpha = mf$ths$alpha.names,
                           beta = colnames(mf$X)[-1])
