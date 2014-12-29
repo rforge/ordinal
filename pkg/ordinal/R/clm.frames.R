@@ -13,16 +13,7 @@
 ##      makeThresholds()
 ##      drop.cols()
 ##
-##      clm.newRho()
-##      set.start()
-##      setLinks()
-##
-##      clm.fit.NR()
-##
-##      clm.finalize()
-##      extractFromFrames()
-##      formatTheta()
-##      conv.check()
+##      clm.fit.default()
 ##      get_clmInfoTab()
 ##  }
 ##
@@ -65,7 +56,7 @@ get_clmTerms <-
 }
 
 get_clmDesign <- function(fullmf, terms.list, contrasts) {
-### Compute (y, X, wts, off, S, NOM etc.) for a clm object.
+### Compute (y, X, weights, off, S, NOM etc.) for a clm object.
 ### clm-internal+external
 ###
 ### terms.list: list of terms.objects.
@@ -78,14 +69,15 @@ get_clmDesign <- function(fullmf, terms.list, contrasts) {
     res <- get_clmDM(fullmf, terms.list[["formula"]], contrasts,
                      type="formula")
     res$terms <- terms.list[["formula"]]
-    res$off <- res$offset
-    res$offset <- NULL
+    res$contrasts <- attr(res$X, "contrasts")
+    res$xlevels <- .getXlevels(res$terms, fullmf)
+    res$na.action <- attr(fullmf, "na.action")
 
     ## Extract weights:
-    res$wts <- getWeights(fullmf)
+    res$weights <- getWeights(fullmf)
 
     ## Extract model response:
-    res <- c(get_clmY(fullmf, res$wts), res)
+    res <- c(get_clmY(fullmf, res$weights), res)
 
     ## Extract S (design matrix for the scale effects):
     if(!is.null(terms.list$scale)) {
@@ -94,6 +86,8 @@ get_clmDesign <- function(fullmf, terms.list, contrasts) {
         res$S <- ans$X
         res$S.terms <- terms.list[["scale"]]
         res$S.off <- ans$offset
+        res$S.contrasts <- attr(res$S, "contrasts")
+        res$S.xlevels <- .getXlevels(res$S.terms, fullmf)
         if(attr(res$S.terms, "response") != 0)
             stop("response not allowed in 'scale'", call.=FALSE)
     }
@@ -104,6 +98,8 @@ get_clmDesign <- function(fullmf, terms.list, contrasts) {
                          type="nominal")
         res$NOM <- ans$X
         res$nom.terms <- terms.list[["nominal"]]
+        res$nom.contrasts <- attr(res$NOM, "contrasts")
+        res$nom.xlevels <- .getXlevels(res$nom.terms, fullmf)
         if(attr(res$nom.terms, "response") != 0)
             stop("response not allowed in 'nominal'", call.=FALSE)
         if(!is.null(attr(res$nom.terms, "offset")))
@@ -153,20 +149,20 @@ get_clm.mf <-
     eval(mfcall, envir=call.envir)
 }
 
-get_clmY <- function(fullmf, wts) {
+get_clmY <- function(fullmf, weights) {
     y <- model.response(fullmf, "any") ## any storage mode
     if(is.null(y)) stop("'formula' needs a response", call.=FALSE)
     if(!is.factor(y)) stop("response in 'formula' needs to be a factor", call.=FALSE)
-    ## ylevels are the levels of y with positive weights
-    ylevels <- levels(droplevels(y[wts > 0]))
+    ## y.levels are the levels of y with positive weights
+    y.levels <- levels(droplevels(y[weights > 0]))
     ## check that y has at least two levels:
-    if(length(ylevels) == 1L)
+    if(length(y.levels) == 1L)
         stop(gettextf("response has only 1 level ('%s'); expecting at least two levels",
-                      ylevels), call.=FALSE)
-    if(!length(ylevels))
+                      y.levels), call.=FALSE)
+    if(!length(y.levels))
         stop("response should be a factor with at least two levels")
     ## return:
-    list(y=y, ylevels=ylevels)
+    list(y=y, y.levels=y.levels)
 }
 
 get_clmFormulas <- function(mc, envir=parent.frame(2L))
@@ -222,14 +218,14 @@ get_clmRho.default <-
                             terms.list=terms.list,
                             contrasts=contrasts)
     ## Get threshold information:
-    design$ths <- makeThresholds(design$ylevels, threshold)
+    design <- c(design, makeThresholds(design$y.levels, threshold))
     ## Drop columns for aliased coefs:
     design <- drop.cols(design, drop.scale=FALSE, silent=TRUE)
-    ## Set envir rho with variables: B1, B2, o1, o2, wts, fitted:
+    ## Set envir rho with variables: B1, B2, o1, o2, weights, fitted:
     rho <- with(design, {
         clm.newRho(parent.frame(), y=y, X=X, NOM=design$NOM, S=design$S,
-                   weights=wts, offset=off, S.offset=design$S.off,
-                   tJac=ths$tJac)
+                   weights=weights, offset=offset, S.offset=design$S.off,
+                   tJac=tJac)
     })
     ## Set and check starting values for the parameters:
     start <- set.start(rho, start=start, get.start=is.null(start),
@@ -246,7 +242,7 @@ get_clmRho.clm <-
 ### Safely generate the model environment from a model object.
     o <- object
     get_clmRho.default(object=model.frame(o),
-                       terms.list=o$terms.list,
+                       terms.list=terms(o, "all"),
                        contrasts=o$contrasts, start=c(o$start), link=o$link,
                        threshold=o$threshold, parent=parent, ...)
 }
