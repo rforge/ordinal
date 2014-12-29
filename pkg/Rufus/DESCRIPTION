@@ -13,9 +13,3 @@ Suggests:
 LinkingTo: Rcpp
 License: GPL (>= 2)
 LazyData: true
-Collate:
-    'deriv.R'
-    'drop.coef.R'
-    'gumbel.R'
-    'gfun.R'
-    'pkg-package.R'
